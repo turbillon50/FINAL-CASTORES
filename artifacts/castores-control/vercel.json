@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/((?!assets/|castores-logo\\.jpeg|favicon\\.svg).*)",
+      "destination": "/index.html"
+    }
+  ]
+}

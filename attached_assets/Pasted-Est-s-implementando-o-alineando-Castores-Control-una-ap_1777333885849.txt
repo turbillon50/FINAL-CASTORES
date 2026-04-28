@@ -1,0 +1,88 @@
+Estás implementando o alineando "Castores Control": una app de control de obras (dashboard, obras/proyectos, bitácora, materiales, documentos, reportes, notificaciones, panel admin). El stack puede ser el que elijas (React + API Node/Express + Postgres + Clerk), pero la LÓGICA DE NEGOCIO debe coincidir con lo siguiente.
+### Roles de usuario (canónicos)
+Existen exactamente cinco roles, string en inglés en BD y API:
+- admin → "Administrador"
+- supervisor → "Supervisor"
+- client → "Cliente"
+- worker → "Trabajador"
+- proveedor → "Proveedor"
+Cualquier otro valor de rol es inválido para crear usuarios o invitaciones.
+### Autenticación (intención actual)
+- Login principal: Clerk (OAuth/magic link según config). El login por email+contraseña propio está deprecado; no debe ser el camino principal.
+- Tras registrarse/iniciar sesión en Clerk, el front llama al backend para crear o enlazar el usuario en la tabla `users` y para obtener el perfil de app (`clerk-register`, `clerk-me`).
+- El backend debe establecer sesión HTTP (cookie) después de identificar al usuario (p. ej. en `clerk-me`) para que las rutas protegidas funcionen con cookie + Clerk según el diseño existente.
+- `getAuth`/JWT de Clerk es la fuente de verdad para "quién es" en rutas sensibles; no confiar en query params tipo ?clerkId o ?email para impersonación.
+### Invitaciones por rol
+Modelo de datos `invitation_codes`:
+- code: único, mayúsculas (normalizar al validar).
+- role: uno de los cinco roles; la invitación fija el rol del futuro usuario.
+- label: texto opcional (ej. nombre del invitado o nota).
+- createdBy: id del usuario admin que creó la invitación.
+- usedBy / usedAt: cuando alguien completa registro con ese código.
+- expiresAt: opcional; si existe y ya pasó, el código no sirve.
+- isActive: soft-delete / desactivar sin borrar fila.
+Endpoints esperados (nombres lógicos; puedes mapear a tu router):
+- POST público `/invitations/validate` (o equivalente): body `{ code }`. Respuesta: valid=false o valid=true + role + label si aplica. Motivos: expirado, ya usado, no existe.
+- GET `/invitations`: solo admin; lista códigos.
+- POST `/invitations`: solo admin; body role (obligatorio, válido), label opcional, expiresAt opcional; genera código aleatorio seguro (ej. 8 hex mayúsculas), reintentar si hay colisión.
+- DELETE o PATCH `/invitations/:id`: solo admin; desactivar (isActive false).
+Clave maestra de bootstrap (solo entorno, no hardcodear en cliente):
+- Variable `ADMIN_MASTER_KEY` (default de desarrollo puede ser CASTORES): si el usuario introduce ese código en validación, se trata como invitación válida para rol **admin** con etiqueta tipo "Administrador Master". En registro, si usan esta clave, el rol solicitado DEBE ser admin; si no, error.
+Reglas de registro con código (`clerk-register` o equivalente):
+- Exige JWT de Clerk verificado; sin sesión Clerk → 401.
+- Si envían clerkId en body, debe coincidir con el del JWT.
+- Exige aceptación de términos (acceptTerms + termsVersion si aplica).
+- Campos mínimos: name, email, role (válido en USER_ROLES).
+- Si hay `invitationCode`:
+  - Si es la clave maestra: solo rol admin, approvalStatus approved.
+  - Si es código de tabla: debe existir, activo, no usado, no expirado, y **inv.role debe coincidir exactamente con el role enviado** en el body; si no coincide, error explícito ("Este código es para el rol: X").
+  - Si todo bien: approvalStatus **approved** y al crear usuario marcar invitación usedBy, usedAt, isActive false.
+- Si **no** hay código de invitación: el usuario nuevo puede crearse con approvalStatus **pending** (requiere que un admin apruebe después) y debe poder notificarse a admins (email opcional según config).
+Si el email o clerkId ya existen, manejar conflictos: enlazar clerkId si falta, rechazar si email ya ligado a otro Clerk, etc.
+### Permisos granulares (matriz por rol)
+Tabla `role_permissions`: por cada rol, un objeto JSON `permissions` con claves booleanas fijas (no inventar claves nuevas sin actualizar contrato front/back):
+PERMISSION_KEYS:
+- dashboardFull
+- projectsViewAll
+- projectsCreateEdit
+- bitacoraView
+- bitacoraCreate
+- budgetViewAmounts
+- materialsApprove
+- materialsRequest
+- materialsSupply
+- workersView
+- workersManage
+- documentsLegalView
+- documentsLegalManage
+- adminPanelAccess
+ROLE_DEFAULTS (valores de fábrica que deben poder resetearse):
+- admin: todos true.
+- supervisor: dashboardFull, projectsViewAll, bitacora*, budgetViewAmounts, materialsRequest, workersView, documentsLegalView true; projectsCreateEdit, materialsApprove/Supply, workersManage, documentsLegalManage, adminPanelAccess false.
+- client: bitacoraView, budgetViewAmounts, documentsLegalView true; el resto false salvo los ya listados.
+- worker: bitacoraView, bitacoraCreate true; el resto false salvo esos.
+- proveedor: materialsSupply, documentsLegalView true; el resto false salvo esos.
+Endpoints:
+- GET `/role-permissions`: solo admin; si faltan filas en BD, auto-insertar defaults para roles que falten.
+- PUT `/role-permissions/:role`: solo admin; reemplazar permissions del rol; **no permitir modificar el rol admin** (siempre todos los permisos true).
+- POST `/role-permissions/reset`: solo admin; volver todos los roles a ROLE_DEFAULTS.
+El front admin debe poder editar la matriz (excepto admin bloqueado) y mostrar etiquetas en español alineadas con PERMISSION_LABELS (grupos: General, Obras, Bitácora, Finanzas, Materiales, Personal, Documentos, Sistema).
+### Acceso a obras (proyectos)
+Función mental `getAccessibleProjectIds(user)`:
+- admin y supervisor: acceso a **todas** las obras (en API suele representarse como null = sin filtro).
+- client: obras donde `projects.clientId == user.id` **más** obras donde tenga fila en `project_assignments`.
+- worker y proveedor: solo obras en `project_assignments` para ese userId.
+`canAccessProject(user, projectId)` debe usar esa regla. Cualquier API que lea o muta un proyecto debe verificar acceso.
+### Flujo de invitación en UX
+- Enlaces públicos tipo `/invite/:code` o query `?code=` deben guardar el código (localStorage) y llevar al flujo de sign-up de Clerk con ese código.
+- Tras Clerk, el registro en BD debe enviar el mismo código para validar rol y marcar uso único.
+- Admin puede generar invitaciones por rol desde el panel (tab invitaciones), copiar mensaje con enlace y código.
+### Seguridad que no se negocia
+- Sin JWT Clerk verificado, no crear cuentas con privilegios aunque tengan código.
+- Código de invitación de un rol no sirve para registrarse como otro rol.
+- Códigos de un solo uso; expiración respetada.
+- No usar parámetros URL para suplantar identidad frente al servidor.
+### Entregable
+Implementa o corrige backend + front para que todo lo anterior sea coherente: validación, registro, sesión, permisos, acceso a proyectos, y UI admin (invitaciones + matriz de permisos). Si falta env (Clerk, DATABASE_URL, etc.), fallar con mensajes claros en desarrollo pero no romper health checks públicos innecesariamente.
+Cuando termines un bloque, resume qué endpoints y tablas tocaste y cómo probar el flujo: invitación proveedor → registro → permisos efectivos en UI.
+Si quieres, en un siguiente mensaje puedo acortarlo a versión “checklist de 20 ítems” para pegarlo en un comentario de PR, o alargar solo la parte de UX de pantallas (dashboard vs admin) sin tocar API.

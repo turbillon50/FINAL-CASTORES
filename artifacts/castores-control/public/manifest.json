@@ -1,0 +1,29 @@
+{
+  "name": "Castores Control",
+  "short_name": "Castores",
+  "id": "/",
+  "scope": "/",
+  "description": "Sistema de gestión de obra para CASTORES Estructuras y Construcciones",
+  "start_url": "/?utm_source=pwa",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "portrait-primary",
+  "background_color": "#F5F2EC",
+  "theme_color": "#F5F2EC",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["business", "productivity"],
+  "lang": "es-MX"
+}

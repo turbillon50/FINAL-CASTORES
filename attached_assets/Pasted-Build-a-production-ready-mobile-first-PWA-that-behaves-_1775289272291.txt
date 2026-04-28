@@ -1,0 +1,211 @@
+Build a production-ready mobile-first PWA that behaves and looks like a native app for iOS and Android.
+
+App Name: Castores Control
+Category: Construction Management / Digital Work Log (Bitácora de Obra)
+
+CORE OBJECTIVE:
+Create a digital platform for construction companies to manage projects, workers, materials, reports, and client communication in real time. The app must replace traditional paper logs, WhatsApp communication, and Excel tracking.
+
+DESIGN STYLE:
+- Native app feel (iOS + Android)
+- Clean, professional, industrial-modern aesthetic
+- Color palette: dark gray, white, construction yellow accents
+- Card-based UI with soft shadows and depth
+- Smooth animations and transitions
+- Dashboard-driven experience
+- Fully responsive mobile-first design
+
+USER ROLES (CRITICAL):
+
+1. ADMIN (Owner / Company)
+- Full access
+- Create and manage projects
+- View all workers, supervisors, clients
+- Access financials and reports
+- Upload documents
+- Monitor materials and inventory
+- Control permissions
+
+2. SUPERVISOR (On-site manager)
+- Create and update daily work logs (bitácora)
+- Upload photos and progress updates
+- Request materials
+- Register material usage
+- Generate reports
+- Sign documents
+- Track project progress
+
+3. CLIENT (Contractor / Investor)
+- View project progress
+- Access reports and photos
+- Download PDF reports
+- Sign delivery/approval documents
+- View timelines and updates
+
+4. WORKER
+- View assigned tasks
+- Log working hours
+- Upload basic progress (optional)
+- View limited project info
+
+---
+
+CORE MODULES:
+
+1. DASHBOARD
+- Active projects
+- Completed projects
+- Alerts and notifications
+- Material usage alerts
+- Recent activity feed
+- Quick stats (progress, costs, materials)
+
+---
+
+2. PROJECT MANAGEMENT
+Each project includes:
+- Project name
+- Client
+- Location (Google Maps integration)
+- Start / End dates
+- Budget
+- Supervisor assigned
+- Status (active, paused, completed)
+
+---
+
+3. DIGITAL WORK LOG (BITÁCORA) – CORE FEATURE
+
+Each log entry must include:
+- Date (auto + editable)
+- Project reference
+- Activity description
+- Photos (camera upload)
+- Materials used
+- Workers involved
+- Observations
+- Supervisor signature
+- Client signature (optional)
+- Auto-generate PDF report
+
+Important:
+- Logs must be timestamped and non-editable after submission (audit trail)
+- Photos should include optional GPS + timestamp
+
+---
+
+4. MATERIALS & INVENTORY (SMART CONTROL)
+
+Features:
+- Material request system
+- Approval workflow
+- Inventory per project
+- Material entry/exit logs
+- Cost per unit tracking
+- Usage history
+- Alerts for unusual consumption (anti-theft / “robos hormiga” detection)
+- Dashboard insights
+
+---
+
+5. DOCUMENT MANAGEMENT
+
+Per project:
+- Contracts
+- Blueprints
+- Permits
+- Reports
+- Invoices
+- Photos
+- PDFs
+- Organized in folders
+
+Allow:
+- Upload from camera, files, or URLs
+- Preview inside app
+
+---
+
+6. REPORTS SYSTEM
+
+Generate:
+- Daily reports
+- Weekly reports
+- Monthly summaries
+- Material usage reports
+- Cost vs budget reports
+- Progress reports
+
+Export:
+- PDF (clean, branded layout)
+- Share via link or download
+
+---
+
+7. DIGITAL SIGNATURE SYSTEM
+
+- Supervisor signature
+- Client signature
+- Touch-based signature input
+- Attach signatures to reports and logs
+- Legal-style confirmation (timestamp + user)
+
+---
+
+8. AI ASSISTANT (OPTIONAL CORE FEATURE)
+
+Name: ALIX (future integration ready)
+
+Functions:
+- Help summarize reports
+- Suggest material usage estimates
+- Answer project-related questions
+- Assist supervisors with quick inputs
+
+---
+
+9. NOTIFICATIONS SYSTEM
+
+- Push notifications (real-time)
+- Material approvals
+- Report submissions
+- Alerts on delays or anomalies
+
+---
+
+10. AUTHENTICATION & SECURITY
+
+- Role-based login (Clerk or JWT ready)
+- Secure sessions
+- Data privacy per role
+- Cloud storage ready
+
+---
+
+TECH REQUIREMENTS:
+
+- PWA (installable on mobile)
+- Backend-ready (API structured)
+- Scalable architecture
+- Compatible with:
+  - Replit (backend logic)
+  - GitHub (version control)
+  - Vercel (deployment)
+
+---
+
+ADVANCED FEATURES (IF POSSIBLE):
+
+- Offline mode (sync when online)
+- Google Maps integration
+- Gantt-style timeline (project tracking)
+- Multi-project dashboard
+- Multi-company scalability (future SaaS)
+
+---
+
+GOAL:
+
+Deliver a clean, scalable, professional construction management app that can evolve into a SaaS product for multiple construction companies.
+
+The app must feel fast, intuitive, and powerful, designed for real-world field use.

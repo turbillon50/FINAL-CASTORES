@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Castores Control — Invitación</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<style>
+  html,body{margin:0;padding:0;background:#1a1612;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
+  body{min-height:100vh;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse at top,#3a2a14 0%,#1a1612 60%)}
+  .box{display:flex;flex-direction:column;align-items:center;gap:22px;text-align:center;padding:24px;max-width:340px}
+  .logo{width:72px;height:72px;border-radius:18px;background:linear-gradient(135deg,#C8952A,#8B5A2B);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:30px;color:#1a1612;box-shadow:0 12px 40px rgba(200,149,42,0.35)}
+  .spinner{width:40px;height:40px;border:3px solid rgba(200,149,42,0.18);border-top-color:#C8952A;border-radius:50%;animation:spin 0.9s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  h1{font-size:18px;font-weight:700;margin:0;letter-spacing:0.3px}
+  p{font-size:13px;color:rgba(255,255,255,0.55);margin:0;line-height:1.5}
+  .code{background:rgba(200,149,42,0.12);border:1px solid rgba(200,149,42,0.4);color:#C8952A;font-family:"SF Mono",Menlo,monospace;font-size:14px;font-weight:700;padding:8px 14px;border-radius:8px;letter-spacing:2px}
+  a{color:#C8952A;text-decoration:none;font-weight:600;font-size:13px;margin-top:8px}
+</style>
+</head>
+<body>
+<div class="box">
+  <div class="logo">C</div>
+  <h1>Castores Control</h1>
+  <div class="spinner"></div>
+  <p>Validando tu invitación…</p>
+  <div class="code" id="code">—</div>
+  <p>Si no avanza en 5 segundos, <a id="manual" href="/">toca aquí</a>.</p>
+</div>
+<script>
+(function(){
+  function getParam(n){
+    var m = new RegExp('[?&]'+n+'=([^&]+)').exec(location.search || '');
+    return m ? decodeURIComponent(m[1]) : '';
+  }
+  var raw = getParam('c') || getParam('code') || '';
+  var code = String(raw).toUpperCase().replace(/[^A-Z0-9]/g,'');
+  var el = document.getElementById('code');
+  if (el) el.textContent = code || 'sin código';
+
+  try { localStorage.setItem('castores_invite_code', code); } catch(e) {}
+
+  var target = '/?code=' + encodeURIComponent(code) + '&_t=' + Date.now();
+  var manual = document.getElementById('manual');
+  if (manual) manual.setAttribute('href', target);
+
+  function go(){ try { location.replace(target); } catch(e) { location.href = target; } }
+
+  var tasks = [];
+  if ('serviceWorker' in navigator) {
+    tasks.push(
+      navigator.serviceWorker.getRegistrations()
+        .then(function(rs){ return Promise.all(rs.map(function(r){ return r.unregister().catch(function(){}); })); })
+        .catch(function(){})
+    );
+  }
+  if (typeof caches !== 'undefined' && caches.keys) {
+    tasks.push(
+      caches.keys()
+        .then(function(ks){ return Promise.all(ks.map(function(k){ return caches.delete(k).catch(function(){}); })); })
+        .catch(function(){})
+    );
+  }
+
+  Promise.all(tasks).then(function(){ setTimeout(go, 250); }).catch(go);
+  setTimeout(go, 1500);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,1886 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: Castores Control - Construction Management API
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: auth
+    description: Authentication operations
+  - name: projects
+    description: Project management
+  - name: logs
+    description: Digital work logs (Bitácora)
+  - name: materials
+    description: Materials and inventory
+  - name: documents
+    description: Document management
+  - name: reports
+    description: Reports
+  - name: users
+    description: User management
+  - name: notifications
+    description: Notifications
+  - name: invitations
+    description: Invitation code management
+  - name: content
+    description: Dynamic content management
+  - name: dashboard
+    description: Dashboard summaries
+
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  # AUTH
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginBody"
+      responses:
+        "200":
+          description: Login success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Unauthorized
+
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: Logout
+      responses:
+        "200":
+          description: Logged out
+
+  /auth/me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      summary: Get current user
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  # USERS
+  /users:
+    get:
+      operationId: listUsers
+      tags: [users]
+      summary: List users
+      parameters:
+        - name: role
+          in: query
+          schema:
+            type: string
+        - name: projectId
+          in: query
+          schema:
+            type: ["integer", "null"]
+      responses:
+        "200":
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/User"
+    post:
+      operationId: createUser
+      tags: [users]
+      summary: Create user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateUserBody"
+      responses:
+        "201":
+          description: Created user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  /users/{id}:
+    get:
+      operationId: getUser
+      tags: [users]
+      summary: Get user
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: User
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateUser
+      tags: [users]
+      summary: Update user
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUserBody"
+      responses:
+        "200":
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+    delete:
+      operationId: deleteUser
+      tags: [users]
+      summary: Delete user
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # PROJECTS
+  /projects:
+    get:
+      operationId: listProjects
+      tags: [projects]
+      summary: List projects
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: clientId
+          in: query
+          schema:
+            type: ["integer", "null"]
+      responses:
+        "200":
+          description: List of projects
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Project"
+    post:
+      operationId: createProject
+      tags: [projects]
+      summary: Create project
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateProjectBody"
+      responses:
+        "201":
+          description: Created project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+
+  /projects/{id}:
+    get:
+      operationId: getProject
+      tags: [projects]
+      summary: Get project
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateProject
+      tags: [projects]
+      summary: Update project
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProjectBody"
+      responses:
+        "200":
+          description: Updated project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+    delete:
+      operationId: deleteProject
+      tags: [projects]
+      summary: Delete project
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /projects/{id}/progress:
+    get:
+      operationId: getProjectProgress
+      tags: [projects]
+      summary: Get project progress summary
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Project progress
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectProgress"
+
+  # WORK LOGS (BITÁCORA)
+  /logs:
+    get:
+      operationId: listLogs
+      tags: [logs]
+      summary: List work logs
+      parameters:
+        - name: projectId
+          in: query
+          schema:
+            type: ["integer", "null"]
+        - name: date
+          in: query
+          schema:
+            type: ["string", "null"]
+        - name: supervisorId
+          in: query
+          schema:
+            type: ["integer", "null"]
+      responses:
+        "200":
+          description: List of work logs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/WorkLog"
+    post:
+      operationId: createLog
+      tags: [logs]
+      summary: Create work log entry
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateLogBody"
+      responses:
+        "201":
+          description: Created work log
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkLog"
+
+  /logs/{id}:
+    get:
+      operationId: getLog
+      tags: [logs]
+      summary: Get work log
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Work log
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkLog"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateLog
+      tags: [logs]
+      summary: Update work log (only if not submitted)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateLogBody"
+      responses:
+        "200":
+          description: Updated work log
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkLog"
+
+  /logs/{id}/submit:
+    post:
+      operationId: submitLog
+      tags: [logs]
+      summary: Submit work log (locks it)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Submitted log
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkLog"
+
+  /logs/{id}/sign:
+    post:
+      operationId: signLog
+      tags: [logs]
+      summary: Sign work log
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SignLogBody"
+      responses:
+        "200":
+          description: Signed log
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkLog"
+
+  # MATERIALS
+  /materials:
+    get:
+      operationId: listMaterials
+      tags: [materials]
+      summary: List materials
+      parameters:
+        - name: projectId
+          in: query
+          schema:
+            type: ["integer", "null"]
+        - name: status
+          in: query
+          schema:
+            type: ["string", "null"]
+      responses:
+        "200":
+          description: List of materials
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Material"
+    post:
+      operationId: createMaterial
+      tags: [materials]
+      summary: Create material entry
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateMaterialBody"
+      responses:
+        "201":
+          description: Created material
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Material"
+
+  /materials/{id}:
+    get:
+      operationId: getMaterial
+      tags: [materials]
+      summary: Get material
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Material
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Material"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateMaterial
+      tags: [materials]
+      summary: Update material
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateMaterialBody"
+      responses:
+        "200":
+          description: Updated material
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Material"
+    delete:
+      operationId: deleteMaterial
+      tags: [materials]
+      summary: Delete material
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /materials/{id}/approve:
+    post:
+      operationId: approveMaterial
+      tags: [materials]
+      summary: Approve material request
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Approved material
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Material"
+
+  /materials/alerts:
+    get:
+      operationId: getMaterialAlerts
+      tags: [materials]
+      summary: Get material consumption alerts
+      responses:
+        "200":
+          description: Material alerts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MaterialAlert"
+
+  # DOCUMENTS
+  /documents:
+    get:
+      operationId: listDocuments
+      tags: [documents]
+      summary: List documents
+      parameters:
+        - name: projectId
+          in: query
+          schema:
+            type: ["integer", "null"]
+        - name: category
+          in: query
+          schema:
+            type: ["string", "null"]
+      responses:
+        "200":
+          description: List of documents
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Document"
+    post:
+      operationId: createDocument
+      tags: [documents]
+      summary: Upload document
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateDocumentBody"
+      responses:
+        "201":
+          description: Created document
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Document"
+
+  /documents/{id}:
+    get:
+      operationId: getDocument
+      tags: [documents]
+      summary: Get document
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Document
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Document"
+        "404":
+          description: Not found
+    delete:
+      operationId: deleteDocument
+      tags: [documents]
+      summary: Delete document
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # REPORTS
+  /reports:
+    get:
+      operationId: listReports
+      tags: [reports]
+      summary: List reports
+      parameters:
+        - name: projectId
+          in: query
+          schema:
+            type: ["integer", "null"]
+        - name: type
+          in: query
+          schema:
+            type: ["string", "null"]
+      responses:
+        "200":
+          description: List of reports
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Report"
+    post:
+      operationId: createReport
+      tags: [reports]
+      summary: Generate report
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateReportBody"
+      responses:
+        "201":
+          description: Generated report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Report"
+
+  /reports/{id}:
+    get:
+      operationId: getReport
+      tags: [reports]
+      summary: Get report
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Report"
+        "404":
+          description: Not found
+
+  # NOTIFICATIONS
+  /notifications:
+    get:
+      operationId: listNotifications
+      tags: [notifications]
+      summary: List notifications
+      parameters:
+        - name: unread
+          in: query
+          schema:
+            type: ["boolean", "null"]
+      responses:
+        "200":
+          description: List of notifications
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Notification"
+
+  /notifications/{id}/read:
+    patch:
+      operationId: markNotificationRead
+      tags: [notifications]
+      summary: Mark notification as read
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Updated notification
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Notification"
+
+  /notifications/read-all:
+    patch:
+      operationId: markAllNotificationsRead
+      tags: [notifications]
+      summary: Mark all notifications as read
+      responses:
+        "200":
+          description: All marked read
+
+  # INVITATIONS
+  /invitations:
+    get:
+      operationId: listInvitations
+      tags: [invitations]
+      summary: List all invitation codes (admin only)
+      responses:
+        "200":
+          description: List of invitation codes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/InvitationCode"
+    post:
+      operationId: createInvitation
+      tags: [invitations]
+      summary: Create a new invitation code (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateInvitationBody"
+      responses:
+        "201":
+          description: Created invitation code
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvitationCode"
+
+  /invitations/{id}:
+    delete:
+      operationId: revokeInvitation
+      tags: [invitations]
+      summary: Revoke an invitation code (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Revoked
+
+  /invitations/validate:
+    post:
+      operationId: validateInvitation
+      tags: [invitations]
+      summary: Validate an invitation code during registration
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ValidateInvitationBody"
+      responses:
+        "200":
+          description: Validation result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidateInvitationResponse"
+
+  # CONTENT
+  /content:
+    get:
+      operationId: listContent
+      tags: [content]
+      summary: List active content items
+      parameters:
+        - name: type
+          in: query
+          schema:
+            type: ["string", "null"]
+        - name: role
+          in: query
+          schema:
+            type: ["string", "null"]
+      responses:
+        "200":
+          description: List of content items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ContentItem"
+    post:
+      operationId: createContent
+      tags: [content]
+      summary: Create a content item (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateContentBody"
+      responses:
+        "201":
+          description: Created content item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContentItem"
+
+  /content/{id}:
+    patch:
+      operationId: updateContent
+      tags: [content]
+      summary: Update a content item (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateContentBody"
+      responses:
+        "200":
+          description: Updated content item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContentItem"
+    delete:
+      operationId: deleteContent
+      tags: [content]
+      summary: Delete a content item (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+
+  /notifications/send:
+    post:
+      operationId: sendNotification
+      tags: [notifications]
+      summary: Send a notification to users (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SendNotificationBody"
+      responses:
+        "200":
+          description: Notification sent
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sent:
+                    type: integer
+                required:
+                  - sent
+
+  # DASHBOARD
+  /dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      tags: [dashboard]
+      summary: Get dashboard summary stats
+      responses:
+        "200":
+          description: Dashboard summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+
+  /dashboard/activity:
+    get:
+      operationId: getDashboardActivity
+      tags: [dashboard]
+      summary: Get recent activity feed
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: ["integer", "null"]
+      responses:
+        "200":
+          description: Recent activity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ActivityItem"
+
+  /dashboard/material-stats:
+    get:
+      operationId: getMaterialStats
+      tags: [dashboard]
+      summary: Get material usage statistics
+      responses:
+        "200":
+          description: Material stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MaterialStats"
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+
+    LoginBody:
+      type: object
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+      required:
+        - email
+        - password
+
+    AuthResponse:
+      type: object
+      properties:
+        user:
+          $ref: "#/components/schemas/User"
+        token:
+          type: string
+      required:
+        - user
+        - token
+
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+          enum: [admin, supervisor, client, worker]
+        phone:
+          type: ["string", "null"]
+        avatarUrl:
+          type: ["string", "null"]
+        company:
+          type: ["string", "null"]
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - email
+        - role
+        - isActive
+        - createdAt
+
+    CreateUserBody:
+      type: object
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+        password:
+          type: string
+        role:
+          type: string
+          enum: [admin, supervisor, client, worker]
+        phone:
+          type: ["string", "null"]
+        company:
+          type: ["string", "null"]
+      required:
+        - name
+        - email
+        - password
+        - role
+
+    UpdateUserBody:
+      type: object
+      properties:
+        name:
+          type: ["string", "null"]
+        phone:
+          type: ["string", "null"]
+        company:
+          type: ["string", "null"]
+        role:
+          type: ["string", "null"]
+        isActive:
+          type: ["boolean", "null"]
+
+    Project:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: ["string", "null"]
+        clientId:
+          type: ["integer", "null"]
+        clientName:
+          type: ["string", "null"]
+        supervisorId:
+          type: ["integer", "null"]
+        supervisorName:
+          type: ["string", "null"]
+        location:
+          type: ["string", "null"]
+        latitude:
+          type: ["number", "null"]
+        longitude:
+          type: ["number", "null"]
+        startDate:
+          type: ["string", "null"]
+        endDate:
+          type: ["string", "null"]
+        budget:
+          type: ["number", "null"]
+        spentAmount:
+          type: ["number", "null"]
+        progressPercent:
+          type: integer
+        status:
+          type: string
+          enum: [active, paused, completed, cancelled]
+        coverImageUrl:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - progressPercent
+        - status
+        - createdAt
+        - updatedAt
+
+    CreateProjectBody:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: ["string", "null"]
+        clientId:
+          type: ["integer", "null"]
+        supervisorId:
+          type: ["integer", "null"]
+        location:
+          type: ["string", "null"]
+        latitude:
+          type: ["number", "null"]
+        longitude:
+          type: ["number", "null"]
+        startDate:
+          type: ["string", "null"]
+        endDate:
+          type: ["string", "null"]
+        budget:
+          type: ["number", "null"]
+        status:
+          type: string
+          enum: [active, paused, completed, cancelled]
+      required:
+        - name
+
+    UpdateProjectBody:
+      type: object
+      properties:
+        name:
+          type: ["string", "null"]
+        description:
+          type: ["string", "null"]
+        clientId:
+          type: ["integer", "null"]
+        supervisorId:
+          type: ["integer", "null"]
+        location:
+          type: ["string", "null"]
+        startDate:
+          type: ["string", "null"]
+        endDate:
+          type: ["string", "null"]
+        budget:
+          type: ["number", "null"]
+        progressPercent:
+          type: ["integer", "null"]
+        status:
+          type: ["string", "null"]
+
+    ProjectProgress:
+      type: object
+      properties:
+        projectId:
+          type: integer
+        progressPercent:
+          type: integer
+        totalLogs:
+          type: integer
+        totalMaterials:
+          type: integer
+        materialCost:
+          type: number
+        budget:
+          type: ["number", "null"]
+        budgetUsedPercent:
+          type: ["number", "null"]
+        daysElapsed:
+          type: ["integer", "null"]
+        daysRemaining:
+          type: ["integer", "null"]
+      required:
+        - projectId
+        - progressPercent
+        - totalLogs
+        - totalMaterials
+        - materialCost
+
+    WorkLog:
+      type: object
+      properties:
+        id:
+          type: integer
+        projectId:
+          type: integer
+        projectName:
+          type: ["string", "null"]
+        supervisorId:
+          type: integer
+        supervisorName:
+          type: ["string", "null"]
+        logDate:
+          type: string
+        activity:
+          type: string
+        observations:
+          type: ["string", "null"]
+        workersInvolved:
+          type: ["string", "null"]
+        materialsUsed:
+          type: ["string", "null"]
+        photos:
+          type: array
+          items:
+            type: string
+        supervisorSignature:
+          type: ["string", "null"]
+        clientSignature:
+          type: ["string", "null"]
+        isSubmitted:
+          type: boolean
+        submittedAt:
+          type: ["string", "null"]
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - projectId
+        - supervisorId
+        - logDate
+        - activity
+        - photos
+        - isSubmitted
+        - createdAt
+        - updatedAt
+
+    CreateLogBody:
+      type: object
+      properties:
+        projectId:
+          type: integer
+        logDate:
+          type: string
+        activity:
+          type: string
+        observations:
+          type: ["string", "null"]
+        workersInvolved:
+          type: ["string", "null"]
+        materialsUsed:
+          type: ["string", "null"]
+        photos:
+          type: array
+          items:
+            type: string
+      required:
+        - projectId
+        - logDate
+        - activity
+
+    UpdateLogBody:
+      type: object
+      properties:
+        activity:
+          type: ["string", "null"]
+        observations:
+          type: ["string", "null"]
+        workersInvolved:
+          type: ["string", "null"]
+        materialsUsed:
+          type: ["string", "null"]
+        photos:
+          type: array
+          items:
+            type: string
+
+    SignLogBody:
+      type: object
+      properties:
+        signatureType:
+          type: string
+          enum: [supervisor, client]
+        signatureData:
+          type: string
+      required:
+        - signatureType
+        - signatureData
+
+    Material:
+      type: object
+      properties:
+        id:
+          type: integer
+        projectId:
+          type: integer
+        projectName:
+          type: ["string", "null"]
+        requestedById:
+          type: integer
+        requestedByName:
+          type: ["string", "null"]
+        name:
+          type: string
+        description:
+          type: ["string", "null"]
+        unit:
+          type: string
+        quantityRequested:
+          type: number
+        quantityApproved:
+          type: ["number", "null"]
+        quantityUsed:
+          type: ["number", "null"]
+        costPerUnit:
+          type: ["number", "null"]
+        totalCost:
+          type: ["number", "null"]
+        status:
+          type: string
+          enum: [pending, approved, rejected, delivered, used]
+        approvedById:
+          type: ["integer", "null"]
+        approvedByName:
+          type: ["string", "null"]
+        approvedAt:
+          type: ["string", "null"]
+          format: date-time
+        notes:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - projectId
+        - requestedById
+        - name
+        - unit
+        - quantityRequested
+        - status
+        - createdAt
+        - updatedAt
+
+    CreateMaterialBody:
+      type: object
+      properties:
+        projectId:
+          type: integer
+        name:
+          type: string
+        description:
+          type: ["string", "null"]
+        unit:
+          type: string
+        quantityRequested:
+          type: number
+        costPerUnit:
+          type: ["number", "null"]
+        notes:
+          type: ["string", "null"]
+      required:
+        - projectId
+        - name
+        - unit
+        - quantityRequested
+
+    UpdateMaterialBody:
+      type: object
+      properties:
+        quantityUsed:
+          type: ["number", "null"]
+        costPerUnit:
+          type: ["number", "null"]
+        notes:
+          type: ["string", "null"]
+        status:
+          type: ["string", "null"]
+
+    MaterialAlert:
+      type: object
+      properties:
+        materialId:
+          type: integer
+        projectId:
+          type: integer
+        projectName:
+          type: string
+        materialName:
+          type: string
+        alertType:
+          type: string
+          enum: [unusual_consumption, low_stock, pending_approval, overbudget]
+        message:
+          type: string
+        severity:
+          type: string
+          enum: [low, medium, high]
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - materialId
+        - projectId
+        - projectName
+        - materialName
+        - alertType
+        - message
+        - severity
+        - createdAt
+
+    Document:
+      type: object
+      properties:
+        id:
+          type: integer
+        projectId:
+          type: integer
+        projectName:
+          type: ["string", "null"]
+        uploadedById:
+          type: integer
+        uploadedByName:
+          type: ["string", "null"]
+        title:
+          type: string
+        description:
+          type: ["string", "null"]
+        category:
+          type: string
+          enum: [contract, blueprint, permit, report, invoice, photo, other]
+        fileUrl:
+          type: string
+        fileType:
+          type: string
+        fileSize:
+          type: ["integer", "null"]
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - projectId
+        - uploadedById
+        - title
+        - category
+        - fileUrl
+        - fileType
+        - createdAt
+
+    CreateDocumentBody:
+      type: object
+      properties:
+        projectId:
+          type: integer
+        title:
+          type: string
+        description:
+          type: ["string", "null"]
+        category:
+          type: string
+          enum: [contract, blueprint, permit, report, invoice, photo, other]
+        fileUrl:
+          type: string
+        fileType:
+          type: string
+        fileSize:
+          type: ["integer", "null"]
+      required:
+        - projectId
+        - title
+        - category
+        - fileUrl
+        - fileType
+
+    Report:
+      type: object
+      properties:
+        id:
+          type: integer
+        projectId:
+          type: integer
+        projectName:
+          type: ["string", "null"]
+        generatedById:
+          type: integer
+        generatedByName:
+          type: ["string", "null"]
+        title:
+          type: string
+        type:
+          type: string
+          enum: [daily, weekly, monthly, materials, cost, progress]
+        dateFrom:
+          type: ["string", "null"]
+        dateTo:
+          type: ["string", "null"]
+        summary:
+          type: ["string", "null"]
+        fileUrl:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - projectId
+        - generatedById
+        - title
+        - type
+        - createdAt
+
+    CreateReportBody:
+      type: object
+      properties:
+        projectId:
+          type: integer
+        title:
+          type: string
+        type:
+          type: string
+          enum: [daily, weekly, monthly, materials, cost, progress]
+        dateFrom:
+          type: ["string", "null"]
+        dateTo:
+          type: ["string", "null"]
+      required:
+        - projectId
+        - title
+        - type
+
+    Notification:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        title:
+          type: string
+        message:
+          type: string
+        type:
+          type: string
+          enum: [material_request, material_approved, log_submitted, report_ready, alert, general]
+        relatedId:
+          type: ["integer", "null"]
+        relatedType:
+          type: ["string", "null"]
+        isRead:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - userId
+        - title
+        - message
+        - type
+        - isRead
+        - createdAt
+
+    InvitationCode:
+      type: object
+      properties:
+        id:
+          type: integer
+        code:
+          type: string
+        role:
+          type: string
+        label:
+          type: ["string", "null"]
+        createdBy:
+          type: integer
+        usedBy:
+          type: ["integer", "null"]
+        usedAt:
+          type: ["string", "null"]
+          format: date-time
+        expiresAt:
+          type: ["string", "null"]
+          format: date-time
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - code
+        - role
+        - createdBy
+        - isActive
+        - createdAt
+
+    CreateInvitationBody:
+      type: object
+      properties:
+        role:
+          type: string
+        label:
+          type: ["string", "null"]
+        expiresAt:
+          type: ["string", "null"]
+          format: date-time
+      required:
+        - role
+
+    ValidateInvitationBody:
+      type: object
+      properties:
+        code:
+          type: string
+      required:
+        - code
+
+    ValidateInvitationResponse:
+      type: object
+      properties:
+        valid:
+          type: boolean
+        role:
+          type: ["string", "null"]
+        label:
+          type: ["string", "null"]
+      required:
+        - valid
+
+    ContentItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        type:
+          type: string
+          enum: [banner, announcement, image]
+        title:
+          type: string
+        body:
+          type: ["string", "null"]
+        imageUrl:
+          type: ["string", "null"]
+        linkUrl:
+          type: ["string", "null"]
+        targetRole:
+          type: ["string", "null"]
+        isActive:
+          type: boolean
+        sortOrder:
+          type: integer
+        createdBy:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - type
+        - title
+        - isActive
+        - sortOrder
+        - createdBy
+        - createdAt
+        - updatedAt
+
+    CreateContentBody:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [banner, announcement, image]
+        title:
+          type: string
+        body:
+          type: ["string", "null"]
+        imageUrl:
+          type: ["string", "null"]
+        linkUrl:
+          type: ["string", "null"]
+        targetRole:
+          type: ["string", "null"]
+        sortOrder:
+          type: ["integer", "null"]
+      required:
+        - type
+        - title
+
+    UpdateContentBody:
+      type: object
+      properties:
+        title:
+          type: ["string", "null"]
+        body:
+          type: ["string", "null"]
+        imageUrl:
+          type: ["string", "null"]
+        linkUrl:
+          type: ["string", "null"]
+        targetRole:
+          type: ["string", "null"]
+        isActive:
+          type: ["boolean", "null"]
+        sortOrder:
+          type: ["integer", "null"]
+
+    SendNotificationBody:
+      type: object
+      properties:
+        title:
+          type: string
+        message:
+          type: string
+        targetType:
+          type: string
+          enum: [all, role, user]
+        targetRole:
+          type: ["string", "null"]
+        targetUserId:
+          type: ["integer", "null"]
+      required:
+        - title
+        - message
+        - targetType
+
+    DashboardSummary:
+      type: object
+      properties:
+        activeProjects:
+          type: integer
+        completedProjects:
+          type: integer
+        totalProjects:
+          type: integer
+        totalWorkers:
+          type: integer
+        totalSupervisors:
+          type: integer
+        totalClients:
+          type: integer
+        pendingMaterialRequests:
+          type: integer
+        unreadNotifications:
+          type: integer
+        totalLogsToday:
+          type: integer
+        totalBudget:
+          type: number
+        totalSpent:
+          type: number
+      required:
+        - activeProjects
+        - completedProjects
+        - totalProjects
+        - totalWorkers
+        - totalSupervisors
+        - totalClients
+        - pendingMaterialRequests
+        - unreadNotifications
+        - totalLogsToday
+        - totalBudget
+        - totalSpent
+
+    ActivityItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        type:
+          type: string
+          enum: [log_created, material_requested, material_approved, report_generated, project_updated, document_uploaded]
+        description:
+          type: string
+        userId:
+          type: ["integer", "null"]
+        userName:
+          type: ["string", "null"]
+        projectId:
+          type: ["integer", "null"]
+        projectName:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - type
+        - description
+        - createdAt
+
+    MaterialStats:
+      type: object
+      properties:
+        totalMaterialRequests:
+          type: integer
+        pendingRequests:
+          type: integer
+        approvedRequests:
+          type: integer
+        totalMaterialCost:
+          type: number
+        mostUsedMaterials:
+          type: array
+          items:
+            $ref: "#/components/schemas/MaterialUsageStat"
+        monthlyUsage:
+          type: array
+          items:
+            $ref: "#/components/schemas/MonthlyUsageStat"
+      required:
+        - totalMaterialRequests
+        - pendingRequests
+        - approvedRequests
+        - totalMaterialCost
+        - mostUsedMaterials
+        - monthlyUsage
+
+    MaterialUsageStat:
+      type: object
+      properties:
+        name:
+          type: string
+        totalQuantity:
+          type: number
+        totalCost:
+          type: number
+        unit:
+          type: string
+      required:
+        - name
+        - totalQuantity
+        - totalCost
+        - unit
+
+    MonthlyUsageStat:
+      type: object
+      properties:
+        month:
+          type: string
+        totalCost:
+          type: number
+        totalRequests:
+          type: integer
+      required:
+        - month
+        - totalCost
+        - totalRequests

@@ -1,0 +1,263 @@
+Redesign the existing mobile-first construction management app and rename it:
+
+CASTORES CONTROL
+
+IMPORTANT:
+Do NOT change the existing logic, roles, or navigation flow.
+This is a premium UI/UX redesign layer only.
+Preserve all current functionality but elevate the entire visual system.
+
+--------------------------------------------------
+CORE IDENTITY
+--------------------------------------------------
+
+This is NOT a generic app.
+This is a professional construction command system.
+
+Must feel like:
+- enterprise-grade
+- powerful
+- precise
+- clean
+- modern
+- used by serious operators
+
+Inspired by:
+- Apple App Store quality
+- Linear / Notion / Stripe dashboards
+- Industrial + tech fusion
+
+--------------------------------------------------
+VISUAL STYLE
+--------------------------------------------------
+
+- Dark premium base (deep charcoal / graphite)
+- Matte textures + subtle lighting
+- No cheap gradients
+- No bright colors everywhere
+- Color used ONLY as accent per module
+
+Accent system:
+- Orange → core actions / system / control
+- Blue → supervisor / field
+- Green → client / reporting
+- Red → worker / alerts
+
+Cards:
+- Rounded (xl)
+- Soft shadows
+- Subtle inner glow
+- Clean borders (0.5px)
+- No heavy outlines
+
+Typography:
+- Bold, condensed for titles
+- Clean sans-serif
+- Large headings
+- Minimal secondary text
+
+--------------------------------------------------
+REMOVE COMPLETELY
+--------------------------------------------------
+
+- Generic icons (Lucide, default packs)
+- Flat UI feeling
+- Cheap gradients
+- Over-text
+- Clutter
+
+Replace with:
+- Custom minimal line icons
+- Geometric icons
+- Thin strokes
+- Consistent visual system
+
+--------------------------------------------------
+HOME SCREEN (ROLE SELECTOR)
+--------------------------------------------------
+
+Transform current screen into App Store-level selection interface
+
+Header:
+- Logo centered or top minimal
+- Strong title:
+  CASTORES CONTROL
+- Subtitle minimal
+
+Cards (roles):
+Convert into premium tiles
+
+Each card:
+- Glass/matte hybrid surface
+- Soft glow by role color
+- Icon inside rounded square
+- Title bold
+- Description subtle
+
+Add:
+- Hover/tap animation (scale + glow)
+- Depth layering
+
+--------------------------------------------------
+NEW CORE MODULES (ADD WITHOUT BREAKING FLOW)
+--------------------------------------------------
+
+Add these sections visually (even if mocked initially):
+
+1. OBRAS (PROJECTS)
+- List of active works
+- Status indicator
+- Progress %
+- Tap → detailed view
+
+2. MAP VIEW (CRITICAL)
+- Integrate map section (Google Maps ready structure)
+- Show:
+  - project pins
+  - status color
+  - tap → open project
+- Clean minimal map UI
+- Floating filters
+
+3. ANALYTICS PER PROJECT
+Inside each obra:
+- Progress
+- Cost vs budget
+- Material usage
+- Worker activity
+- Timeline
+
+Visual:
+- clean graphs
+- minimal bars
+- no heavy dashboards
+
+4. BODEGA / MATERIALES
+- Inventory system
+- Inputs / outputs
+- Movement history
+- Visual tags (low stock, active, used)
+
+5. TRABAJADORES
+- List
+- Status
+- Hours
+- Assigned project
+- Activity logs
+
+--------------------------------------------------
+CENTRAL BUTTON (SIGNATURE FEATURE)
+--------------------------------------------------
+
+Add a fixed central button in bottom navigation.
+
+COLOR:
+→ Orange (brand accent)
+
+STYLE (CRYSTAL BUTTON):
+- backdrop-blur 60px
+- saturate 200%
+- layered translucent whites
+- conic gradient reflections (subtle)
+- 0.5px border rgba(255,255,255,0.25)
+- inner glow orange
+- animated shine (slow)
+
+INTERACTION:
+- Default icon: +
+- When tapped → rotates to ×
+- Opens full-screen overlay
+
+--------------------------------------------------
+OVERLAY MENU (FROM CENTRAL BUTTON)
+--------------------------------------------------
+
+Full screen:
+- bg-black/75
+- backdrop-blur-3xl
+
+Grid of premium cards:
+- 2 or 3 columns
+- staggered animation (delayed entry)
+
+Cards:
+- crystal effect
+- role-colored accents
+- icon + title + short description
+
+Options:
+- Nueva obra
+- Registrar material
+- Registrar trabajador
+- Generar reporte
+- Ver mapa
+- Alertas
+
+Animation:
+- cubic-bezier(0.22,1,0.36,1)
+- smooth, premium
+
+--------------------------------------------------
+BOTTOM NAVIGATION
+--------------------------------------------------
+
+Tabs:
+- Panel
+- Obras
+- Mapa
+- Reportes
+- Perfil
+
+Center:
+→ crystal orange button
+
+Style:
+- floating
+- translucent
+- subtle glow
+- clean separators
+
+--------------------------------------------------
+MICROINTERACTIONS
+--------------------------------------------------
+
+- Card press → slight depth
+- Button → glow + scale
+- Status → soft pulsing dot
+- Transitions → smooth
+- No aggressive motion
+
+--------------------------------------------------
+APP ICON (IMPORTANT)
+--------------------------------------------------
+
+Create a premium app icon:
+
+- Dark base
+- Minimal geometric symbol
+- Inspired by architecture / structure / control
+- Subtle orange glow
+- Metallic / glass finish
+- No text overload
+- Must look like enterprise software
+
+--------------------------------------------------
+GOAL
+--------------------------------------------------
+
+Transform this into:
+
+A premium construction control system that feels:
+- powerful
+- clean
+- trustworthy
+- high-level
+
+NOT:
+- a demo
+- a template
+- a cheap app
+
+YES:
+- something a construction CEO would use daily
+- something that feels like software worth paying for

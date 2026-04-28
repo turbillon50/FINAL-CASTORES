@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#F5F2EC" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Castores" />
+    <meta name="description" content="Sistema de gestión de obra — CASTORES Estructuras y Construcciones" />
+    <title>Castores Control</title>
+    <link rel="icon" href="/icon-192.png" type="image/png" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
+    <link rel="apple-touch-icon" sizes="192x192" href="/icon-192.png" />
+    <link rel="apple-touch-icon" sizes="512x512" href="/icon-512.png" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,300;1,9..40,400&display=swap" rel="stylesheet">
+    <style>
+      * { -webkit-tap-highlight-color: transparent; }
+      html, body { overscroll-behavior: none; }
+    </style>
+    <!--
+      BOOTSTRAP — runs before React.
+      1) Self-heal: if a stale service worker / cache is detected (older than v4),
+         clear everything and reload once. This rescues users stuck on a broken
+         cached version of the app on iOS PWA installs.
+      2) Demo purge: remove any leftover demo identities from local storage.
+    -->
+    <script>
+      (function () {
+        var APP_VERSION = 'v4';
+        var KEY = 'castores_app_version';
+
+        try {
+          var stored = localStorage.getItem(KEY);
+          if (stored !== APP_VERSION) {
+            if ('serviceWorker' in navigator) {
+              navigator.serviceWorker.getRegistrations().then(function (regs) {
+                regs.forEach(function (r) { r.unregister(); });
+              }).catch(function () {});
+            }
+            if (window.caches && caches.keys) {
+              caches.keys().then(function (keys) {
+                keys.forEach(function (k) { caches.delete(k); });
+              }).catch(function () {});
+            }
+            localStorage.setItem(KEY, APP_VERSION);
+          }
+        } catch (e) {}
+
+        var DEMO_EMAILS = [
+          'admin@castores.mx',
+          'supervisor1@castores.mx',
+          'cliente1@pedraza.mx',
+          'worker1@castores.mx',
+          'proveedor1@suministros.mx'
+        ];
+        try {
+          var raw = localStorage.getItem('castores_real_user');
+          if (raw) {
+            var u = JSON.parse(raw);
+            if (u && DEMO_EMAILS.indexOf(u.email) !== -1) {
+              localStorage.removeItem('castores_real_user');
+            }
+          }
+        } catch (e) {}
+        try {
+          if (location.hostname !== 'localhost') {
+            sessionStorage.removeItem('castores_demo_user');
+          }
+        } catch (e) {}
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

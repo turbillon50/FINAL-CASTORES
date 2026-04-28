@@ -1,0 +1,244 @@
+En esta aplicación ya construida, integrar una capa final de calidad, cumplimiento y experiencia premium enfocada en:
+
+- Área de preguntas frecuentes (FAQ)
+- Términos y condiciones
+- Política de privacidad
+- Eliminación de cuenta
+- Cumplimiento para publicación en stores
+- Configuración PWA completa
+- Experiencia de instalación en iOS y Android
+- Refinamiento visual y de UX final
+
+Todo esto debe integrarse sin romper la app existente, respetando su diseño y elevando la calidad general del producto.
+
+---
+
+1. MÓDULO FAQ (PREGUNTAS FRECUENTES)
+
+Crear una sección premium, editable desde administración, con:
+
+- Lista de preguntas y respuestas
+- Categorías (opcional)
+- Buscador interno
+- Diseño limpio tipo acordeón o tarjetas
+- UX rápida y clara
+
+El contenido debe ser 100% dinámico desde el CMS.
+
+Debe cubrir:
+- Uso de la app
+- Invitaciones
+- Cuenta de usuario
+- Beneficios o descuentos
+- Problemas comunes
+- Soporte
+
+---
+
+2. TÉRMINOS Y CONDICIONES
+
+Crear página legal completa, editable desde admin.
+
+Debe incluir estructura base:
+- Aceptación de términos
+- Uso de la plataforma
+- Responsabilidades del usuario
+- Limitación de responsabilidad
+- Uso de datos
+- Invitaciones y referidos (si aplica)
+- Suspensión o cancelación de cuenta
+- Cambios en el servicio
+
+IMPORTANTE:
+- Mostrar aviso de aceptación en registro
+- Guardar consentimiento del usuario (timestamp)
+- Permitir actualización de términos con aviso
+
+---
+
+3. POLÍTICA DE PRIVACIDAD
+
+Crear página editable que cubra:
+
+- Qué datos se recopilan
+- Cómo se usan
+- Cómo se almacenan
+- Seguridad de la información
+- Uso de cookies (si aplica)
+- Derechos del usuario
+- Contacto
+
+Debe estar accesible desde:
+- Registro
+- Perfil
+- Footer o menú
+
+---
+
+4. ELIMINACIÓN DE CUENTA (CRÍTICO PARA STORES)
+
+Implementar flujo completo:
+
+Desde el dashboard de usuario:
+- Botón: “Eliminar cuenta”
+- Confirmación doble
+- Explicación clara de consecuencias
+
+Backend:
+- Eliminar o anonimizar datos personales
+- Mantener logs si es necesario por auditoría
+- Registrar evento de eliminación
+
+Opcional:
+- Soft delete (recomendado)
+- Periodo de gracia antes de borrado definitivo
+
+IMPORTANTE:
+Este flujo debe cumplir requisitos de Google Play y App Store.
+
+---
+
+5. CENTRO DE CONFIGURACIÓN DE CUENTA
+
+Dentro del dashboard usuario:
+
+- Editar perfil
+- Cambiar contraseña (si aplica)
+- Preferencias
+- Notificaciones
+- Privacidad
+- Eliminar cuenta
+- Ver términos y privacidad
+
+---
+
+6. PREPARACIÓN PARA STORES (COMPLIANCE)
+
+Asegurar que la app cumple con:
+
+- Pantalla de onboarding clara
+- Información de la app visible
+- Términos y privacidad accesibles
+- Eliminación de cuenta funcional
+- No promesas engañosas
+- Manejo correcto de datos
+
+Preparar:
+- nombre de la app
+- descripción corta y larga
+- ícono
+- splash screen
+- screenshots base (estructura)
+
+---
+
+7. CONFIGURACIÓN PWA COMPLETA
+
+Implementar correctamente:
+
+- manifest.json:
+  - name
+  - short_name
+  - description
+  - theme_color
+  - background_color
+  - display: standalone
+  - icons (varios tamaños)
+
+- service worker:
+  - cache básico
+  - fallback offline mínimo
+
+- comportamiento:
+  - carga rápida
+  - sensación de app nativa
+
+---
+
+8. INSTALACIÓN EN iOS Y ANDROID (EXPERIENCIA GUIADA)
+
+Crear módulo visible (tipo banner o modal inteligente):
+
+Detectar si el usuario no ha instalado la app y mostrar guía.
+
+iOS:
+- Mostrar instrucción:
+  “Abrir en Safari → botón compartir → agregar a pantalla de inicio”
+
+Android:
+- Detectar soporte PWA
+- Mostrar botón:
+  “Instalar app”
+- Usar prompt nativo si está disponible
+
+El contenido debe ser editable desde admin.
+
+---
+
+9. EXPERIENCIA PREMIUM FINAL
+
+Refinar toda la app:
+
+- Tipografía consistente
+- Espaciados correctos
+- Animaciones suaves
+- Estados de carga (skeletons)
+- Estados vacíos bien diseñados
+- Mensajes claros
+- Navegación fluida
+- Sin errores visibles
+- Sin textos genéricos
+
+Eliminar:
+- textos placeholder
+- errores de UI
+- inconsistencias visuales
+
+---
+
+10. FOOTER / MENÚ LEGAL
+
+Agregar accesos visibles a:
+
+- FAQ
+- Términos y condiciones
+- Política de privacidad
+- Soporte (si aplica)
+
+---
+
+11. INTEGRACIÓN CON ADMIN
+
+Todo debe ser editable desde administración:
+
+- FAQ
+- textos legales
+- mensajes de instalación
+- contenido informativo
+
+---
+
+12. VALIDACIÓN FINAL
+
+Antes de cerrar:
+
+- Revisar que nada se rompió
+- Probar flujo completo:
+  registro → uso → invitación → eliminación de cuenta
+- Probar en móvil real
+- Probar comportamiento PWA
+- Validar que se siente como app premium
+
+---
+
+INSTRUCCIÓN FINAL
+
+No rehacer nada.
+No romper nada.
+No simplificar a algo básico.
+
+Esto debe dejar la app:
+- lista para usuarios reales
+- lista para escalar
+- lista para publicación
+- con nivel premium real

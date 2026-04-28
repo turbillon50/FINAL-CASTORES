@@ -1,0 +1,38 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "8YWEssrPc0sRuDPEqlCMv"
+uri = "file://artifacts/castores-control/public/login-bg.png"
+type = "image"
+title = "Cinematic construction site login background"
+
+[[generated]]
+id = "Ya2RoROVdHvdKKv22tD29"
+uri = "file://artifacts/castores-control/public/project-1.png"
+type = "image"
+title = "Modern office building under construction"
+
+[[generated]]
+id = "le7h34Xj9zAWW1g1enQmE"
+uri = "file://artifacts/castores-control/public/project-2.png"
+type = "image"
+title = "Luxury residential tower construction"
+
+[[generated]]
+id = "9UX3_0r0c-EEFpIo5lQyX"
+uri = "file://artifacts/castores-control/public/project-3.png"
+type = "image"
+title = "Industrial warehouse construction"
+
+[[generated]]
+id = "G4b8gVZjxL9quXscBRw1B"
+uri = "file://artifacts/castores-control/public/project-4.png"
+type = "image"
+title = "Concrete bridge structure construction"
+
+[[generated]]
+id = "mePOHukdZh3V32XAQjZv3"
+uri = "file://artifacts/castores-control/public/project-5.png"
+type = "image"
+title = "Steel frame skyscraper construction"
