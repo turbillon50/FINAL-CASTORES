@@ -1,0 +1,5 @@
+{
+  "installCommand": "corepack pnpm install --frozen-lockfile",
+  "buildCommand": "corepack pnpm --filter @workspace/castores-control run build",
+  "outputDirectory": "artifacts/castores-control/dist/public"
+}
