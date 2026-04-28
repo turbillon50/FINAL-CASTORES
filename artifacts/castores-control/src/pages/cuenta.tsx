@@ -5,8 +5,7 @@ import { useAuth } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import { MainLayout } from "@/components/layout/main-layout";
 import { getAuthToken } from "@workspace/api-client-react";
-
-const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+import { apiUrl } from "@/lib/api-url";
 
 export default function Cuenta() {
   const { user, logout } = useAuth();
@@ -23,7 +22,7 @@ export default function Cuenta() {
     setStep("deleting");
     try {
       const token = await getAuthToken().catch(() => null);
-      const res = await fetch(`${BASE}/api/users/me?clerkId=${encodeURIComponent((user as any).clerkId || "")}&email=${encodeURIComponent(user!.email)}`, {
+      const res = await fetch(apiUrl(`/api/users/me?clerkId=${encodeURIComponent((user as any).clerkId || "")}&email=${encodeURIComponent(user!.email)}`), {
         method: "DELETE",
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         credentials: "include",

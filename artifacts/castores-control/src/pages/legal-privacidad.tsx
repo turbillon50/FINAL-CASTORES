@@ -1,8 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { MainLayout } from "@/components/layout/main-layout";
-
-const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+import { apiUrl } from "@/lib/api-url";
 
 const FALLBACK_PRIVACY = `CASTORES Estructuras y Construcciones (en adelante, "la Empresa") respeta tu privacidad. Esta política describe cómo recopilamos, usamos y protegemos tu información personal en Castores Control.
 
@@ -54,7 +53,7 @@ export default function Privacidad() {
   const { data } = useQuery<Array<{ id: number; title: string; body: string | null }>>({
     queryKey: ["content", "privacy"],
     queryFn: async () => {
-      const r = await fetch(`${BASE}/api/content?type=privacy`);
+      const r = await fetch(apiUrl(`/api/content?type=privacy`));
       if (!r.ok) return [];
       return r.json();
     },

@@ -74,7 +74,50 @@ p{color:rgba(255,255,255,0.55);font-weight:600;margin:0}
 })();</script></body></html>`);
 });
 
-app.use(cors({ origin: true, credentials: true }));
+// CORS: in production we deploy the API and the web on different Vercel
+// projects (different origins). The browser will only send cookies and
+// Authorization headers cross-origin if we explicitly allow the requesting
+// origin AND set credentials: true. We accept any origin from the configured
+// list (FRONTEND_PUBLIC_URL + ALLOWED_ORIGINS) plus any *.vercel.app preview
+// deploy in non-production to make smoke tests trivial.
+const allowedOrigins = (() => {
+  const list: string[] = [];
+  const primary = process.env["FRONTEND_PUBLIC_URL"];
+  if (primary) list.push(primary.replace(/\/+$/, ""));
+  const extra = process.env["ALLOWED_ORIGINS"];
+  if (extra) {
+    extra
+      .split(",")
+      .map((o) => o.trim().replace(/\/+$/, ""))
+      .filter(Boolean)
+      .forEach((o) => list.push(o));
+  }
+  return list;
+})();
+
+app.use(
+  cors({
+    credentials: true,
+    origin(origin, callback) {
+      // Same-origin / curl / server-to-server (no Origin header) are always allowed.
+      if (!origin) return callback(null, true);
+      const normalized = origin.replace(/\/+$/, "");
+      if (allowedOrigins.includes(normalized)) return callback(null, true);
+      // In non-production we accept any *.vercel.app preview to ease testing.
+      if (
+        process.env["NODE_ENV"] !== "production" &&
+        /^https?:\/\/[^/]+\.vercel\.app$/i.test(normalized)
+      ) {
+        return callback(null, true);
+      }
+      // Allow localhost during dev regardless of NODE_ENV (Vite preview, etc.).
+      if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(normalized)) {
+        return callback(null, true);
+      }
+      return callback(new Error(`CORS: origin ${origin} not allowed`));
+    },
+  }),
+);
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
@@ -86,6 +129,8 @@ if (process.env["NODE_ENV"] === "production" && !sessionSecret) {
 const resolvedSessionSecret =
   sessionSecret || "castores-dev-session-secret-not-for-production";
 
+const isProduction = process.env["NODE_ENV"] === "production";
+
 app.use(
   session({
     name: "castores.sid",
@@ -94,8 +139,11 @@ app.use(
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: process.env["NODE_ENV"] === "production",
-      sameSite: "lax",
+      // In production we run web and API on different domains so the cookie
+      // must be SameSite=None + Secure to survive the cross-site request.
+      // In dev we keep Lax so it works on plain http://localhost.
+      secure: isProduction,
+      sameSite: isProduction ? "none" : "lax",
       maxAge: 7 * 24 * 60 * 60 * 1000,
     },
   }),

@@ -13,6 +13,7 @@ import { useAuth } from "@/lib/auth";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { apiUrl } from "@/lib/api-url";
 
 const ROLE_LABELS: Record<string, string> = {
   admin: "Administrador", supervisor: "Supervisor", client: "Cliente",
@@ -37,11 +38,9 @@ const EMPTY_FORM: UserForm = {
   name: "", email: "", password: "", role: "worker", phone: "", company: "", isActive: true,
 };
 
-const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
-
 async function approveUser(id: number): Promise<void> {
   const token = await getAuthToken();
-  const res = await fetch(`${BASE}/api/users/${id}/approve`, {
+  const res = await fetch(apiUrl(`/api/users/${id}/approve`), {
     method: "PATCH",
     headers: {
       "Content-Type": "application/json",
@@ -54,7 +53,7 @@ async function approveUser(id: number): Promise<void> {
 
 async function rejectUser(id: number): Promise<void> {
   const token = await getAuthToken();
-  const res = await fetch(`${BASE}/api/users/${id}/reject`, {
+  const res = await fetch(apiUrl(`/api/users/${id}/reject`), {
     method: "PATCH",
     headers: {
       "Content-Type": "application/json",

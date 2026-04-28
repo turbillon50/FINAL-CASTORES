@@ -2,8 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import { MainLayout } from "@/components/layout/main-layout";
-
-const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+import { apiUrl } from "@/lib/api-url";
 
 type FaqItem = {
   id: number;
@@ -25,7 +24,7 @@ export default function FAQ() {
   const { data } = useQuery<FaqItem[]>({
     queryKey: ["content", "faq"],
     queryFn: async () => {
-      const r = await fetch(`${BASE}/api/content?type=faq`);
+      const r = await fetch(apiUrl(`/api/content?type=faq`));
       if (!r.ok) return [];
       return r.json();
     },

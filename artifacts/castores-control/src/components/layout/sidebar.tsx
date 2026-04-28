@@ -5,8 +5,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { getAuthToken, getClerkUserInfo } from "@workspace/api-client-react";
-
-const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+import { apiUrl } from "@/lib/api-url";
 
 /* ─── All navigation lives in the overlay ───────────── */
 const ALL_NAV = [
@@ -166,7 +165,7 @@ export function Sidebar() {
       if (clerkId) params.set("clerkId", clerkId);
       if (email) params.set("email", email);
       const qs = params.toString();
-      const url = `${BASE}/api/notifications/unread-count${qs ? "?" + qs : ""}`;
+      const url = `${apiUrl(`/api/notifications/unread-count`)}${qs ? "?" + qs : ""}`;
       const res = await fetch(url, { headers });
       if (!res.ok) return { unread: 0 };
       return res.json();

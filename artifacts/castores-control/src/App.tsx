@@ -6,6 +6,7 @@ import { AuthProvider, useAuth } from "@/lib/auth";
 import { ClerkProvider, SignIn, SignUp, useUser, useClerk, useAuth as useClerkAuth } from "@clerk/react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { setBaseUrl, setDemoMode, setAuthTokenGetter, setClerkUserInfo } from "@workspace/api-client-react";
+import { apiUrl } from "@/lib/api-url";
 import NotFound from "@/pages/not-found";
 import Login from "@/pages/login";
 import Dashboard from "@/pages/dashboard";
@@ -31,6 +32,10 @@ import Privacidad from "@/pages/legal-privacidad";
 
 const clerkPubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 const clerkProxyUrl = import.meta.env.VITE_CLERK_PROXY_URL;
+const resolvedClerkProxyUrl =
+  typeof clerkProxyUrl === "string" && clerkProxyUrl.trim().length > 0
+    ? clerkProxyUrl
+    : undefined;
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
 
@@ -219,7 +224,7 @@ function ApprovalGate({ children }: { children: React.ReactNode }) {
           clerkId: clerkUserId ?? "",
           email: clerkUserEmail ?? "",
         });
-        const res = await fetch(`${basePath}/api/auth/clerk-me?${params}`, {
+        const res = await fetch(`${apiUrl(`/api/auth/clerk-me`)}?${params}`, {
           headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         });
 
@@ -399,7 +404,7 @@ function ClerkProviderWithRoutes() {
   return (
     <ClerkProvider
       publishableKey={clerkPubKey!}
-      proxyUrl={clerkProxyUrl}
+      proxyUrl={resolvedClerkProxyUrl}
       routerPush={(to) => setLocation(stripBase(to))}
       routerReplace={(to) => setLocation(stripBase(to), { replace: true })}
     >

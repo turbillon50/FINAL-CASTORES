@@ -1,8 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { MainLayout } from "@/components/layout/main-layout";
-
-const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+import { apiUrl } from "@/lib/api-url";
 
 const FALLBACK_TERMS = `Bienvenido a Castores Control, plataforma operada por CASTORES Estructuras y Construcciones (en adelante, "la Empresa"). Al usar esta aplicación, aceptas estos Términos.
 
@@ -48,7 +47,7 @@ export default function Terminos() {
   const { data } = useQuery<Array<{ id: number; title: string; body: string | null }>>({
     queryKey: ["content", "terms"],
     queryFn: async () => {
-      const r = await fetch(`${BASE}/api/content?type=terms`);
+      const r = await fetch(apiUrl(`/api/content?type=terms`));
       if (!r.ok) return [];
       return r.json();
     },

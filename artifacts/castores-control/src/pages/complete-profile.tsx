@@ -3,8 +3,7 @@ import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { useUser, useAuth as useClerkAuth } from "@clerk/react";
 import { useToast } from "@/hooks/use-toast";
-
-const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+import { apiUrl } from "@/lib/api-url";
 
 const ROLE_LABELS: Record<string, string> = {
   admin: "Administrador",
@@ -66,7 +65,7 @@ export default function CompleteProfile() {
     }
     setValidatingCode(true);
     try {
-      const res = await fetch(`${BASE}/api/invitations/validate`, {
+      const res = await fetch(apiUrl(`/api/invitations/validate`), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ code }),
@@ -109,7 +108,7 @@ export default function CompleteProfile() {
       return;
     }
 
-    fetch(`${BASE}/api/invitations/validate`, {
+    fetch(apiUrl(`/api/invitations/validate`), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ code }),
@@ -137,7 +136,7 @@ export default function CompleteProfile() {
       if (!token) {
         throw new Error("Sesión de acceso no válida. Vuelve a iniciar registro.");
       }
-      const res = await fetch(`${BASE}/api/auth/clerk-register`, {
+      const res = await fetch(apiUrl(`/api/auth/clerk-register`), {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({

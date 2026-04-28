@@ -7,8 +7,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Redirect } from "wouter";
 import { TabErrorBoundary } from "@/components/error-boundary";
 import { useUser, useAuth as useClerkAuth } from "@clerk/react";
-
-const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+import { apiUrl } from "@/lib/api-url";
 
 const ROLE_LABELS: Record<string, string> = {
   admin: "Administrador", supervisor: "Supervisor", client: "Cliente",
@@ -67,7 +66,7 @@ async function apiFetch(path: string, auth: AuthCtx, opts?: RequestInit) {
   if (clerkId) params.set("clerkId", clerkId);
   if (email) params.set("email", email);
   const qs = params.toString();
-  const url = `${BASE}/api${path}${qs ? (path.includes("?") ? "&" : "?") + qs : ""}`;
+  const url = `${apiUrl(`/api${path}`)}${qs ? (path.includes("?") ? "&" : "?") + qs : ""}`;
 
   const res = await fetch(url, {
     ...opts,

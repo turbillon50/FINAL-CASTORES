@@ -84,6 +84,15 @@ export default function Login() {
     setLocation(`${import.meta.env.BASE_URL}dashboard`);
   };
 
+  // PWA install prompt — must be declared BEFORE any conditional return
+  // so the hook count stays stable between renders.
+  useEffect(() => {
+    const handler = (e: Event) => { e.preventDefault(); setInstallPrompt(e); };
+    window.addEventListener("beforeinstallprompt", handler);
+    window.addEventListener("appinstalled", () => setInstalled(true));
+    return () => window.removeEventListener("beforeinstallprompt", handler);
+  }, []);
+
   // ── Account choice screen ────────────────────────────────────────────
   if (showAccountChoice && inviteCode) {
     const email = clerkUser?.primaryEmailAddress?.emailAddress ?? "";
@@ -128,13 +137,6 @@ export default function Login() {
       </div>
     );
   }
-
-  useEffect(() => {
-    const handler = (e: Event) => { e.preventDefault(); setInstallPrompt(e); };
-    window.addEventListener("beforeinstallprompt", handler);
-    window.addEventListener("appinstalled", () => setInstalled(true));
-    return () => window.removeEventListener("beforeinstallprompt", handler);
-  }, []);
 
   const handleInstall = async () => {
     if (!installPrompt) return;

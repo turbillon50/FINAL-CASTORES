@@ -7,8 +7,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-
-const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+import { apiUrl } from "@/lib/api-url";
 
 // ─── Auth fetch helper ────────────────────────────────────────────────────────
 function useAuthFetch() {
@@ -21,7 +20,7 @@ function useAuthFetch() {
     const params = new URLSearchParams();
     if (user?.email) params.set("email", user.email);
     const qs = params.toString();
-    const url = `${BASE}/api${path}${qs ? (path.includes("?") ? "&" : "?") + qs : ""}`;
+    const url = `${apiUrl(`/api${path}`)}${qs ? (path.includes("?") ? "&" : "?") + qs : ""}`;
     const res = await fetch(url, { ...opts, headers: { ...headers, ...(opts?.headers ?? {}) } });
     if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error || "Error"); }
     return res.json();

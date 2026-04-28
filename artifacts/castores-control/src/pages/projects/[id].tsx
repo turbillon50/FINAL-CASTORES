@@ -10,8 +10,7 @@ import { useAuth } from "@/lib/auth";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-
-const BASE_URL = import.meta.env.BASE_URL.replace(/\/$/, "");
+import { apiUrl } from "@/lib/api-url";
 
 async function teamFetch(path: string, opts?: RequestInit) {
   const token = await getAuthToken();
@@ -22,7 +21,7 @@ async function teamFetch(path: string, opts?: RequestInit) {
   if (clerkId) params.set("clerkId", clerkId);
   if (email) params.set("email", email);
   const qs = params.toString();
-  const url = `${BASE_URL}/api${path}${qs ? (path.includes("?") ? "&" : "?") + qs : ""}`;
+  const url = `${apiUrl(`/api${path}`)}${qs ? (path.includes("?") ? "&" : "?") + qs : ""}`;
   const res = await fetch(url, { ...opts, headers: { ...headers, ...(opts?.headers ?? {}) } });
   if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error || "Error"); }
   if (res.status === 204) return null;
