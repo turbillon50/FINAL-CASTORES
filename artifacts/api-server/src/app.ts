@@ -122,14 +122,26 @@ app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
+// SESSION_SECRET is required in production for stable sessions. If it's
+// missing we fall back to a process-lifetime random string and log loudly,
+// so the API still boots (a hard crash here would render the whole web app
+// blank instead of just degrading auth).
 const sessionSecret = process.env["SESSION_SECRET"];
-if (process.env["NODE_ENV"] === "production" && !sessionSecret) {
-  throw new Error("SESSION_SECRET is required in production");
-}
-const resolvedSessionSecret =
-  sessionSecret || "castores-dev-session-secret-not-for-production";
-
 const isProduction = process.env["NODE_ENV"] === "production";
+let resolvedSessionSecret = sessionSecret || "";
+if (!resolvedSessionSecret) {
+  if (isProduction) {
+    logger.error(
+      "SESSION_SECRET missing in production; using ephemeral random secret. Sessions will not survive cold starts. Set SESSION_SECRET in Vercel environment variables.",
+    );
+    resolvedSessionSecret =
+      Math.random().toString(36).slice(2) +
+      Math.random().toString(36).slice(2) +
+      Date.now().toString(36);
+  } else {
+    resolvedSessionSecret = "castores-dev-session-secret-not-for-production";
+  }
+}
 
 app.use(
   session({

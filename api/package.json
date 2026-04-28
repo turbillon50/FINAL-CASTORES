@@ -1,0 +1,10 @@
+{
+  "name": "@workspace/api-handler",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Vercel Function entrypoint that mounts the @workspace/api-server Express app under /api/* on the consolidated web project.",
+  "dependencies": {
+    "@workspace/api-server": "workspace:*"
+  }
+}
