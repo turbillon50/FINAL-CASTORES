@@ -5,10 +5,7 @@
   "outputDirectory": "artifacts/castores-control/dist/public",
   "rewrites": [
     { "source": "/api", "destination": "/api/index" },
-    { "source": "/api/(.*)", "destination": "/api/index" },
-    {
-      "source": "/((?!assets/|api/|api$|castores-logo\\.jpeg|favicon\\.svg|sw\\.js|manifest\\.json|icon-.*\\.png).*)",
-      "destination": "/index.html"
-    }
+    { "source": "/api/:path*", "destination": "/api/index" },
+    { "source": "/((?!api).*)", "destination": "/index.html" }
   ]
 }
