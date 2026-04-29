@@ -13,12 +13,26 @@ let _db: NodePgDatabase<typeof schema> | null = null;
 
 function ensureConnection(): void {
   if (_pool && _db) return;
-  if (!process.env["DATABASE_URL"]) {
+  const url = process.env["DATABASE_URL"];
+  if (!url) {
     throw new Error(
       "DATABASE_URL must be set. Did you forget to provision a database?",
     );
   }
-  _pool = new Pool({ connectionString: process.env["DATABASE_URL"] });
+  // Managed Postgres providers (Neon, Supabase, Railway, etc.) require SSL.
+  // Detect when SSL should be enabled and trust the provider's certificate.
+  const needsSsl =
+    /sslmode=require/i.test(url) ||
+    /\.neon\.tech/i.test(url) ||
+    /\.supabase\.co/i.test(url) ||
+    /\.render\.com/i.test(url) ||
+    /\.railway\.app/i.test(url) ||
+    process.env["PGSSLMODE"] === "require";
+
+  _pool = new Pool({
+    connectionString: url,
+    ssl: needsSsl ? { rejectUnauthorized: false } : undefined,
+  });
   _db = drizzle(_pool, { schema });
 }
 
