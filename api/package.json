@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Vercel Function entrypoint that mounts the @workspace/api-server Express app under /api/* on the consolidated web project.",
+  "description": "Vercel Function entrypoint that re-exports the pre-bundled @workspace/api-server Express app.",
   "dependencies": {
     "@workspace/api-server": "workspace:*"
   }
