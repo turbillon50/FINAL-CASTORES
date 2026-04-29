@@ -67,8 +67,19 @@ router.post("/invitations/validate", async (req, res): Promise<void> => {
     }
 
     res.json({ valid: true, role: inv.role, label: inv.label ?? null });
-  } catch {
-    res.json({ valid: false, reason: "Sin conexión a la base de datos" });
+  } catch (err: unknown) {
+    // Log the actual error so we can diagnose DB issues in production logs
+    const e = err as { code?: string; message?: string };
+    req.log?.error?.({ err, code: e?.code, message: e?.message }, "invitations/validate db error");
+    console.error("[invitations/validate] DB error:", e?.code, e?.message);
+    // Surface a more useful reason for the client too
+    const reason =
+      e?.code === "42P01"
+        ? "Tablas no inicializadas (faltan migraciones)"
+        : e?.message
+          ? `DB: ${e.message}`
+          : "Sin conexión a la base de datos";
+    res.json({ valid: false, reason });
   }
 });
 
