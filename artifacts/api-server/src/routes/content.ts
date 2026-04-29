@@ -8,18 +8,21 @@ const router: IRouter = Router();
 // GET /content
 router.get("/content", async (req, res): Promise<void> => {
   const { type, role } = req.query as { type?: string; role?: string };
+  try {
+    const items = await db.select().from(contentItemsTable)
+      .where(eq(contentItemsTable.isActive, true))
+      .orderBy(asc(contentItemsTable.sortOrder), asc(contentItemsTable.createdAt));
 
-  let query = db.select().from(contentItemsTable)
-    .where(eq(contentItemsTable.isActive, true))
-    .orderBy(asc(contentItemsTable.sortOrder), asc(contentItemsTable.createdAt));
+    let filtered = items;
+    if (type) filtered = filtered.filter((i) => i.type === type);
+    if (role) filtered = filtered.filter((i) => !i.targetRole || i.targetRole === role);
 
-  const items = await query;
-
-  let filtered = items;
-  if (type) filtered = filtered.filter((i) => i.type === type);
-  if (role) filtered = filtered.filter((i) => !i.targetRole || i.targetRole === role);
-
-  res.json(filtered);
+    res.json(filtered);
+  } catch {
+    // Degrade gracefully: public content is optional for app bootstrap.
+    // Returning [] prevents white-screen/500 loops on the frontend.
+    res.json([]);
+  }
 });
 
 // GET /content/all — admin only, includes inactive

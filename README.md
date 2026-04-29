@@ -51,6 +51,7 @@ El proyecto API hace `cd ../..` en su `installCommand` por la misma razón.
   - `DATABASE_URL` — string de conexión Postgres (Neon/Supabase). Debe permitir SSL.
   - `SESSION_SECRET` — string aleatorio largo (≥ 32 bytes).
   - `CLERK_SECRET_KEY` — `sk_live_...` o `sk_test_...` (debe ser del mismo proyecto Clerk que el web)
+  - `ADMIN_ACCESS_PHRASE` — frase para activar al admin general inicial (ej. `CASTORES`)
   - `FRONTEND_PUBLIC_URL` — URL pública del web, sin slash final. Ej: `https://castores.vercel.app`
   - `NODE_ENV` — `production`
   - (opcional) `ALLOWED_ORIGINS` — orígenes adicionales separados por coma

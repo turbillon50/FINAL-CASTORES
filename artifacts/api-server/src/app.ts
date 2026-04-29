@@ -11,6 +11,17 @@ import { logger } from "./lib/logger";
 
 const app: Express = express();
 
+// Hardening: support multiple env key names across old/new deploys.
+// Clerk Express middleware requires CLERK_PUBLISHABLE_KEY server-side.
+const resolvedPublishableKey =
+  process.env["CLERK_PUBLISHABLE_KEY"] ||
+  process.env["VITE_CLERK_PUBLISHABLE_KEY"] ||
+  process.env["NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY"] ||
+  "";
+if (!process.env["CLERK_PUBLISHABLE_KEY"] && resolvedPublishableKey) {
+  process.env["CLERK_PUBLISHABLE_KEY"] = resolvedPublishableKey;
+}
+
 app.use(
   pinoHttp({
     logger,
@@ -161,8 +172,36 @@ app.use(
   }),
 );
 
-app.use(clerkMiddleware());
+const clerk = clerkMiddleware();
+app.use((req, res, next) => {
+  const rawPath = req.path || "/";
+  // Vercel rewrites can hit this function with and without "/api" prefix.
+  const path = rawPath.startsWith("/api/") ? rawPath.slice(4) : rawPath;
+  const method = req.method?.toUpperCase() || "GET";
+  const isPublicCatalogRead =
+    path === "/content" && (method === "GET" || method === "HEAD");
+  const isPublicPath =
+    path === "/healthz" ||
+    path.startsWith("/invite/") ||
+    path === "/invitations/validate" ||
+    isPublicCatalogRead;
+  if (isPublicPath) return next();
+  return clerk(req, res, next);
+});
 
 app.use("/api", router);
+
+// Final safety net: always return structured JSON on unhandled runtime errors.
+app.use((err: unknown, req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  const path = req.originalUrl || req.url || "unknown";
+  const message = err instanceof Error ? err.message : "unexpected_error";
+  logger.error({ path, message }, "Unhandled API error");
+  res.status(500).json({
+    ok: false,
+    error: "internal_error",
+    message: "Error interno controlado",
+    path,
+  });
+});
 
 export default app;

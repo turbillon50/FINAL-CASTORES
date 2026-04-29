@@ -6,7 +6,19 @@ import { getRequestUser } from "../lib/getRequestUser";
 
 const router: IRouter = Router();
 
-const ADMIN_MASTER_KEY = "CASTORES";
+const ADMIN_MASTER_KEY = (
+  process.env["ADMIN_ACCESS_PHRASE"] ||
+  process.env["ADMIN_MASTER_KEY"] ||
+  ""
+)
+  .trim()
+  .toUpperCase();
+const LEGACY_MASTER_KEY = "CASTORES";
+
+function isMasterAdminKey(rawCode: string): boolean {
+  const normalized = rawCode.trim().toUpperCase();
+  return normalized === LEGACY_MASTER_KEY || (!!ADMIN_MASTER_KEY && normalized === ADMIN_MASTER_KEY);
+}
 
 // GET /invite/:code — public redirect link (never cached, bypasses SPA cache)
 // Redirects the browser to /sign-up?code=CODE so the frontend can auto-fill it
@@ -29,26 +41,35 @@ router.post("/invitations/validate", async (req, res): Promise<void> => {
   const normalizedCode = code.trim().toUpperCase();
 
   // Special master admin key
-  if (normalizedCode === ADMIN_MASTER_KEY) {
+  if (isMasterAdminKey(normalizedCode)) {
     res.json({ valid: true, role: "admin", label: "Administrador Master" });
     return;
   }
 
-  const [inv] = await db.select().from(invitationCodesTable)
-    .where(and(eq(invitationCodesTable.code, normalizedCode), eq(invitationCodesTable.isActive, true)));
+  try {
+    const [inv] = await db.select().from(invitationCodesTable).where(
+      and(eq(invitationCodesTable.code, normalizedCode), eq(invitationCodesTable.isActive, true)),
+    );
 
-  if (!inv) { res.json({ valid: false }); return; }
+    if (!inv) {
+      res.json({ valid: false });
+      return;
+    }
 
-  // Check expiry
-  if (inv.expiresAt && new Date(inv.expiresAt) < new Date()) {
-    res.json({ valid: false, reason: "Código expirado" });
-    return;
+    if (inv.expiresAt && new Date(inv.expiresAt) < new Date()) {
+      res.json({ valid: false, reason: "Código expirado" });
+      return;
+    }
+
+    if (inv.usedBy) {
+      res.json({ valid: false, reason: "Código ya utilizado" });
+      return;
+    }
+
+    res.json({ valid: true, role: inv.role, label: inv.label ?? null });
+  } catch {
+    res.json({ valid: false, reason: "Sin conexión a la base de datos" });
   }
-
-  // Check if already used
-  if (inv.usedBy) { res.json({ valid: false, reason: "Código ya utilizado" }); return; }
-
-  res.json({ valid: true, role: inv.role, label: inv.label ?? null });
 });
 
 // GET /invitations — admin only

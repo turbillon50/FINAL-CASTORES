@@ -29,8 +29,12 @@ import Cuenta from "@/pages/cuenta";
 import FAQ from "@/pages/faq";
 import Terminos from "@/pages/legal-terminos";
 import Privacidad from "@/pages/legal-privacidad";
+import AdminAccessPage from "@/pages/admin-access";
 
-const clerkPubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
+const clerkPubKey =
+  import.meta.env.VITE_CLERK_PUBLISHABLE_KEY ||
+  import.meta.env.CLERK_PUBLISHABLE_KEY ||
+  import.meta.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
 const clerkProxyUrl = import.meta.env.VITE_CLERK_PROXY_URL;
 const resolvedClerkProxyUrl =
   typeof clerkProxyUrl === "string" && clerkProxyUrl.trim().length > 0
@@ -344,6 +348,7 @@ function Router() {
       <Route path="/explorar" component={Explorar} />
       <Route path="/sign-in/*?" component={SignInPage} />
       <Route path="/sign-up/*?" component={SignUpPage} />
+      <Route path="/admin-access" component={AdminAccessPage} />
 
       {/* Post-signup flow */}
       <Route path="/complete-profile" component={CompleteProfile} />

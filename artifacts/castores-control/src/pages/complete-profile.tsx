@@ -260,6 +260,13 @@ export default function CompleteProfile() {
           </div>
 
           <button
+            onClick={() => setLocation("/admin-access")}
+            className="w-full py-3 rounded-2xl text-xs font-bold mb-3"
+            style={{ background: "rgba(200,149,42,0.12)", color: "#C8952A", border: "1px solid rgba(200,149,42,0.35)" }}>
+            Soy administrador inicial (activar con frase)
+          </button>
+
+          <button
             onClick={() => setLocation("/")}
             className="w-full py-3 rounded-2xl text-xs font-bold"
             style={{ background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.5)", border: "1px solid rgba(255,255,255,0.08)" }}>

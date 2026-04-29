@@ -1,14 +1,110 @@
 import { Router, type IRouter } from "express";
 import { eq, or } from "drizzle-orm";
-import { db, usersTable, invitationCodesTable, USER_ROLES } from "@workspace/db";
+import { db, usersTable, invitationCodesTable, USER_ROLES, activityLogTable } from "@workspace/db";
 import { getAuth } from "@clerk/express";
 import { logger } from "../lib/logger";
 import { sendNewRegistrationEmail, sendWelcomeEmail } from "../lib/email";
 import { and } from "drizzle-orm";
 
-const ADMIN_MASTER_KEY = "CASTORES";
+const ADMIN_MASTER_KEY = (process.env["ADMIN_ACCESS_PHRASE"] || process.env["ADMIN_MASTER_KEY"] || "").trim().toUpperCase();
+const LEGACY_MASTER_KEY = "CASTORES";
+
+function isMasterAdminKey(rawCode: string): boolean {
+  const normalized = rawCode.trim().toUpperCase();
+  return normalized === LEGACY_MASTER_KEY || (!!ADMIN_MASTER_KEY && normalized === ADMIN_MASTER_KEY);
+}
+
+function getVerifiedEmail(req: any): string | null {
+  const claims = (req as { auth?: { sessionClaims?: { email?: string } } }).auth?.sessionClaims;
+  return claims?.email ?? null;
+}
 
 const router: IRouter = Router();
+
+router.post("/auth/admin-access", async (req, res): Promise<void> => {
+  const { userId: clerkUserId } = getAuth(req);
+  if (!clerkUserId) {
+    res.status(401).json({ error: "Sesión no verificada. Inicia sesión primero." });
+    return;
+  }
+
+  const { phrase, name } = req.body as { phrase?: string; name?: string };
+  if (!phrase || !isMasterAdminKey(phrase)) {
+    res.status(403).json({ error: "Frase de acceso inválida" });
+    return;
+  }
+
+  const verifiedEmail = getVerifiedEmail(req);
+  if (!verifiedEmail) {
+    res.status(400).json({ error: "No se pudo verificar el correo de la sesión Clerk" });
+    return;
+  }
+
+  const admins = await db
+    .select({ id: usersTable.id, clerkId: usersTable.clerkId, email: usersTable.email })
+    .from(usersTable)
+    .where(eq(usersTable.role, "admin"));
+
+  const existingByClerk = await db
+    .select()
+    .from(usersTable)
+    .where(eq(usersTable.clerkId, clerkUserId));
+  const existingByEmail = await db
+    .select()
+    .from(usersTable)
+    .where(eq(usersTable.email, verifiedEmail));
+  const existing = existingByClerk[0] ?? existingByEmail[0] ?? null;
+
+  // Once an admin exists, only that same admin can re-assert via phrase.
+  if (admins.length > 0 && (!existing || existing.role !== "admin")) {
+    res.status(409).json({ error: "Ya existe un administrador general. Solicita invitación." });
+    return;
+  }
+
+  let user = existing;
+  if (user) {
+    const [updated] = await db
+      .update(usersTable)
+      .set({
+        clerkId: clerkUserId,
+        role: "admin",
+        approvalStatus: "approved",
+        isActive: true,
+        termsAcceptedAt: user.termsAcceptedAt ?? new Date(),
+        termsVersion: user.termsVersion ?? "1.0",
+        updatedAt: new Date(),
+      })
+      .where(eq(usersTable.id, user.id))
+      .returning();
+    user = updated ?? user;
+  } else {
+    const [created] = await db
+      .insert(usersTable)
+      .values({
+        clerkId: clerkUserId,
+        name: name?.trim() || "Administrador General",
+        email: verifiedEmail,
+        role: "admin",
+        isActive: true,
+        approvalStatus: "approved",
+        termsAcceptedAt: new Date(),
+        termsVersion: "1.0",
+      })
+      .returning();
+    user = created;
+  }
+
+  req.session.userId = user.id;
+
+  await db.insert(activityLogTable).values({
+    type: "admin_access_activated",
+    description: "Activación/validación de administrador general con frase segura",
+    userId: user.id,
+  }).catch(() => {});
+
+  const { passwordHash: _, ...safeUser } = user;
+  res.json(safeUser);
+});
 
 // Demo login — no password for demo roles, admin uses "castores2024"
 router.post("/auth/login", async (req, res): Promise<void> => {
@@ -99,7 +195,7 @@ router.post("/auth/clerk-register", async (req, res): Promise<void> => {
   if (invitationCode) {
     const upperCode = invitationCode.toUpperCase();
 
-    if (upperCode === ADMIN_MASTER_KEY) {
+    if (isMasterAdminKey(upperCode)) {
       // Master admin key — auto approve as admin
       if (role !== "admin") {
         res.status(400).json({ error: "La clave CASTORES es solo para administradores" });
@@ -153,6 +249,26 @@ router.post("/auth/clerk-register", async (req, res): Promise<void> => {
         .returning();
       if (linked) row = linked;
     }
+
+    // Recovery path: when a previously registered email signs up again with a
+    // valid invitation (or master key), enforce the invited role and make sure
+    // the account is active/approved so first-time bootstrap login always works.
+    if (invitationCode && (row.role !== role || row.approvalStatus !== "approved" || !row.isActive)) {
+      const [recovered] = await db
+        .update(usersTable)
+        .set({
+          role,
+          approvalStatus: "approved",
+          isActive: true,
+          termsAcceptedAt: new Date(),
+          termsVersion: termsVersion || row.termsVersion || "1.0",
+          updatedAt: new Date(),
+        })
+        .where(eq(usersTable.id, row.id))
+        .returning();
+      if (recovered) row = recovered;
+    }
+
     if (invitationRecord && !invitationRecord.usedBy) {
       await db
         .update(invitationCodesTable)
