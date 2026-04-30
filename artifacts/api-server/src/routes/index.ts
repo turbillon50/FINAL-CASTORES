@@ -13,17 +13,18 @@ import reportsRouter from "./reports";
 import notificationsRouter from "./notifications";
 import dashboardRouter from "./dashboard";
 import rolesRouter from "./roles";
+import adminDbInitRouter from "./admin-db-init";
 
 const router: IRouter = Router();
 
 // Public routes — no auth required
 router.use(healthRouter);
 router.use(authRouter);
-router.use(invitationsRouter); // validate endpoint is public; list/create/delete check role internally
-router.use(rolesRouter); // handles own auth check internally (admin-only per route handler)
-// Public catalogue: GET /content must NOT go through requireAuth (that middleware hits the DB via
-// getRequestUser and would 401/500 anonymous FAQ/legal reads or fail.closed when the pool errors).
+router.use(invitationsRouter);
+router.use(rolesRouter);
 router.use(contentRouter);
+// One-shot DB schema init — guarded by ADMIN_ACCESS_PHRASE in body
+router.use(adminDbInitRouter);
 
 // Protected routes — require Clerk JWT or demo mode header
 router.use(requireAuth);
