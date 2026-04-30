@@ -241,9 +241,17 @@ router.delete("/projects/:id", async (req, res): Promise<void> => {
 });
 
 router.get("/projects/:id/progress", async (req, res): Promise<void> => {
+  const user = await getRequestUser(req);
+  if (!user) { res.status(401).json({ error: "No autenticado" }); return; }
+
   const params = GetProjectProgressParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: params.error.message });
+    return;
+  }
+
+  if (!(await canAccessProject(user, params.data.id))) {
+    res.status(403).json({ error: "No tienes acceso a esta obra" });
     return;
   }
 
