@@ -2,7 +2,7 @@ import { Router, type IRouter } from "express";
 import { eq, and, gte, lte } from "drizzle-orm";
 import { db, reportsTable, projectsTable, usersTable, workLogsTable, materialsTable } from "@workspace/db";
 import { getRequestUser } from "../lib/getRequestUser";
-import { getAccessibleProjectIds } from "../lib/projectAccess";
+import { getAccessibleProjectIds, canAccessProject } from "../lib/projectAccess";
 import { formatZodError } from "../lib/zodError";
 import {
   CreateReportBody,
@@ -77,6 +77,9 @@ router.post("/reports", async (req, res): Promise<void> => {
 });
 
 router.get("/reports/:id", async (req, res): Promise<void> => {
+  const user = await getRequestUser(req);
+  if (!user) { res.status(401).json({ error: "No autenticado" }); return; }
+
   const params = GetReportParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: formatZodError(params.error) });
@@ -86,6 +89,11 @@ router.get("/reports/:id", async (req, res): Promise<void> => {
   const [report] = await db.select().from(reportsTable).where(eq(reportsTable.id, params.data.id));
   if (!report) {
     res.status(404).json({ error: "Reporte no encontrado" });
+    return;
+  }
+
+  if (!(await canAccessProject(user, report.projectId))) {
+    res.status(403).json({ error: "No tienes acceso a este reporte" });
     return;
   }
 
@@ -102,6 +110,11 @@ router.get("/reports/:id/data", async (req, res): Promise<void> => {
 
   const [report] = await db.select().from(reportsTable).where(eq(reportsTable.id, id));
   if (!report) { res.status(404).json({ error: "Reporte no encontrado" }); return; }
+
+  if (!(await canAccessProject(user, report.projectId))) {
+    res.status(403).json({ error: "No tienes acceso a este reporte" });
+    return;
+  }
 
   // Project info
   const [project] = await db.select().from(projectsTable).where(eq(projectsTable.id, report.projectId));
