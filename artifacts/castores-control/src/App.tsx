@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/reac
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/lib/auth";
-import { ClerkProvider, SignIn, SignUp, useUser, useClerk, useAuth as useClerkAuth } from "@clerk/react";
+import { ClerkProvider, SignIn, SignUp, useUser, useClerk, useAuth as useClerkAuth, useSignUp } from "@clerk/react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { setBaseUrl, setDemoMode, setAuthTokenGetter, setClerkUserInfo } from "@workspace/api-client-react";
 import { apiUrl } from "@/lib/api-url";
@@ -335,6 +335,33 @@ function InvitePage() {
   );
 }
 
+/**
+ * Detects an in-progress Clerk sign-up (e.g. user left app to check OTP email)
+ * and redirects back to /sign-up so the OTP entry form reappears automatically.
+ * This handles iOS PWA reloading to "/" when the user switches back from Mail.
+ */
+function SignUpGuard() {
+  const { isLoaded: userLoaded, isSignedIn } = useUser();
+  const { isLoaded: signUpLoaded, signUp } = useSignUp();
+  const [location, navigate] = useLocation();
+
+  useEffect(() => {
+    if (!userLoaded || !signUpLoaded) return;
+    if (isSignedIn) return;
+    // If Clerk has an in-progress sign-up that still needs verification,
+    // and we're not already on the sign-up or complete-profile pages, go back there.
+    if (
+      signUp?.status === "missing_requirements" &&
+      !location.startsWith("/sign-up") &&
+      !location.startsWith("/complete-profile")
+    ) {
+      navigate("/sign-up", { replace: true });
+    }
+  }, [userLoaded, signUpLoaded, isSignedIn, signUp?.status, location, navigate]);
+
+  return null;
+}
+
 function Router() {
   return (
     <Switch>
@@ -415,6 +442,7 @@ function ClerkProviderWithRoutes() {
         <TooltipProvider>
           <AuthProvider>
             <AuthSync />
+            <SignUpGuard />
             <Router />
           </AuthProvider>
           <Toaster />
