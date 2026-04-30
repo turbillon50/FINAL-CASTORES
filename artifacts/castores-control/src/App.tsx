@@ -169,14 +169,14 @@ function SignUpPage() {
     localStorage.setItem("castores_signup_email", email);
 
     try {
-      await signUp.create({
+      const resource = await signUp.create({
         emailAddress: email,
         ...(password ? { password } : {}),
         ...(firstName ? { firstName } : {}),
         ...(lastName ? { lastName } : {}),
       });
-      // Clerk 6 email_code strategy: prepareVerification sends the OTP
-      await signUp.prepareVerification({ strategy: "email_code" });
+      // Use the returned resource — the hook's signUp ref is stale after create()
+      await resource.prepareVerification({ strategy: "email_code" });
       setStep("otp");
     } catch (err) {
       localStorage.removeItem("castores_signup_step");
