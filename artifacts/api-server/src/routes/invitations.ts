@@ -42,7 +42,7 @@ router.post("/invitations/validate", async (req, res): Promise<void> => {
 
   // Special master admin key
   if (isMasterAdminKey(normalizedCode)) {
-    res.json({ valid: true, role: "admin", label: "Administrador Master" });
+    res.json({ valid: true, role: "admin", label: "Administrador Master", isMasterKey: true });
     return;
   }
 
