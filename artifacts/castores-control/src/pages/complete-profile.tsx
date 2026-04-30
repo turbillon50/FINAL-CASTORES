@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { useUser, useAuth as useClerkAuth } from "@clerk/react";
 import { useToast } from "@/hooks/use-toast";
 import { apiUrl } from "@/lib/api-url";
@@ -20,6 +20,11 @@ const ROLE_ICONS: Record<string, string> = {
 const ROLE_COLORS: Record<string, string> = {
   admin: "#C8952A", supervisor: "#3B82F6", client: "#10B981", worker: "#EF4444", proveedor: "#8B5CF6",
 };
+
+// Master admin phrase. Hard-coded check on the client to short-circuit the
+// "complete profile" UI: when the user types CASTORES we activate them as
+// admin directly instead of asking name/company/phone.
+const MASTER_ADMIN_PHRASE = "CASTORES";
 
 type CodeState =
   | { status: "checking" }
@@ -57,6 +62,31 @@ export default function CompleteProfile() {
     }
   }, [clerkLoaded, isSignedIn, setLocation]);
 
+  // Activates the current Clerk-authenticated user as admin general using the
+  // master phrase. This is what makes typing "CASTORES" a one-step action:
+  // no name/company/phone form, just instant access.
+  const activateAdminMaster = async (phrase: string) => {
+    try {
+      const token = await getToken();
+      if (!token) throw new Error("Sesión no válida. Vuelve a iniciar registro.");
+      const res = await fetch(apiUrl("/api/auth/admin-access"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          phrase,
+          name: user?.fullName || user?.firstName || "Administrador General",
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "No se pudo activar el acceso administrador");
+      localStorage.removeItem("castores_invite_code");
+      toast({ title: "Acceso administrador activado" });
+      setLocation("/dashboard");
+    } catch (err: unknown) {
+      toast({ title: (err as Error).message || "Error inesperado", variant: "destructive" });
+    }
+  };
+
   const validateCode = async (raw: string) => {
     const code = raw.trim().toUpperCase();
     if (!code) {
@@ -65,12 +95,22 @@ export default function CompleteProfile() {
     }
     setValidatingCode(true);
     try {
+      // Fast path: master admin phrase activates admin directly, no form.
+      if (code === MASTER_ADMIN_PHRASE) {
+        await activateAdminMaster(code);
+        return;
+      }
       const res = await fetch(apiUrl(`/api/invitations/validate`), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ code }),
       });
       const data = await res.json();
+      if (data.valid && data.role === "admin") {
+        // Server also recognized this as a master admin key — same fast path.
+        await activateAdminMaster(code);
+        return;
+      }
       if (data.valid && data.role) {
         localStorage.setItem("castores_invite_code", code);
         setCodeState({ status: "valid", role: data.role, label: data.label ?? code, code });
@@ -108,6 +148,13 @@ export default function CompleteProfile() {
       return;
     }
 
+    // Master phrase handled here too: if the URL/storage already has CASTORES,
+    // skip validation and activate admin directly.
+    if (code === MASTER_ADMIN_PHRASE && clerkLoaded && isSignedIn) {
+      void activateAdminMaster(code);
+      return;
+    }
+
     fetch(apiUrl(`/api/invitations/validate`), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -115,6 +162,11 @@ export default function CompleteProfile() {
     })
       .then((r) => r.json())
       .then((data) => {
+        if (data.valid && data.role === "admin" && clerkLoaded && isSignedIn) {
+          // Code resolved server-side as admin master — activate directly.
+          void activateAdminMaster(code);
+          return;
+        }
         if (data.valid && data.role) {
           setCodeState({ status: "valid", role: data.role, label: data.label ?? code, code });
         } else {
@@ -122,7 +174,8 @@ export default function CompleteProfile() {
         }
       })
       .catch(() => setCodeState({ status: "invalid", code: code ?? "" }));
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clerkLoaded, isSignedIn]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -260,13 +313,6 @@ export default function CompleteProfile() {
           </div>
 
           <button
-            onClick={() => setLocation("/admin-access")}
-            className="w-full py-3 rounded-2xl text-xs font-bold mb-3"
-            style={{ background: "rgba(200,149,42,0.12)", color: "#C8952A", border: "1px solid rgba(200,149,42,0.35)" }}>
-            Soy administrador inicial (activar con frase)
-          </button>
-
-          <button
             onClick={() => setLocation("/")}
             className="w-full py-3 rounded-2xl text-xs font-bold"
             style={{ background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.5)", border: "1px solid rgba(255,255,255,0.08)" }}>
@@ -295,6 +341,15 @@ export default function CompleteProfile() {
           <p className="text-xs mb-6" style={{ color: "rgba(255,255,255,0.35)" }}>
             Pide al administrador que genere una nueva clave para ti.
           </p>
+          <button
+            onClick={() => {
+              localStorage.removeItem("castores_invite_code");
+              setCodeState({ status: "no_code" });
+            }}
+            className="w-full py-3.5 rounded-2xl text-sm font-bold mb-3"
+            style={{ background: "linear-gradient(135deg, #C8952A, #C8952Acc)", color: "white" }}>
+            Probar otra clave
+          </button>
           <button
             onClick={() => setLocation("/")}
             className="w-full py-3.5 rounded-2xl text-sm font-bold"
