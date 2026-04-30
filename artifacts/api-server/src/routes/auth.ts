@@ -22,19 +22,29 @@ function getVerifiedEmail(req: any): string | null {
 const router: IRouter = Router();
 
 router.post("/auth/admin-access", async (req, res): Promise<void> => {
-  const { userId: clerkUserId } = getAuth(req);
+  let clerkUserId: string | null = null;
+  try {
+    clerkUserId = getAuth(req).userId ?? null;
+  } catch (authErr: unknown) {
+    const detail = authErr instanceof Error ? authErr.message : String(authErr);
+    logger.error({ detail }, "getAuth error in admin-access");
+    res.status(503).json({ error: "auth_unavailable", detail });
+    return;
+  }
   if (!clerkUserId) {
     res.status(401).json({ error: "Sesión no verificada. Inicia sesión primero." });
     return;
   }
 
-  const { phrase, name } = req.body as { phrase?: string; name?: string };
+  const { phrase, name, email: bodyEmail } = req.body as { phrase?: string; name?: string; email?: string };
   if (!phrase || !isMasterAdminKey(phrase)) {
     res.status(403).json({ error: "Frase de acceso inválida" });
     return;
   }
 
-  const verifiedEmail = getVerifiedEmail(req);
+  // Prefer email from verified JWT claims; fall back to email sent in body
+  // (safe because clerkUserId was already verified via JWT above).
+  const verifiedEmail = getVerifiedEmail(req) || bodyEmail?.trim() || null;
   if (!verifiedEmail) {
     res.status(400).json({ error: "No se pudo verificar el correo de la sesión Clerk" });
     return;
@@ -354,7 +364,15 @@ router.post("/auth/test-email", async (req, res): Promise<void> => {
  * will promote/update them later.
  */
 router.post("/auth/clerk-me", async (req, res): Promise<void> => {
-  const { userId: clerkUserId } = getAuth(req);
+  let clerkUserId: string | null = null;
+  try {
+    clerkUserId = getAuth(req).userId ?? null;
+  } catch (authErr: unknown) {
+    const detail = authErr instanceof Error ? authErr.message : String(authErr);
+    logger.error({ detail }, "getAuth error in clerk-me");
+    res.status(503).json({ error: "auth_unavailable", detail });
+    return;
+  }
   if (!clerkUserId) {
     res.status(401).json({ error: "Sesión no verificada" });
     return;

@@ -97,10 +97,11 @@ export default function CompleteProfile() {
         body: JSON.stringify({
           phrase,
           name: user?.fullName || user?.firstName || "Administrador General",
+          email: user?.primaryEmailAddress?.emailAddress || "",
         }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || "No se pudo activar el acceso administrador");
+      if (!res.ok) throw new Error(data.detail || data.message || data.error || "No se pudo activar el acceso administrador");
       localStorage.removeItem("castores_invite_code");
       toast({ title: "Acceso administrador activado" });
       setLocation("/dashboard");
