@@ -289,13 +289,13 @@ function SignUpPage() {
       const result = await signUp.attemptVerification({ strategy: "email_code", code: otpCode });
       if (result.status === "complete") {
         await setActive({ session: result.createdSessionId });
-        // Navigate immediately — don't release busy so the button stays disabled.
-        // Waiting for isSignedIn to propagate left a window where double-clicking
-        // re-submitted the form and got "already verified" from Clerk.
         localStorage.removeItem("castores_signup_step");
         localStorage.removeItem("castores_signup_email");
-        setLocation("/complete-profile");
-        return; // finally still runs but navigation is already in progress
+        // Hard navigation so Clerk's session is fully committed before
+        // complete-profile.tsx renders — SPA routing (setLocation) was too fast
+        // and isSignedIn was still false, causing an immediate redirect back.
+        window.location.assign(basePath ? `${basePath}/complete-profile` : "/complete-profile");
+        return;
       }
       setBusy(false);
     } catch (err) {
@@ -311,7 +311,7 @@ function SignUpPage() {
             await setActive({ session: signUp.createdSessionId });
             localStorage.removeItem("castores_signup_step");
             localStorage.removeItem("castores_signup_email");
-            setLocation("/complete-profile");
+            window.location.assign(basePath ? `${basePath}/complete-profile` : "/complete-profile");
             return;
           } catch { /* fall through */ }
         }
