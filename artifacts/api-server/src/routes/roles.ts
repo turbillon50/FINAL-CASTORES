@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { eq } from "drizzle-orm";
 import { db, rolePermissionsTable, ROLE_DEFAULTS, PERMISSION_KEYS, USER_ROLES } from "@workspace/db";
 import { getRequestUser } from "../lib/getRequestUser";
+import { clearPermissionsCache } from "../lib/permissions";
 
 const router: IRouter = Router();
 
@@ -59,6 +60,7 @@ router.put("/role-permissions/:role", async (req, res): Promise<void> => {
     .set({ permissions: sanitized, updatedAt: new Date() })
     .where(eq(rolePermissionsTable.role, role));
 
+  clearPermissionsCache(role);
   res.json({ role, permissions: sanitized });
 });
 
@@ -77,6 +79,7 @@ router.post("/role-permissions/reset", async (req, res): Promise<void> => {
         set: { permissions: ROLE_DEFAULTS[role], updatedAt: new Date() },
       });
   }
+  clearPermissionsCache();
   res.json({ ok: true });
 });
 

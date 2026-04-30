@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { MainLayout } from "@/components/layout/main-layout";
 import { apiUrl } from "@/lib/api-url";
+import { useLocation } from "wouter";
 
 const FALLBACK_TERMS = `Bienvenido a Castores Control, plataforma operada por CASTORES Estructuras y Construcciones (en adelante, "la Empresa"). Al usar esta aplicación, aceptas estos Términos.
 
@@ -44,6 +45,7 @@ Para cualquier duda: WhatsApp +52 998 429 2748 o contacto a través de la app.
 Última actualización: ${new Date().toLocaleDateString("es-MX", { day: "numeric", month: "long", year: "numeric" })}.`;
 
 export default function Terminos() {
+  const [, navigate] = useLocation();
   const { data } = useQuery<Array<{ id: number; title: string; body: string | null }>>({
     queryKey: ["content", "terms"],
     queryFn: async () => {
@@ -59,6 +61,13 @@ export default function Terminos() {
   return (
     <MainLayout publicAccess>
       <motion.article initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="max-w-3xl mx-auto bg-card border border-border rounded-2xl p-6 md:p-10">
+        <button onClick={() => window.history.length > 1 ? window.history.back() : navigate("/cuenta")}
+          className="flex items-center gap-2 text-sm font-semibold text-muted-foreground hover:text-foreground transition -ml-1 mb-6">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="w-4 h-4">
+            <path d="M15 18l-6-6 6-6" />
+          </svg>
+          Regresar
+        </button>
         <h1 className="font-bebas text-4xl tracking-wider mb-6">{item?.title || "TÉRMINOS Y CONDICIONES"}</h1>
         <div className="prose prose-sm max-w-none whitespace-pre-wrap text-foreground/90 leading-relaxed">
           {body}

@@ -4,6 +4,7 @@ import { db, workLogsTable, projectsTable, usersTable } from "@workspace/db";
 import { getRequestUser } from "../lib/getRequestUser";
 import { resolveAuthedUser } from "../lib/authContext";
 import { getAccessibleProjectIds, canAccessProject } from "../lib/projectAccess";
+import { hasPermission } from "../lib/permissions";
 import { formatZodError } from "../lib/zodError";
 import {
   CreateLogBody,
@@ -37,6 +38,9 @@ async function enrichLog(log: typeof workLogsTable.$inferSelect) {
 router.get("/logs", async (req, res): Promise<void> => {
   const user = await getRequestUser(req);
   if (!user) { res.status(401).json({ error: "No autenticado" }); return; }
+  if (!await hasPermission(user.role, "bitacoraView")) {
+    res.status(403).json({ error: "No tienes permiso para ver la bitácora" }); return;
+  }
 
   const parsed = ListLogsQueryParams.safeParse(req.query);
   let logs = await db.select().from(workLogsTable).orderBy(workLogsTable.logDate);
@@ -66,6 +70,10 @@ router.post("/logs", async (req, res): Promise<void> => {
   const actor = await resolveAuthedUser(req);
   if (!actor) {
     res.status(401).json({ error: "No autenticado" });
+    return;
+  }
+  if (!await hasPermission(actor.role, "bitacoraCreate")) {
+    res.status(403).json({ error: "No tienes permiso para crear entradas en la bitácora" });
     return;
   }
   const [log] = await db
