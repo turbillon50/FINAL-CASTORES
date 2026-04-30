@@ -289,27 +289,36 @@ function SignUpPage() {
       const result = await signUp.attemptVerification({ strategy: "email_code", code: otpCode });
       if (result.status === "complete") {
         await setActive({ session: result.createdSessionId });
-        // isSignedIn effect above handles redirect to /complete-profile
+        // Navigate immediately — don't release busy so the button stays disabled.
+        // Waiting for isSignedIn to propagate left a window where double-clicking
+        // re-submitted the form and got "already verified" from Clerk.
+        localStorage.removeItem("castores_signup_step");
+        localStorage.removeItem("castores_signup_email");
+        setLocation("/complete-profile");
+        return; // finally still runs but navigation is already in progress
       }
+      setBusy(false);
     } catch (err) {
       const { msg } = parseClerkError(err);
-      // If Clerk says the code was already verified, the session may already be
-      // complete — try to activate it directly so the user isn't stuck.
       if (
         msg.toLowerCase().includes("already been verified") ||
         msg.toLowerCase().includes("already verified")
       ) {
+        // First click succeeded but user tapped again before navigation.
+        // Try to activate the completed session directly.
         if (signUp?.status === "complete" && signUp.createdSessionId) {
           try {
             await setActive({ session: signUp.createdSessionId });
+            localStorage.removeItem("castores_signup_step");
+            localStorage.removeItem("castores_signup_email");
+            setLocation("/complete-profile");
             return;
-          } catch { /* fall through to error */ }
+          } catch { /* fall through */ }
         }
         setError("Este código ya fue verificado. Si no puedes continuar, usa el botón Reenviar para recibir uno nuevo.");
       } else {
         setError(translateClerkError(msg));
       }
-    } finally {
       setBusy(false);
     }
   };
