@@ -175,7 +175,8 @@ function SignUpPage() {
         ...(firstName ? { firstName } : {}),
         ...(lastName ? { lastName } : {}),
       });
-      await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
+      // Clerk 6 email_code strategy: prepareVerification sends the OTP
+      await signUp.prepareVerification({ strategy: "email_code" });
       setStep("otp");
     } catch (err) {
       localStorage.removeItem("castores_signup_step");
@@ -200,7 +201,7 @@ function SignUpPage() {
     setBusy(true);
     setError(null);
     try {
-      const result = await signUp.attemptEmailAddressVerification({ code: otpCode });
+      const result = await signUp.attemptVerification({ code: otpCode });
       if (result.status === "complete") {
         await setActive({ session: result.createdSessionId });
         // isSignedIn effect above handles redirect to /complete-profile
@@ -222,7 +223,7 @@ function SignUpPage() {
       return;
     }
     try {
-      await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
+      await signUp.prepareVerification({ strategy: "email_code" });
       setResendOk(true);
     } catch (err) {
       setError(parseClerkError(err).msg);
