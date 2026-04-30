@@ -93,6 +93,15 @@ function SignInPage() {
   );
 }
 
+function translateClerkError(msg: string): string {
+  const m = msg.toLowerCase();
+  if (m.includes("incorrect") || m.includes("invalid") || m.includes("incorrecto")) return "Código incorrecto. Intenta de nuevo.";
+  if (m.includes("expired") || m.includes("expirado")) return "El código expiró. Usa el botón Reenviar para recibir uno nuevo.";
+  if (m.includes("too many") || m.includes("rate")) return "Demasiados intentos. Espera unos minutos e intenta de nuevo.";
+  if (m.includes("network") || m.includes("fetch")) return "Error de conexión. Revisa tu internet e intenta de nuevo.";
+  return msg;
+}
+
 function parseClerkError(err: unknown): { msg: string; isEmailTaken: boolean } {
   if (err && typeof err === "object") {
     const e = err as Record<string, unknown>;
@@ -238,7 +247,23 @@ function SignUpPage() {
         // isSignedIn effect above handles redirect to /complete-profile
       }
     } catch (err) {
-      setError(parseClerkError(err).msg);
+      const { msg } = parseClerkError(err);
+      // If Clerk says the code was already verified, the session may already be
+      // complete — try to activate it directly so the user isn't stuck.
+      if (
+        msg.toLowerCase().includes("already been verified") ||
+        msg.toLowerCase().includes("already verified")
+      ) {
+        if (signUp?.status === "complete" && signUp.createdSessionId) {
+          try {
+            await setActive({ session: signUp.createdSessionId });
+            return;
+          } catch { /* fall through to error */ }
+        }
+        setError("Este código ya fue verificado. Si no puedes continuar, usa el botón Reenviar para recibir uno nuevo.");
+      } else {
+        setError(translateClerkError(msg));
+      }
     } finally {
       setBusy(false);
     }
@@ -257,7 +282,7 @@ function SignUpPage() {
       await signUp.prepareVerification({ strategy: "email_code" });
       setResendOk(true);
     } catch (err) {
-      setError(parseClerkError(err).msg);
+      setError(translateClerkError(parseClerkError(err).msg));
     }
   };
 
