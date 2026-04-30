@@ -71,7 +71,11 @@ const clerkAppearance = {
     dividerRow: { display: "none" },
     dividerText: { display: "none" },
     dividerLine: { display: "none" },
-    // Passkeys (Face ID / huella) enabled — registered via Mi Cuenta
+    // Passkeys disabled — requires Clerk plan upgrade
+    passkey__container: { display: "none" },
+    passkeyContainer: { display: "none" },
+    "passkey-container": { display: "none" },
+    userVerificationRoot: { display: "none" },
   },
 };
 
