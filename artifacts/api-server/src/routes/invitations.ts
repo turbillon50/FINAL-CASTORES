@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, and } from "drizzle-orm";
-import { db, invitationCodesTable, USER_ROLES } from "@workspace/db";
+import { db, invitationCodesTable, usersTable, USER_ROLES } from "@workspace/db";
 import { randomBytes } from "crypto";
 import { getRequestUser } from "../lib/getRequestUser";
 
@@ -68,11 +68,8 @@ router.post("/invitations/validate", async (req, res): Promise<void> => {
 
     res.json({ valid: true, role: inv.role, label: inv.label ?? null });
   } catch (err: unknown) {
-    // Log the actual error so we can diagnose DB issues in production logs
     const e = err as { code?: string; message?: string };
     req.log?.error?.({ err, code: e?.code, message: e?.message }, "invitations/validate db error");
-    console.error("[invitations/validate] DB error:", e?.code, e?.message);
-    // Surface a more useful reason for the client too
     const reason =
       e?.code === "42P01"
         ? "Tablas no inicializadas (faltan migraciones)"
@@ -129,15 +126,41 @@ router.post("/invitations", async (req, res): Promise<void> => {
 });
 
 // DELETE /invitations/:id — admin only
+//
+// REVOKES the invitation AND, if it was already used by someone, immediately
+// deactivates that user's account so they lose access on the next request.
+// This implements the admin's promise: "borrar la clave = quitar el acceso".
 router.delete("/invitations/:id", async (req, res): Promise<void> => {
   const user = await getRequestUser(req);
   if (!user || user.role !== "admin") { res.status(403).json({ error: "Acceso denegado" }); return; }
 
   const id = Number(req.params.id);
+  if (!Number.isFinite(id)) { res.status(400).json({ error: "ID inválido" }); return; }
+
+  // Read first so we know which user (if any) was registered with this code.
+  const [inv] = await db.select().from(invitationCodesTable).where(eq(invitationCodesTable.id, id));
+  if (!inv) { res.status(404).json({ error: "Invitación no encontrada" }); return; }
+
+  // Mark the invitation as inactive (no longer usable, no longer valid).
   await db.update(invitationCodesTable).set({ isActive: false })
     .where(eq(invitationCodesTable.id, id));
 
-  res.json({ success: true });
+  // If somebody already registered with this code, deactivate them too.
+  // Safety: never deactivate an admin via invitation revocation — admins are
+  // managed through their own panel and should not be killable by removing
+  // an old code.
+  let revokedUserId: number | null = null;
+  if (inv.usedBy) {
+    const [target] = await db.select().from(usersTable).where(eq(usersTable.id, inv.usedBy));
+    if (target && target.role !== "admin") {
+      await db.update(usersTable)
+        .set({ isActive: false, updatedAt: new Date() })
+        .where(eq(usersTable.id, target.id));
+      revokedUserId = target.id;
+    }
+  }
+
+  res.json({ success: true, revokedUserId });
 });
 
 export default router;
