@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import { MainLayout } from "@/components/layout/main-layout";
@@ -21,6 +22,7 @@ const FALLBACK: FaqItem[] = [
 ];
 
 export default function FAQ() {
+  const [, navigate] = useLocation();
   const { data } = useQuery<FaqItem[]>({
     queryKey: ["content", "faq"],
     queryFn: async () => {
@@ -63,6 +65,13 @@ export default function FAQ() {
   return (
     <MainLayout publicAccess>
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="max-w-3xl mx-auto space-y-6">
+        <button onClick={() => window.history.length > 1 ? window.history.back() : navigate("/dashboard")}
+          className="flex items-center gap-2 text-sm font-semibold text-muted-foreground hover:text-foreground transition -ml-1">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="w-4 h-4">
+            <path d="M15 18l-6-6 6-6" />
+          </svg>
+          Regresar
+        </button>
         <header>
           <h1 className="font-bebas text-4xl tracking-wider">PREGUNTAS FRECUENTES</h1>
           <p className="text-sm text-muted-foreground mt-1">

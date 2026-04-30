@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { db, documentsTable, projectsTable, usersTable } from "@workspace/db";
 import { getRequestUser } from "../lib/getRequestUser";
 import { resolveAuthedUser } from "../lib/authContext";
+import { hasPermission } from "../lib/permissions";
 import { getAccessibleProjectIds } from "../lib/projectAccess";
 import { formatZodError } from "../lib/zodError";
 import {
@@ -27,6 +28,9 @@ async function enrichDocument(doc: typeof documentsTable.$inferSelect) {
 router.get("/documents", async (req, res): Promise<void> => {
   const user = await getRequestUser(req);
   if (!user) { res.status(401).json({ error: "No autenticado" }); return; }
+  if (!await hasPermission(user.role, "documentsLegalView")) {
+    res.status(403).json({ error: "No tienes permiso para ver documentos" }); return;
+  }
 
   const parsed = ListDocumentsQueryParams.safeParse(req.query);
   let docs = await db.select().from(documentsTable).orderBy(documentsTable.createdAt);
@@ -55,6 +59,10 @@ router.post("/documents", async (req, res): Promise<void> => {
   const actor = await resolveAuthedUser(req);
   if (!actor) {
     res.status(401).json({ error: "No autenticado" });
+    return;
+  }
+  if (!await hasPermission(actor.role, "documentsLegalManage")) {
+    res.status(403).json({ error: "No tienes permiso para subir documentos" });
     return;
   }
   const [doc] = await db.insert(documentsTable).values({ ...parsed.data, uploadedById: actor.id }).returning();
@@ -90,8 +98,8 @@ router.delete("/documents/:id", async (req, res): Promise<void> => {
   // Solo admin o supervisor pueden eliminar documentos.
   // No se permite borrado por dueño no-privilegiado para evitar que un cliente,
   // trabajador o proveedor borre evidencia/contratos que él mismo subió.
-  if (actor.role !== "admin" && actor.role !== "supervisor") {
-    res.status(403).json({ error: "Solo administradores o supervisores pueden eliminar documentos" });
+  if (!await hasPermission(actor.role, "documentsLegalManage")) {
+    res.status(403).json({ error: "No tienes permiso para eliminar documentos" });
     return;
   }
 

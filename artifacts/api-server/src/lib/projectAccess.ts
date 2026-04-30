@@ -1,16 +1,17 @@
 import { eq, or, inArray } from "drizzle-orm";
 import { db, projectsTable, projectAssignmentsTable } from "@workspace/db";
+import { hasPermission } from "./permissions";
 
 /**
  * Returns the list of project IDs a user can access.
- * - admin / supervisor: all projects (returned as null = no filter)
+ * - Users with projectsViewAll permission: null (no filter = all projects)
  * - client: projects where they are clientId OR explicitly assigned
- * - worker / proveedor: only projects where they are explicitly assigned
+ * - Others without projectsViewAll: only explicitly assigned projects
  */
 export async function getAccessibleProjectIds(
   user: { id: number; role: string },
 ): Promise<number[] | null> {
-  if (user.role === "admin" || user.role === "supervisor") return null;
+  if (await hasPermission(user.role, "projectsViewAll")) return null;
 
   const assignments = await db
     .select({ projectId: projectAssignmentsTable.projectId })
@@ -27,9 +28,21 @@ export async function getAccessibleProjectIds(
     return Array.from(ids);
   }
 
-  // worker, proveedor and any other role
   return assignedIds;
 }
+
+/**
+ * Returns true if the user can access the given project.
+ */
+export async function canAccessProject(
+  user: { id: number; role: string },
+  projectId: number,
+): Promise<boolean> {
+  const ids = await getAccessibleProjectIds(user);
+  if (ids === null) return true;
+  return ids.includes(projectId);
+}
+
 
 /**
  * Returns true if the user can access the given project.

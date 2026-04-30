@@ -4,6 +4,7 @@ import { db, usersTable } from "@workspace/db";
 import { getAuth, clerkClient } from "@clerk/express";
 import { sendApprovalEmail, sendRejectionEmail } from "../lib/email";
 import { getRequestUserStrict } from "./../lib/getRequestUser";
+import { hasPermission } from "../lib/permissions";
 import { formatZodError } from "../lib/zodError";
 import {
   CreateUserBody,
@@ -102,10 +103,10 @@ router.get("/users", async (req, res): Promise<void> => {
   const query = db.select().from(usersTable);
   const users = await query.orderBy(usersTable.createdAt);
 
-  const scopedUsers =
-    actor.role === "admin" || actor.role === "supervisor"
-      ? users
-      : users.filter((u) => u.id === actor.id);
+  const canViewAll = await hasPermission(actor.role, "workersView");
+  const scopedUsers = canViewAll
+    ? users
+    : users.filter((u) => u.id === actor.id);
 
   const result = scopedUsers.map(({ passwordHash: _, ...u }) => u);
 
@@ -120,8 +121,8 @@ router.get("/users", async (req, res): Promise<void> => {
 router.post("/users", async (req, res): Promise<void> => {
   const actor = await getRequestUserStrict(req);
   if (!actor) { res.status(401).json({ error: "No autenticado" }); return; }
-  if (actor.role !== "admin") {
-    res.status(403).json({ error: "Solo administradores pueden crear usuarios manualmente" });
+  if (!await hasPermission(actor.role, "workersManage")) {
+    res.status(403).json({ error: "No tienes permiso para crear usuarios" });
     return;
   }
 

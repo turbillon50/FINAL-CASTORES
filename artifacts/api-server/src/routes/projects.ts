@@ -3,6 +3,7 @@ import { eq, sql, and } from "drizzle-orm";
 import { db, projectsTable, usersTable, workLogsTable, materialsTable, projectAssignmentsTable } from "@workspace/db";
 import { getRequestUser, getRequestUserStrict } from "../lib/getRequestUser";
 import { getAccessibleProjectIds, canAccessProject } from "../lib/projectAccess";
+import { hasPermission } from "../lib/permissions";
 import { formatZodError } from "../lib/zodError";
 import {
   CreateProjectBody,
@@ -56,8 +57,8 @@ router.get("/projects", async (req, res): Promise<void> => {
 router.post("/projects", async (req, res): Promise<void> => {
   const user = await getRequestUserStrict(req);
   if (!user) { res.status(401).json({ error: "No autenticado" }); return; }
-  if (user.role !== "admin") {
-    res.status(403).json({ error: "Solo administradores pueden crear obras" });
+  if (!await hasPermission(user.role, "projectsCreateEdit")) {
+    res.status(403).json({ error: "No tienes permiso para crear obras" });
     return;
   }
 
@@ -103,8 +104,8 @@ router.get("/projects/:id/assignments", async (req, res): Promise<void> => {
 
   const user = await getRequestUserStrict(req);
   if (!user) { res.status(401).json({ error: "No autenticado" }); return; }
-  if (user.role !== "admin") {
-    res.status(403).json({ error: "Solo administradores pueden ver las asignaciones" }); return;
+  if (!await hasPermission(user.role, "workersManage")) {
+    res.status(403).json({ error: "No tienes permiso para ver asignaciones" }); return;
   }
 
   const rows = await db
@@ -131,8 +132,8 @@ router.post("/projects/:id/assignments", async (req, res): Promise<void> => {
 
   const user = await getRequestUserStrict(req);
   if (!user) { res.status(401).json({ error: "No autenticado" }); return; }
-  if (user.role !== "admin") {
-    res.status(403).json({ error: "Solo administradores pueden asignar usuarios" }); return;
+  if (!await hasPermission(user.role, "workersManage")) {
+    res.status(403).json({ error: "No tienes permiso para asignar usuarios" }); return;
   }
 
   const userId = Number((req.body as { userId?: unknown })?.userId);
@@ -171,8 +172,8 @@ router.delete("/projects/:id/assignments/:userId", async (req, res): Promise<voi
 
   const user = await getRequestUserStrict(req);
   if (!user) { res.status(401).json({ error: "No autenticado" }); return; }
-  if (user.role !== "admin") {
-    res.status(403).json({ error: "Solo administradores pueden remover asignaciones" }); return;
+  if (!await hasPermission(user.role, "workersManage")) {
+    res.status(403).json({ error: "No tienes permiso para remover asignaciones" }); return;
   }
 
   await db
@@ -185,8 +186,8 @@ router.delete("/projects/:id/assignments/:userId", async (req, res): Promise<voi
 router.patch("/projects/:id", async (req, res): Promise<void> => {
   const user = await getRequestUserStrict(req);
   if (!user) { res.status(401).json({ error: "No autenticado" }); return; }
-  if (user.role !== "admin") {
-    res.status(403).json({ error: "Solo administradores pueden editar obras" });
+  if (!await hasPermission(user.role, "projectsCreateEdit")) {
+    res.status(403).json({ error: "No tienes permiso para editar obras" });
     return;
   }
 
@@ -224,8 +225,8 @@ router.patch("/projects/:id", async (req, res): Promise<void> => {
 router.delete("/projects/:id", async (req, res): Promise<void> => {
   const user = await getRequestUserStrict(req);
   if (!user) { res.status(401).json({ error: "No autenticado" }); return; }
-  if (user.role !== "admin") {
-    res.status(403).json({ error: "Solo administradores pueden eliminar obras" });
+  if (!await hasPermission(user.role, "projectsCreateEdit")) {
+    res.status(403).json({ error: "No tienes permiso para eliminar obras" });
     return;
   }
 

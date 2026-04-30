@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { db, materialsTable, projectsTable, usersTable } from "@workspace/db";
 import { getRequestUser } from "../lib/getRequestUser";
 import { resolveAuthedUser } from "../lib/authContext";
+import { hasPermission } from "../lib/permissions";
 import { getAccessibleProjectIds } from "../lib/projectAccess";
 import { formatZodError } from "../lib/zodError";
 import {
@@ -63,6 +64,10 @@ router.post("/materials", async (req, res): Promise<void> => {
   const actor = await resolveAuthedUser(req);
   if (!actor) {
     res.status(401).json({ error: "No autenticado" });
+    return;
+  }
+  if (!await hasPermission(actor.role, "materialsRequest")) {
+    res.status(403).json({ error: "No tienes permiso para solicitar materiales" });
     return;
   }
   const userId = actor.id;
@@ -194,8 +199,8 @@ router.patch("/materials/:id", async (req, res): Promise<void> => {
 router.delete("/materials/:id", async (req, res): Promise<void> => {
   const actor = await resolveAuthedUser(req);
   if (!actor) { res.status(401).json({ error: "No autenticado" }); return; }
-  if (actor.role !== "admin" && actor.role !== "supervisor") {
-    res.status(403).json({ error: "Solo administradores o supervisores pueden eliminar materiales" });
+  if (!await hasPermission(actor.role, "materialsApprove")) {
+    res.status(403).json({ error: "No tienes permiso para eliminar materiales" });
     return;
   }
 
@@ -215,8 +220,8 @@ router.post("/materials/:id/approve", async (req, res): Promise<void> => {
     res.status(401).json({ error: "No autenticado" });
     return;
   }
-  if (actor.role !== "admin" && actor.role !== "supervisor") {
-    res.status(403).json({ error: "Solo administradores o supervisores pueden aprobar materiales" });
+  if (!await hasPermission(actor.role, "materialsApprove")) {
+    res.status(403).json({ error: "No tienes permiso para aprobar materiales" });
     return;
   }
 
