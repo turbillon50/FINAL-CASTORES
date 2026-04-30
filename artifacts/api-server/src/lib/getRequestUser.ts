@@ -13,6 +13,10 @@ import { getAuth } from "@clerk/express";
  *
  * Backfill: when a JWT-authenticated request comes in and the matching user's
  * email exists in the DB but their clerk_id is empty, we link them.
+ *
+ * REVOCATION: users with isActive=false are treated as if they don't exist.
+ * This makes invitation revocation take effect immediately on the next API
+ * call without needing to invalidate Clerk sessions.
  */
 export async function getRequestUser(
   req: any,
@@ -22,10 +26,13 @@ export async function getRequestUser(
   // 1. Clerk JWT — verified by middleware
   if (jwtClerkId) {
     const [u] = await db
-      .select({ id: usersTable.id, role: usersTable.role })
+      .select({ id: usersTable.id, role: usersTable.role, isActive: usersTable.isActive })
       .from(usersTable)
       .where(eq(usersTable.clerkId, jwtClerkId));
-    if (u) return u;
+    if (u) {
+      if (!u.isActive) return null;
+      return { id: u.id, role: u.role };
+    }
 
     // Backfill: same JWT, but our user record was created via legacy flow
     // and has no clerk_id yet. We resolve by the *verified* JWT email claim
@@ -34,10 +41,11 @@ export async function getRequestUser(
     const verifiedEmail = sessionClaims?.email;
     if (verifiedEmail) {
       const [byEmail] = await db
-        .select({ id: usersTable.id, role: usersTable.role, clerkId: usersTable.clerkId })
+        .select({ id: usersTable.id, role: usersTable.role, clerkId: usersTable.clerkId, isActive: usersTable.isActive })
         .from(usersTable)
         .where(eq(usersTable.email, verifiedEmail));
       if (byEmail && !byEmail.clerkId) {
+        if (!byEmail.isActive) return null;
         await db
           .update(usersTable)
           .set({ clerkId: jwtClerkId })
@@ -51,10 +59,12 @@ export async function getRequestUser(
   const sessionId = req.session?.userId;
   if (sessionId) {
     const [u] = await db
-      .select({ id: usersTable.id, role: usersTable.role })
+      .select({ id: usersTable.id, role: usersTable.role, isActive: usersTable.isActive })
       .from(usersTable)
       .where(eq(usersTable.id, sessionId));
-    return u ?? null;
+    if (!u) return null;
+    if (!u.isActive) return null;
+    return { id: u.id, role: u.role };
   }
 
   return null;
@@ -64,6 +74,7 @@ export async function getRequestUser(
  * Strict version: only trusts session cookie or verified Clerk JWT.
  * Does NOT honor ?clerkId / ?email query fallbacks. Use for admin-only
  * destructive endpoints where impersonation must be impossible.
+ * Also enforces isActive=true.
  */
 export async function getRequestUserStrict(
   req: any,
@@ -71,19 +82,21 @@ export async function getRequestUserStrict(
   const sessionId = req.session?.userId;
   if (sessionId) {
     const [u] = await db
-      .select({ id: usersTable.id, role: usersTable.role })
+      .select({ id: usersTable.id, role: usersTable.role, isActive: usersTable.isActive })
       .from(usersTable)
       .where(eq(usersTable.id, sessionId));
-    return u ?? null;
+    if (!u || !u.isActive) return null;
+    return { id: u.id, role: u.role };
   }
 
   const { userId: jwtClerkId } = getAuth(req);
   if (jwtClerkId) {
     const [u] = await db
-      .select({ id: usersTable.id, role: usersTable.role })
+      .select({ id: usersTable.id, role: usersTable.role, isActive: usersTable.isActive })
       .from(usersTable)
       .where(eq(usersTable.clerkId, jwtClerkId));
-    return u ?? null;
+    if (!u || !u.isActive) return null;
+    return { id: u.id, role: u.role };
   }
 
   return null;
