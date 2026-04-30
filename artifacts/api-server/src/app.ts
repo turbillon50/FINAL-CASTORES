@@ -114,13 +114,10 @@ app.use(
       if (!origin) return callback(null, true);
       const normalized = origin.replace(/\/+$/, "");
       if (allowedOrigins.includes(normalized)) return callback(null, true);
-      // In non-production we accept any *.vercel.app preview to ease testing.
-      if (
-        process.env["NODE_ENV"] !== "production" &&
-        /^https?:\/\/[^/]+\.vercel\.app$/i.test(normalized)
-      ) {
-        return callback(null, true);
-      }
+      // Always allow the production domain (with or without www).
+      if (/^https?:\/\/(www\.)?castores\.info$/i.test(normalized)) return callback(null, true);
+      // Allow any *.vercel.app preview deploy (staging, PRs, smoke tests).
+      if (/^https?:\/\/[^/]+\.vercel\.app$/i.test(normalized)) return callback(null, true);
       // Allow localhost during dev regardless of NODE_ENV (Vite preview, etc.).
       if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(normalized)) {
         return callback(null, true);
