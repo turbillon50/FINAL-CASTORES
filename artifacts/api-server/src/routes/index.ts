@@ -13,6 +13,7 @@ import reportsRouter from "./reports";
 import notificationsRouter from "./notifications";
 import dashboardRouter from "./dashboard";
 import rolesRouter from "./roles";
+import adminDbInitRouter from "./admin-db-init";
 
 const router: IRouter = Router();
 
@@ -24,6 +25,9 @@ router.use(rolesRouter); // handles own auth check internally (admin-only per ro
 // Public catalogue: GET /content must NOT go through requireAuth (that middleware hits the DB via
 // getRequestUser and would 401/500 anonymous FAQ/legal reads or fail.closed when the pool errors).
 router.use(contentRouter);
+// One-shot DB schema/seed initializer. Idempotent. Guarded by ADMIN_ACCESS_PHRASE in body.
+// Safe to keep registered: rejects without the master phrase.
+router.use(adminDbInitRouter);
 
 // Protected routes — require Clerk JWT or demo mode header
 router.use(requireAuth);
