@@ -117,11 +117,12 @@ function SignUpPage() {
   const hasUrlCode = typeof window !== "undefined"
     && new URLSearchParams(window.location.search).has("code");
 
-  // Capture invite code from URL → localStorage.
-  // When a fresh invite URL is opened, also wipe any stale signup session
-  // that might belong to a different user on this device (e.g. the admin who
-  // generated the code, then opened the link to test it on the same phone).
-  if (typeof window !== "undefined") {
+  // On mount only: capture invite code and clear stale signup state.
+  // Must be a useEffect — NOT inline — so that re-renders triggered during
+  // the OTP flow (e.g. setBusy, setStep) don't erase the
+  // castores_signup_step/email keys that handleSubmitForm writes for iOS
+  // background-kill recovery before the OTP screen appears.
+  useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const code = urlParams.get("code");
     if (code) {
@@ -129,7 +130,8 @@ function SignUpPage() {
       localStorage.removeItem("castores_signup_step");
       localStorage.removeItem("castores_signup_email");
     }
-  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   type SignUpStep = "form" | "otp";
   const [step, setStep] = useState<SignUpStep>(() => {
