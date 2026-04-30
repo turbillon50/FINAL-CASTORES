@@ -71,11 +71,7 @@ const clerkAppearance = {
     dividerRow: { display: "none" },
     dividerText: { display: "none" },
     dividerLine: { display: "none" },
-    // Hide passkey prompts — users register with email/password only
-    passkey__container: { display: "none" },
-    passkeyContainer: { display: "none" },
-    "passkey-container": { display: "none" },
-    userVerificationRoot: { display: "none" },
+    // Passkeys (Face ID / huella) enabled — registered via Mi Cuenta
   },
 };
 
@@ -645,8 +641,16 @@ function ApprovalGate({ children }: { children: React.ReactNode }) {
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
   const { isLoaded, isSignedIn } = useUser();
+  // On PWA relaunch, Clerk reinitializes from storage and the token refresh is
+  // async. isSignedIn can briefly be false while a valid session is being
+  // confirmed. Give it up to 2 s before redirecting to the login page.
+  const [graceDone, setGraceDone] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setGraceDone(true), 2000);
+    return () => clearTimeout(t);
+  }, []);
 
-  if (!isLoaded) {
+  if (!isLoaded || (!isSignedIn && !graceDone)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#f8f4ef]">
         <div className="animate-spin rounded-full h-10 w-10 border-4 border-amber-500 border-t-transparent" />

@@ -6,13 +6,34 @@ import { useToast } from "@/hooks/use-toast";
 import { MainLayout } from "@/components/layout/main-layout";
 import { getAuthToken } from "@workspace/api-client-react";
 import { apiUrl } from "@/lib/api-url";
+import { useUser } from "@clerk/react";
 
 export default function Cuenta() {
   const { user, logout } = useAuth();
+  const { user: clerkUser } = useUser();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [step, setStep] = useState<"idle" | "confirm1" | "confirm2" | "deleting">("idle");
   const [confirmText, setConfirmText] = useState("");
+  const [passkeyBusy, setPasskeyBusy] = useState(false);
+
+  async function registerPasskey() {
+    if (!clerkUser) return;
+    setPasskeyBusy(true);
+    try {
+      await clerkUser.createPasskey();
+      toast({ title: "Face ID / Huella registrado", description: "Ahora puedes entrar con biometría." });
+    } catch (e: any) {
+      const msg = e?.message ?? "";
+      if (msg.includes("cancel") || msg.includes("abort")) {
+        toast({ title: "Cancelado", description: "No se registró ninguna clave." });
+      } else {
+        toast({ variant: "destructive", title: "Error", description: "Este dispositivo no es compatible o ya tienes una clave registrada." });
+      }
+    } finally {
+      setPasskeyBusy(false);
+    }
+  }
 
   if (!user) return null;
 
@@ -90,6 +111,23 @@ export default function Cuenta() {
             </div>
             <span className="text-muted-foreground">→</span>
           </a>
+        </section>
+
+        {/* Acceso biométrico */}
+        <section className="bg-card border border-border rounded-2xl p-6 space-y-3">
+          <h3 className="font-bebas text-xl tracking-wide">ACCESO RÁPIDO</h3>
+          <p className="text-sm text-muted-foreground">
+            Registra tu Face ID o huella digital para entrar sin contraseña. Una vez registrado, la app te pedirá biometría automáticamente.
+          </p>
+          <button
+            onClick={registerPasskey}
+            disabled={passkeyBusy}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-semibold transition disabled:opacity-50"
+          >
+            <span className="text-lg">🔑</span>
+            {passkeyBusy ? "Registrando..." : "Registrar Face ID / Huella"}
+          </button>
+          <p className="text-xs text-muted-foreground">Compatible con iPhone (Face ID / Touch ID) y Android (huella / cara).</p>
         </section>
 
         {/* Sesión */}
