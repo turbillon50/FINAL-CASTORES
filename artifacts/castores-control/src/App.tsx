@@ -239,6 +239,13 @@ function SignUpPage() {
       }
       localStorage.setItem("castores_signup_step", "otp");
       setStep("otp");
+    } else if (localStorage.getItem("castores_signup_step") === "otp") {
+      // Clerk has no pending session but localStorage has stale OTP state.
+      // Reset to form so the user isn't stuck on an OTP screen that can't work.
+      localStorage.removeItem("castores_signup_step");
+      localStorage.removeItem("castores_signup_email");
+      setStep("form");
+      setEmail("");
     }
   }, [signUpLoaded, signUp?.status, hasUrlCode]);
 
@@ -289,13 +296,13 @@ function SignUpPage() {
       const result = await signUp.attemptVerification({ strategy: "email_code", code: otpCode });
       if (result.status === "complete") {
         await setActive({ session: result.createdSessionId });
-        // Navigate immediately — don't release busy so the button stays disabled.
-        // Waiting for isSignedIn to propagate left a window where double-clicking
-        // re-submitted the form and got "already verified" from Clerk.
         localStorage.removeItem("castores_signup_step");
         localStorage.removeItem("castores_signup_email");
-        setLocation("/complete-profile");
-        return; // finally still runs but navigation is already in progress
+        // Hard navigation so Clerk's session is fully committed before
+        // complete-profile.tsx renders — SPA routing (setLocation) was too fast
+        // and isSignedIn was still false, causing an immediate redirect back.
+        window.location.assign(basePath ? `${basePath}/complete-profile` : "/complete-profile");
+        return;
       }
       setBusy(false);
     } catch (err) {
@@ -311,7 +318,7 @@ function SignUpPage() {
             await setActive({ session: signUp.createdSessionId });
             localStorage.removeItem("castores_signup_step");
             localStorage.removeItem("castores_signup_email");
-            setLocation("/complete-profile");
+            window.location.assign(basePath ? `${basePath}/complete-profile` : "/complete-profile");
             return;
           } catch { /* fall through */ }
         }
@@ -731,8 +738,17 @@ function SignUpGuard() {
     const clerkPending = signUp?.status === "missing_requirements";
     const localPending = localStorage.getItem("castores_signup_step") === "otp";
 
+    // If localStorage says OTP is pending but Clerk has no active signup session,
+    // the data is stale (e.g. old registration abandoned, PWA reinstalled).
+    // Clear it so users are not trapped on the OTP screen when they want to sign in.
+    if (localPending && !clerkPending) {
+      localStorage.removeItem("castores_signup_step");
+      localStorage.removeItem("castores_signup_email");
+      return;
+    }
+
     if (
-      (clerkPending || localPending) &&
+      clerkPending &&
       !location.startsWith("/sign-up") &&
       !location.startsWith("/complete-profile")
     ) {
