@@ -94,8 +94,7 @@ function SignInPage() {
 
 function SignUpPage() {
   const { isLoaded, isSignedIn } = useUser();
-  const { signOut } = useClerk();
-  const [signedOut, setSignedOut] = useState(false);
+  const [, setLocation] = useLocation();
 
   // Capture invite code from URL query string (?code=XXXX) and persist to
   // localStorage so complete-profile can read it after Clerk sign-up.
@@ -108,21 +107,19 @@ function SignUpPage() {
     }
   }
 
-  // SECURITY + UX: Anyone landing on /sign-up wants to create a NEW account.
-  // If a Clerk session is already active (e.g. stale cookie from a previously
-  // deleted account), Clerk's <SignUp> will silently bypass the form and
-  // redirect to fallbackRedirectUrl. We force a sign-out so the email/password
-  // form always renders and a fresh account can be created.
+  // If Clerk already has a valid session (e.g. the user just verified their
+  // email and the browser returned to /sign-up, or the PWA was restarted after
+  // verification completed), send them straight to complete-profile where the
+  // invite code in localStorage will be applied. Signing them out here would
+  // destroy the session they just created, forcing them to restart the whole
+  // email-verification flow.
   useEffect(() => {
     if (!isLoaded) return;
-    if (isSignedIn && !signedOut) {
-      setSignedOut(true);
-      void signOut().catch(() => {});
+    if (isSignedIn) {
+      setLocation("/complete-profile");
     }
-  }, [isLoaded, isSignedIn, signOut, signedOut]);
+  }, [isLoaded, isSignedIn, setLocation]);
 
-  // While we tear down the stale session, show a spinner so Clerk doesn't
-  // briefly redirect away.
   if (!isLoaded || isSignedIn) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#f8f4ef]">

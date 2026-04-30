@@ -22,88 +22,103 @@ function getVerifiedEmail(req: any): string | null {
 const router: IRouter = Router();
 
 router.post("/auth/admin-access", async (req, res): Promise<void> => {
-  const { userId: clerkUserId } = getAuth(req);
+  let clerkUserId: string | null = null;
+  try {
+    clerkUserId = getAuth(req).userId ?? null;
+  } catch (authErr: unknown) {
+    const detail = authErr instanceof Error ? authErr.message : String(authErr);
+    logger.error({ detail }, "getAuth error in admin-access");
+    res.status(503).json({ error: "auth_unavailable", detail });
+    return;
+  }
   if (!clerkUserId) {
     res.status(401).json({ error: "Sesión no verificada. Inicia sesión primero." });
     return;
   }
 
-  const { phrase, name } = req.body as { phrase?: string; name?: string };
+  const { phrase, name, email: bodyEmail } = req.body as { phrase?: string; name?: string; email?: string };
   if (!phrase || !isMasterAdminKey(phrase)) {
     res.status(403).json({ error: "Frase de acceso inválida" });
     return;
   }
 
-  const verifiedEmail = getVerifiedEmail(req);
+  // Prefer email from verified JWT claims; fall back to email sent in body
+  const verifiedEmail = getVerifiedEmail(req) || bodyEmail?.trim() || null;
   if (!verifiedEmail) {
     res.status(400).json({ error: "No se pudo verificar el correo de la sesión Clerk" });
     return;
   }
 
-  const admins = await db
-    .select({ id: usersTable.id, clerkId: usersTable.clerkId, email: usersTable.email })
-    .from(usersTable)
-    .where(eq(usersTable.role, "admin"));
+  try {
+    const admins = await db
+      .select({ id: usersTable.id, clerkId: usersTable.clerkId, email: usersTable.email })
+      .from(usersTable)
+      .where(eq(usersTable.role, "admin"));
 
-  const existingByClerk = await db
-    .select()
-    .from(usersTable)
-    .where(eq(usersTable.clerkId, clerkUserId));
-  const existingByEmail = await db
-    .select()
-    .from(usersTable)
-    .where(eq(usersTable.email, verifiedEmail));
-  const existing = existingByClerk[0] ?? existingByEmail[0] ?? null;
+    const existingByClerk = await db
+      .select()
+      .from(usersTable)
+      .where(eq(usersTable.clerkId, clerkUserId));
+    const existingByEmail = await db
+      .select()
+      .from(usersTable)
+      .where(eq(usersTable.email, verifiedEmail));
+    const existing = existingByClerk[0] ?? existingByEmail[0] ?? null;
 
-  // Once an admin exists, only that same admin can re-assert via phrase.
-  if (admins.length > 0 && (!existing || existing.role !== "admin")) {
-    res.status(409).json({ error: "Ya existe un administrador general. Solicita invitación." });
-    return;
+    // Once an admin exists, only that same admin can re-assert via phrase.
+    if (admins.length > 0 && (!existing || existing.role !== "admin")) {
+      res.status(409).json({ error: "Ya existe un administrador general. Solicita invitación." });
+      return;
+    }
+
+    let user = existing;
+    if (user) {
+      const [updated] = await db
+        .update(usersTable)
+        .set({
+          clerkId: clerkUserId,
+          role: "admin",
+          approvalStatus: "approved",
+          isActive: true,
+          termsAcceptedAt: user.termsAcceptedAt ?? new Date(),
+          termsVersion: user.termsVersion ?? "1.0",
+          updatedAt: new Date(),
+        })
+        .where(eq(usersTable.id, user.id))
+        .returning();
+      user = updated ?? user;
+    } else {
+      const [created] = await db
+        .insert(usersTable)
+        .values({
+          clerkId: clerkUserId,
+          name: name?.trim() || "Administrador General",
+          email: verifiedEmail,
+          role: "admin",
+          isActive: true,
+          approvalStatus: "approved",
+          termsAcceptedAt: new Date(),
+          termsVersion: "1.0",
+        })
+        .returning();
+      user = created;
+    }
+
+    req.session.userId = user.id;
+
+    await db.insert(activityLogTable).values({
+      type: "admin_access_activated",
+      description: "Activación/validación de administrador general con frase segura",
+      userId: user.id,
+    }).catch(() => {});
+
+    const { passwordHash: _, ...safeUser } = user;
+    res.json(safeUser);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "db_error";
+    logger.error({ err, msg }, "admin-access db error");
+    res.status(503).json({ error: "Sin conexión a la base de datos", detail: msg });
   }
-
-  let user = existing;
-  if (user) {
-    const [updated] = await db
-      .update(usersTable)
-      .set({
-        clerkId: clerkUserId,
-        role: "admin",
-        approvalStatus: "approved",
-        isActive: true,
-        termsAcceptedAt: user.termsAcceptedAt ?? new Date(),
-        termsVersion: user.termsVersion ?? "1.0",
-        updatedAt: new Date(),
-      })
-      .where(eq(usersTable.id, user.id))
-      .returning();
-    user = updated ?? user;
-  } else {
-    const [created] = await db
-      .insert(usersTable)
-      .values({
-        clerkId: clerkUserId,
-        name: name?.trim() || "Administrador General",
-        email: verifiedEmail,
-        role: "admin",
-        isActive: true,
-        approvalStatus: "approved",
-        termsAcceptedAt: new Date(),
-        termsVersion: "1.0",
-      })
-      .returning();
-    user = created;
-  }
-
-  req.session.userId = user.id;
-
-  await db.insert(activityLogTable).values({
-    type: "admin_access_activated",
-    description: "Activación/validación de administrador general con frase segura",
-    userId: user.id,
-  }).catch(() => {});
-
-  const { passwordHash: _, ...safeUser } = user;
-  res.json(safeUser);
 });
 
 // Demo login — no password for demo roles, admin uses "castores2024"
@@ -148,7 +163,15 @@ router.post("/auth/login", async (req, res): Promise<void> => {
  * The clerkId from the body is used as fallback if JWT validation is unavailable (dev mode).
  */
 router.post("/auth/clerk-register", async (req, res): Promise<void> => {
-  const { userId: clerkUserId } = getAuth(req);
+  let clerkUserId: string | null = null;
+  try {
+    clerkUserId = getAuth(req).userId ?? null;
+  } catch (authErr: unknown) {
+    const detail = authErr instanceof Error ? authErr.message : String(authErr);
+    logger.error({ detail }, "getAuth error in clerk-register");
+    res.status(503).json({ error: "auth_unavailable", detail });
+    return;
+  }
 
   const { name, email, role, company, phone, clerkId: bodyClerkId, invitationCode, acceptTerms, termsVersion } = req.body as {
     name?: string; email?: string; role?: string; company?: string;
@@ -405,7 +428,15 @@ router.post("/auth/clerk-me", async (req, res): Promise<void> => {
  * through the session cookie.
  */
 router.get("/auth/clerk-me", async (req, res): Promise<void> => {
-  const { userId: jwtUserId } = getAuth(req);
+  let jwtUserId: string | null = null;
+  try {
+    jwtUserId = getAuth(req).userId ?? null;
+  } catch (authErr: unknown) {
+    const detail = authErr instanceof Error ? authErr.message : String(authErr);
+    logger.error({ detail }, "getAuth error in GET clerk-me");
+    res.status(503).json({ error: "auth_unavailable", detail });
+    return;
+  }
   if (!jwtUserId) {
     res.status(401).json({ error: "Sesión no verificada" });
     return;
