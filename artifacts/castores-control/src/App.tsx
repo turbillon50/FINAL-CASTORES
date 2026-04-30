@@ -94,11 +94,11 @@ function SignInPage() {
 
 function SignUpPage() {
   const { isLoaded, isSignedIn } = useUser();
+  const { isLoaded: signUpLoaded, signUp } = useSignUp();
   const [, setLocation] = useLocation();
 
   // Capture invite code from URL query string (?code=XXXX) and persist to
   // localStorage so complete-profile can read it after Clerk sign-up.
-  // This runs BEFORE Clerk renders, guaranteeing the code is never lost.
   if (typeof window !== "undefined") {
     const params = new URLSearchParams(window.location.search);
     const code = params.get("code");
@@ -107,15 +107,27 @@ function SignUpPage() {
     }
   }
 
-  // If Clerk already has a valid session (e.g. the user just verified their
-  // email and the browser returned to /sign-up, or the PWA was restarted after
-  // verification completed), send them straight to complete-profile where the
-  // invite code in localStorage will be applied. Signing them out here would
-  // destroy the session they just created, forcing them to restart the whole
-  // email-verification flow.
+  // Persist OTP-pending state + email to localStorage so SignUpGuard can
+  // redirect back here even when Clerk's own cookie was cleared by iOS.
+  useEffect(() => {
+    if (!signUpLoaded) return;
+    if (signUp?.status === "missing_requirements") {
+      localStorage.setItem("castores_signup_pending", "1");
+      if (signUp.emailAddress) {
+        localStorage.setItem("castores_signup_email", signUp.emailAddress);
+      }
+    } else if (!signUp || signUp.status === "abandoned" || signUp.status === "complete") {
+      localStorage.removeItem("castores_signup_pending");
+      localStorage.removeItem("castores_signup_email");
+    }
+  }, [signUpLoaded, signUp?.status, signUp?.emailAddress]);
+
+  // If Clerk already has a valid session, send them to complete-profile.
   useEffect(() => {
     if (!isLoaded) return;
     if (isSignedIn) {
+      localStorage.removeItem("castores_signup_pending");
+      localStorage.removeItem("castores_signup_email");
       setLocation("/complete-profile");
     }
   }, [isLoaded, isSignedIn, setLocation]);
@@ -128,6 +140,11 @@ function SignUpPage() {
     );
   }
 
+  // Pre-populate email if the user had to restart after iOS killed the PWA
+  const savedEmail = typeof window !== "undefined"
+    ? (localStorage.getItem("castores_signup_email") ?? undefined)
+    : undefined;
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#f8f4ef]">
       <SignUp
@@ -136,6 +153,7 @@ function SignUpPage() {
         signInUrl={`${basePath}/sign-in`}
         fallbackRedirectUrl={`${basePath}/complete-profile`}
         appearance={clerkAppearance}
+        initialValues={savedEmail ? { emailAddress: savedEmail } : undefined}
       />
     </div>
   );
@@ -347,11 +365,18 @@ function SignUpGuard() {
 
   useEffect(() => {
     if (!userLoaded || !signUpLoaded) return;
-    if (isSignedIn) return;
-    // If Clerk has an in-progress sign-up that still needs verification,
-    // and we're not already on the sign-up or complete-profile pages, go back there.
+
+    if (isSignedIn) {
+      localStorage.removeItem("castores_signup_pending");
+      localStorage.removeItem("castores_signup_email");
+      return;
+    }
+
+    const clerkPending = signUp?.status === "missing_requirements";
+    const localPending = localStorage.getItem("castores_signup_pending") === "1";
+
     if (
-      signUp?.status === "missing_requirements" &&
+      (clerkPending || localPending) &&
       !location.startsWith("/sign-up") &&
       !location.startsWith("/complete-profile")
     ) {
