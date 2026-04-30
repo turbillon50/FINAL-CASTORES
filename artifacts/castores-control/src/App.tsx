@@ -239,6 +239,13 @@ function SignUpPage() {
       }
       localStorage.setItem("castores_signup_step", "otp");
       setStep("otp");
+    } else if (localStorage.getItem("castores_signup_step") === "otp") {
+      // Clerk has no pending session but localStorage has stale OTP state.
+      // Reset to form so the user isn't stuck on an OTP screen that can't work.
+      localStorage.removeItem("castores_signup_step");
+      localStorage.removeItem("castores_signup_email");
+      setStep("form");
+      setEmail("");
     }
   }, [signUpLoaded, signUp?.status, hasUrlCode]);
 
@@ -731,8 +738,17 @@ function SignUpGuard() {
     const clerkPending = signUp?.status === "missing_requirements";
     const localPending = localStorage.getItem("castores_signup_step") === "otp";
 
+    // If localStorage says OTP is pending but Clerk has no active signup session,
+    // the data is stale (e.g. old registration abandoned, PWA reinstalled).
+    // Clear it so users are not trapped on the OTP screen when they want to sign in.
+    if (localPending && !clerkPending) {
+      localStorage.removeItem("castores_signup_step");
+      localStorage.removeItem("castores_signup_email");
+      return;
+    }
+
     if (
-      (clerkPending || localPending) &&
+      clerkPending &&
       !location.startsWith("/sign-up") &&
       !location.startsWith("/complete-profile")
     ) {
