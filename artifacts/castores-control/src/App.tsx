@@ -112,10 +112,17 @@ function SignUpPage() {
   const { isLoaded: signUpLoaded, signUp, setActive } = useSignUp();
   const [, setLocation] = useLocation();
 
-  // Detect fresh invite link BEFORE state initializers so useState lazy
-  // initializers can read this value synchronously on first render.
+  // If the user left to check their OTP email and the app reloaded, localStorage
+  // still has the OTP step — treat this as a recovery, not a new invite visit.
+  const isOtpRecovery = typeof window !== "undefined"
+    && localStorage.getItem("castores_signup_step") === "otp"
+    && !!localStorage.getItem("castores_signup_email");
+
+  // True only for a genuinely fresh invite link with no active OTP in progress.
+  // When isOtpRecovery is true the URL still has ?code= but we must not reset.
   const hasUrlCode = typeof window !== "undefined"
-    && new URLSearchParams(window.location.search).has("code");
+    && new URLSearchParams(window.location.search).has("code")
+    && !isOtpRecovery;
 
   // On mount only: capture invite code and clear stale signup state.
   // Must be a useEffect — NOT inline — so that re-renders triggered during
@@ -127,16 +134,19 @@ function SignUpPage() {
     const code = urlParams.get("code");
     if (code) {
       localStorage.setItem("castores_invite_code", code.toUpperCase());
-      localStorage.removeItem("castores_signup_step");
-      localStorage.removeItem("castores_signup_email");
+      // Don't wipe OTP state when the user just came back from the email app
+      if (!isOtpRecovery) {
+        localStorage.removeItem("castores_signup_step");
+        localStorage.removeItem("castores_signup_email");
+      }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   type SignUpStep = "form" | "otp";
   const [step, setStep] = useState<SignUpStep>(() => {
-    // Always start at the form when opening a fresh invitation link —
-    // ignore any cached OTP state from a previous session on this device.
+    // Start at form only on a genuinely fresh invite visit.
+    // If the user is returning from the email app (isOtpRecovery), restore OTP.
     if (hasUrlCode) return "form";
     return typeof window !== "undefined" && localStorage.getItem("castores_signup_step") === "otp"
       ? "otp" : "form";
