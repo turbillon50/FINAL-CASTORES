@@ -40,70 +40,76 @@ router.post("/auth/admin-access", async (req, res): Promise<void> => {
     return;
   }
 
-  const admins = await db
-    .select({ id: usersTable.id, clerkId: usersTable.clerkId, email: usersTable.email })
-    .from(usersTable)
-    .where(eq(usersTable.role, "admin"));
+  try {
+    const admins = await db
+      .select({ id: usersTable.id, clerkId: usersTable.clerkId, email: usersTable.email })
+      .from(usersTable)
+      .where(eq(usersTable.role, "admin"));
 
-  const existingByClerk = await db
-    .select()
-    .from(usersTable)
-    .where(eq(usersTable.clerkId, clerkUserId));
-  const existingByEmail = await db
-    .select()
-    .from(usersTable)
-    .where(eq(usersTable.email, verifiedEmail));
-  const existing = existingByClerk[0] ?? existingByEmail[0] ?? null;
+    const existingByClerk = await db
+      .select()
+      .from(usersTable)
+      .where(eq(usersTable.clerkId, clerkUserId));
+    const existingByEmail = await db
+      .select()
+      .from(usersTable)
+      .where(eq(usersTable.email, verifiedEmail));
+    const existing = existingByClerk[0] ?? existingByEmail[0] ?? null;
 
-  // Once an admin exists, only that same admin can re-assert via phrase.
-  if (admins.length > 0 && (!existing || existing.role !== "admin")) {
-    res.status(409).json({ error: "Ya existe un administrador general. Solicita invitación." });
-    return;
+    // Once an admin exists, only that same admin can re-assert via phrase.
+    if (admins.length > 0 && (!existing || existing.role !== "admin")) {
+      res.status(409).json({ error: "Ya existe un administrador general. Solicita invitación." });
+      return;
+    }
+
+    let user = existing;
+    if (user) {
+      const [updated] = await db
+        .update(usersTable)
+        .set({
+          clerkId: clerkUserId,
+          role: "admin",
+          approvalStatus: "approved",
+          isActive: true,
+          termsAcceptedAt: user.termsAcceptedAt ?? new Date(),
+          termsVersion: user.termsVersion ?? "1.0",
+          updatedAt: new Date(),
+        })
+        .where(eq(usersTable.id, user.id))
+        .returning();
+      user = updated ?? user;
+    } else {
+      const [created] = await db
+        .insert(usersTable)
+        .values({
+          clerkId: clerkUserId,
+          name: name?.trim() || "Administrador General",
+          email: verifiedEmail,
+          role: "admin",
+          isActive: true,
+          approvalStatus: "approved",
+          termsAcceptedAt: new Date(),
+          termsVersion: "1.0",
+        })
+        .returning();
+      user = created;
+    }
+
+    req.session.userId = user.id;
+
+    await db.insert(activityLogTable).values({
+      type: "admin_access_activated",
+      description: "Activación/validación de administrador general con frase segura",
+      userId: user.id,
+    }).catch(() => {});
+
+    const { passwordHash: _, ...safeUser } = user;
+    res.json(safeUser);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "db_error";
+    logger.error({ err, msg }, "admin-access db error");
+    res.status(503).json({ error: "Sin conexión a la base de datos", detail: msg });
   }
-
-  let user = existing;
-  if (user) {
-    const [updated] = await db
-      .update(usersTable)
-      .set({
-        clerkId: clerkUserId,
-        role: "admin",
-        approvalStatus: "approved",
-        isActive: true,
-        termsAcceptedAt: user.termsAcceptedAt ?? new Date(),
-        termsVersion: user.termsVersion ?? "1.0",
-        updatedAt: new Date(),
-      })
-      .where(eq(usersTable.id, user.id))
-      .returning();
-    user = updated ?? user;
-  } else {
-    const [created] = await db
-      .insert(usersTable)
-      .values({
-        clerkId: clerkUserId,
-        name: name?.trim() || "Administrador General",
-        email: verifiedEmail,
-        role: "admin",
-        isActive: true,
-        approvalStatus: "approved",
-        termsAcceptedAt: new Date(),
-        termsVersion: "1.0",
-      })
-      .returning();
-    user = created;
-  }
-
-  req.session.userId = user.id;
-
-  await db.insert(activityLogTable).values({
-    type: "admin_access_activated",
-    description: "Activación/validación de administrador general con frase segura",
-    userId: user.id,
-  }).catch(() => {});
-
-  const { passwordHash: _, ...safeUser } = user;
-  res.json(safeUser);
 });
 
 // Demo login — no password for demo roles, admin uses "castores2024"
@@ -360,43 +366,49 @@ router.post("/auth/clerk-me", async (req, res): Promise<void> => {
     return;
   }
 
-  const rows = await db
-    .select()
-    .from(usersTable)
-    .where(or(eq(usersTable.clerkId, clerkUserId), eq(usersTable.email, verifiedEmail)));
+  try {
+    const rows = await db
+      .select()
+      .from(usersTable)
+      .where(or(eq(usersTable.clerkId, clerkUserId), eq(usersTable.email, verifiedEmail)));
 
-  if (rows.length > 0) {
-    let user = rows[0];
-    if (!user.clerkId || user.clerkId !== clerkUserId) {
-      const [linked] = await db
-        .update(usersTable)
-        .set({ clerkId: clerkUserId, updatedAt: new Date() })
-        .where(eq(usersTable.id, user.id))
-        .returning();
-      if (linked) user = linked;
+    if (rows.length > 0) {
+      let user = rows[0];
+      if (!user.clerkId || user.clerkId !== clerkUserId) {
+        const [linked] = await db
+          .update(usersTable)
+          .set({ clerkId: clerkUserId, updatedAt: new Date() })
+          .where(eq(usersTable.id, user.id))
+          .returning();
+        if (linked) user = linked;
+      }
+      req.session.userId = user.id;
+      const { passwordHash: _, ...safeUser } = user;
+      res.json(safeUser);
+      return;
     }
+
+    const { name: bodyName } = req.body as { name?: string };
+    const [user] = await db
+      .insert(usersTable)
+      .values({
+        clerkId: clerkUserId,
+        name: bodyName?.trim() || "Usuario Nuevo",
+        email: verifiedEmail,
+        role: "worker",
+        isActive: false,
+        approvalStatus: "pending",
+      })
+      .returning();
+
     req.session.userId = user.id;
     const { passwordHash: _, ...safeUser } = user;
-    res.json(safeUser);
-    return;
+    res.status(201).json(safeUser);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "db_error";
+    logger.error({ err, msg }, "clerk-me db error");
+    res.status(503).json({ error: "Sin conexión a la base de datos", detail: msg });
   }
-
-  const { name: bodyName } = req.body as { name?: string };
-  const [user] = await db
-    .insert(usersTable)
-    .values({
-      clerkId: clerkUserId,
-      name: bodyName?.trim() || "Usuario Nuevo",
-      email: verifiedEmail,
-      role: "worker",
-      isActive: false,
-      approvalStatus: "pending",
-    })
-    .returning();
-
-  req.session.userId = user.id;
-  const { passwordHash: _, ...safeUser } = user;
-  res.status(201).json(safeUser);
 });
 
 /**

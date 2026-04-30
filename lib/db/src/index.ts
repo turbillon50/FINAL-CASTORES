@@ -11,14 +11,29 @@ const { Pool } = pg;
 let _pool: pg.Pool | null = null;
 let _db: NodePgDatabase<typeof schema> | null = null;
 
+function sanitizeConnectionUrl(raw: string): string {
+  try {
+    const u = new URL(raw);
+    // PgBouncer (Neon pooler, etc.) does not implement the SCRAM channel-binding
+    // extension, so passing channel_binding=require causes an auth handshake
+    // failure. Strip it here so the app works regardless of which flavour of
+    // connection string the user copies from the Neon console.
+    u.searchParams.delete("channel_binding");
+    return u.toString();
+  } catch {
+    return raw;
+  }
+}
+
 function ensureConnection(): void {
   if (_pool && _db) return;
-  const url = process.env["DATABASE_URL"];
-  if (!url) {
+  const raw = process.env["DATABASE_URL"];
+  if (!raw) {
     throw new Error(
       "DATABASE_URL must be set. Did you forget to provision a database?",
     );
   }
+  const url = sanitizeConnectionUrl(raw);
   // Managed Postgres providers (Neon, Supabase, Railway, etc.) require SSL.
   // Detect when SSL should be enabled and trust the provider's certificate.
   const needsSsl =
