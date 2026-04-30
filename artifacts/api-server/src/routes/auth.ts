@@ -339,6 +339,67 @@ router.post("/auth/test-email", async (req, res): Promise<void> => {
 });
 
 /**
+ * Upsert the Clerk-authenticated user in our DB as soon as the session is
+ * detected — called fire-and-forget from the complete-profile page so a DB
+ * record always exists before the user enters their invitation code.
+ * If the record already exists it is returned unchanged (only clerkId is
+ * re-linked if it drifted). New records get role="worker" / approvalStatus=
+ * "pending" / isActive=false as a placeholder; admin-access or clerk-register
+ * will promote/update them later.
+ */
+router.post("/auth/clerk-me", async (req, res): Promise<void> => {
+  const { userId: clerkUserId } = getAuth(req);
+  if (!clerkUserId) {
+    res.status(401).json({ error: "Sesión no verificada" });
+    return;
+  }
+
+  const verifiedEmail = getVerifiedEmail(req);
+  if (!verifiedEmail) {
+    res.status(400).json({ error: "No se pudo verificar el correo de la sesión Clerk" });
+    return;
+  }
+
+  const rows = await db
+    .select()
+    .from(usersTable)
+    .where(or(eq(usersTable.clerkId, clerkUserId), eq(usersTable.email, verifiedEmail)));
+
+  if (rows.length > 0) {
+    let user = rows[0];
+    if (!user.clerkId || user.clerkId !== clerkUserId) {
+      const [linked] = await db
+        .update(usersTable)
+        .set({ clerkId: clerkUserId, updatedAt: new Date() })
+        .where(eq(usersTable.id, user.id))
+        .returning();
+      if (linked) user = linked;
+    }
+    req.session.userId = user.id;
+    const { passwordHash: _, ...safeUser } = user;
+    res.json(safeUser);
+    return;
+  }
+
+  const { name: bodyName } = req.body as { name?: string };
+  const [user] = await db
+    .insert(usersTable)
+    .values({
+      clerkId: clerkUserId,
+      name: bodyName?.trim() || "Usuario Nuevo",
+      email: verifiedEmail,
+      role: "worker",
+      isActive: false,
+      approvalStatus: "pending",
+    })
+    .returning();
+
+  req.session.userId = user.id;
+  const { passwordHash: _, ...safeUser } = user;
+  res.status(201).json(safeUser);
+});
+
+/**
  * Returns the current Clerk user's DB record + approval status.
  * Also establishes the server session so later protected API calls work
  * through the session cookie.
