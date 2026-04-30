@@ -19,7 +19,7 @@ import {
 export default function Materiales() {
   const { data: materials = [], refetch } = useListMaterials();
   const { data: stats, refetch: refetchStats } = useGetMaterialStats();
-  const { data: projects = [] } = useListProjects({ status: "active" });
+  const { data: projects = [] } = useListProjects();
   const approveMaterial = useApproveMaterial();
   const updateMaterial = useUpdateMaterial();
   const createMaterial = useCreateMaterial();

@@ -1,5 +1,5 @@
 import { MainLayout } from "@/components/layout/main-layout";
-import { useListLogs, useListProjects } from "@workspace/api-client-react";
+import { useListLogs } from "@workspace/api-client-react";
 import { Icons } from "@/lib/icons";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
