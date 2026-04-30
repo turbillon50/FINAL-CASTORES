@@ -64,7 +64,7 @@ export default function BitacoraDetail() {
             <Badge className={`text-sm px-3 py-1 font-bold uppercase tracking-wider border-none ${log.isSubmitted ? 'bg-[#2ECC71] text-white' : 'bg-[#F39C12] text-white'}`}>
               {log.isSubmitted ? 'Enviado' : 'Borrador'}
             </Badge>
-            <Button variant="outline" className="gap-2">
+            <Button variant="outline" className="gap-2 print:hidden" onClick={() => window.print()}>
               <Icons.Download className="w-4 h-4" /> PDF
             </Button>
           </div>
