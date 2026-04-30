@@ -4,7 +4,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { ClerkProvider, SignIn, SignUp, useUser, useClerk, useAuth as useClerkAuth, useSignUp } from "@clerk/react";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import { setBaseUrl, setDemoMode, setAuthTokenGetter, setClerkUserInfo } from "@workspace/api-client-react";
 import { apiUrl } from "@/lib/api-url";
 import NotFound from "@/pages/not-found";
@@ -92,45 +92,139 @@ function SignInPage() {
   );
 }
 
-function SignUpPage() {
-  const { isLoaded, isSignedIn } = useUser();
-  const { isLoaded: signUpLoaded, signUp } = useSignUp();
-  const [, setLocation] = useLocation();
-
-  // Capture invite code from URL query string (?code=XXXX) and persist to
-  // localStorage so complete-profile can read it after Clerk sign-up.
-  if (typeof window !== "undefined") {
-    const params = new URLSearchParams(window.location.search);
-    const code = params.get("code");
-    if (code) {
-      localStorage.setItem("castores_invite_code", code.toUpperCase());
+function parseClerkError(err: unknown): string {
+  if (err && typeof err === "object" && "errors" in err) {
+    const errors = (err as { errors: Array<{ longMessage?: string; message?: string }> }).errors;
+    if (Array.isArray(errors) && errors.length > 0) {
+      return errors[0].longMessage ?? errors[0].message ?? "Error desconocido";
     }
   }
+  return "Error al conectar con el servidor. Inténtalo de nuevo.";
+}
 
-  // Persist OTP-pending state + email to localStorage so SignUpGuard can
-  // redirect back here even when Clerk's own cookie was cleared by iOS.
+function SignUpPage() {
+  const { isLoaded, isSignedIn } = useUser();
+  const { isLoaded: signUpLoaded, signUp, setActive } = useSignUp();
+  const [, setLocation] = useLocation();
+
+  // Capture invite code from URL → localStorage
+  if (typeof window !== "undefined") {
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get("code");
+    if (code) localStorage.setItem("castores_invite_code", code.toUpperCase());
+  }
+
+  type SignUpStep = "form" | "otp";
+  const [step, setStep] = useState<SignUpStep>(() =>
+    typeof window !== "undefined" && localStorage.getItem("castores_signup_step") === "otp"
+      ? "otp" : "form"
+  );
+  const [email, setEmail] = useState(() =>
+    typeof window !== "undefined" ? (localStorage.getItem("castores_signup_email") ?? "") : ""
+  );
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [otpCode, setOtpCode] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [resendOk, setResendOk] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  // Redirect once Clerk session is active (sign-up completed)
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn) return;
+    localStorage.removeItem("castores_signup_step");
+    localStorage.removeItem("castores_signup_email");
+    setLocation("/complete-profile");
+  }, [isLoaded, isSignedIn, setLocation]);
+
+  // If Clerk's signUp session survived an iOS restart, jump to OTP step
   useEffect(() => {
     if (!signUpLoaded) return;
     if (signUp?.status === "missing_requirements") {
-      localStorage.setItem("castores_signup_pending", "1");
       if (signUp.emailAddress) {
+        setEmail(signUp.emailAddress);
         localStorage.setItem("castores_signup_email", signUp.emailAddress);
       }
-    } else if (!signUp || signUp.status === "abandoned" || signUp.status === "complete") {
-      localStorage.removeItem("castores_signup_pending");
-      localStorage.removeItem("castores_signup_email");
+      localStorage.setItem("castores_signup_step", "otp");
+      setStep("otp");
     }
-  }, [signUpLoaded, signUp?.status, signUp?.emailAddress]);
+  }, [signUpLoaded, signUp?.status]);
 
-  // If Clerk already has a valid session, send them to complete-profile.
-  useEffect(() => {
-    if (!isLoaded) return;
-    if (isSignedIn) {
-      localStorage.removeItem("castores_signup_pending");
-      localStorage.removeItem("castores_signup_email");
-      setLocation("/complete-profile");
+  const handleSubmitForm = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!signUp || busy) return;
+    setBusy(true);
+    setError(null);
+
+    // Write localStorage BEFORE calling Clerk — prevents iOS race condition
+    // where the app is killed between the button tap and the server response
+    localStorage.setItem("castores_signup_step", "otp");
+    localStorage.setItem("castores_signup_email", email);
+
+    try {
+      await signUp.create({
+        emailAddress: email,
+        ...(password ? { password } : {}),
+        ...(firstName ? { firstName } : {}),
+        ...(lastName ? { lastName } : {}),
+      });
+      await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
+      setStep("otp");
+    } catch (err) {
+      localStorage.removeItem("castores_signup_step");
+      const msg = parseClerkError(err);
+      // If Clerk says password is required, reveal the password field
+      if (msg.toLowerCase().includes("password") || msg.toLowerCase().includes("contraseña")) {
+        setShowPassword(true);
+        setError("Por favor ingresa una contraseña para continuar.");
+      } else {
+        setError(msg);
+      }
+    } finally {
+      setBusy(false);
     }
-  }, [isLoaded, isSignedIn, setLocation]);
+  };
+
+  const handleVerifyOtp = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!signUp || busy || otpCode.length < 6) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await signUp.attemptEmailAddressVerification({ code: otpCode });
+      if (result.status === "complete") {
+        await setActive({ session: result.createdSessionId });
+        // isSignedIn effect above handles redirect to /complete-profile
+      }
+    } catch (err) {
+      setError(parseClerkError(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleResend = async () => {
+    setError(null);
+    setResendOk(false);
+    if (!signUp) {
+      // Clerk session expired after iOS restart — restart the form
+      localStorage.removeItem("castores_signup_step");
+      setStep("form");
+      setError("Tu sesión expiró. Vuelve a ingresar tus datos para recibir un nuevo código.");
+      return;
+    }
+    try {
+      await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
+      setResendOk(true);
+    } catch (err) {
+      setError(parseClerkError(err));
+    }
+  };
+
+  const inputCls = "w-full px-4 py-3 rounded-xl border border-gray-200 bg-white focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-100 text-gray-900 placeholder-gray-400 transition text-sm";
+  const btnPrimary = "w-full py-3 rounded-xl font-semibold text-white bg-amber-600 hover:bg-amber-700 transition disabled:opacity-50 text-sm";
 
   if (!isLoaded || isSignedIn) {
     return (
@@ -140,21 +234,104 @@ function SignUpPage() {
     );
   }
 
-  // Pre-populate email if the user had to restart after iOS killed the PWA
-  const savedEmail = typeof window !== "undefined"
-    ? (localStorage.getItem("castores_signup_email") ?? undefined)
-    : undefined;
+  // While Clerk initializes and localStorage says OTP is pending, show loader
+  // (prevents flashing the form before the Clerk sync effect redirects to OTP)
+  if (step === "otp" && !signUpLoaded) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#f8f4ef]">
+        <div className="animate-spin rounded-full h-10 w-10 border-4 border-amber-500 border-t-transparent" />
+      </div>
+    );
+  }
 
+  // ── OTP step ──────────────────────────────────────────────────────────────
+  if (step === "otp") {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#f8f4ef] p-4">
+        <div className="w-full max-w-sm">
+          <div className="text-center mb-6">
+            <div className="text-4xl mb-2">📧</div>
+            <h1 className="text-2xl font-bold text-gray-900">Verifica tu correo</h1>
+            <p className="text-sm text-gray-500 mt-1">
+              Enviamos un código de 6 dígitos a
+            </p>
+            <p className="font-semibold text-gray-800 text-sm mt-0.5 break-all">{email}</p>
+          </div>
+
+          {!signUp && signUpLoaded && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-sm text-amber-800 mb-4">
+              Tu sesión fue interrumpida. El código anterior puede haber expirado — usa el botón "Reenviar código".
+            </div>
+          )}
+
+          <form onSubmit={handleVerifyOtp} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
+            <input
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              maxLength={6}
+              value={otpCode}
+              onChange={e => { setOtpCode(e.target.value.replace(/\D/g, "")); setError(null); setResendOk(false); }}
+              placeholder="000000"
+              className={`${inputCls} text-center text-2xl tracking-[0.5em] font-mono`}
+              autoFocus
+              autoComplete="one-time-code"
+            />
+            {error && <p className="text-sm text-red-600 text-center">{error}</p>}
+            {resendOk && <p className="text-sm text-green-600 text-center">¡Código reenviado! Revisa tu correo.</p>}
+            <button type="submit" disabled={busy || otpCode.length < 6} className={btnPrimary}>
+              {busy ? "Verificando..." : "Verificar código"}
+            </button>
+          </form>
+
+          <div className="mt-4 flex flex-col gap-2 text-center">
+            <button onClick={handleResend} className="text-sm text-amber-700 hover:text-amber-900 font-medium">
+              ¿No llegó el código? Reenviar
+            </button>
+            <button
+              onClick={() => {
+                setStep("form");
+                setOtpCode("");
+                setError(null);
+                localStorage.removeItem("castores_signup_step");
+              }}
+              className="text-sm text-gray-500 hover:text-gray-700"
+            >
+              Cambiar correo electrónico
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Form step ─────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#f8f4ef]">
-      <SignUp
-        routing="path"
-        path={`${basePath}/sign-up`}
-        signInUrl={`${basePath}/sign-in`}
-        fallbackRedirectUrl={`${basePath}/complete-profile`}
-        appearance={clerkAppearance}
-        initialValues={savedEmail ? { emailAddress: savedEmail } : undefined}
-      />
+    <div className="min-h-screen flex items-center justify-center bg-[#f8f4ef] p-4">
+      <div className="w-full max-w-sm">
+        <div className="text-center mb-6">
+          <h1 className="text-2xl font-bold text-gray-900">Crear cuenta</h1>
+          <p className="text-sm text-gray-500 mt-1">Ingresa tus datos para registrarte</p>
+        </div>
+        <form onSubmit={handleSubmitForm} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-3">
+          <div className="flex gap-2">
+            <input type="text" value={firstName} onChange={e => setFirstName(e.target.value)} placeholder="Nombre" required className={inputCls} />
+            <input type="text" value={lastName} onChange={e => setLastName(e.target.value)} placeholder="Apellido" required className={inputCls} />
+          </div>
+          <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Correo electrónico" required autoComplete="email" className={inputCls} />
+          {showPassword && (
+            <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Contraseña" autoComplete="new-password" className={inputCls} />
+          )}
+          {error && <p className="text-sm text-red-600">{error}</p>}
+          <button type="submit" disabled={busy} className={`${btnPrimary} mt-1`}>
+            {busy ? "Enviando código..." : "Continuar →"}
+          </button>
+        </form>
+        <p className="text-center text-sm text-gray-500 mt-4">
+          ¿Ya tienes cuenta?{" "}
+          <a href={`${basePath}/sign-in`} className="text-amber-700 font-medium hover:text-amber-900">Inicia sesión</a>
+        </p>
+      </div>
     </div>
   );
 }
@@ -367,13 +544,13 @@ function SignUpGuard() {
     if (!userLoaded || !signUpLoaded) return;
 
     if (isSignedIn) {
-      localStorage.removeItem("castores_signup_pending");
+      localStorage.removeItem("castores_signup_step");
       localStorage.removeItem("castores_signup_email");
       return;
     }
 
     const clerkPending = signUp?.status === "missing_requirements";
-    const localPending = localStorage.getItem("castores_signup_pending") === "1";
+    const localPending = localStorage.getItem("castores_signup_step") === "otp";
 
     if (
       (clerkPending || localPending) &&
