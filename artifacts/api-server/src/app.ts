@@ -114,13 +114,10 @@ app.use(
       if (!origin) return callback(null, true);
       const normalized = origin.replace(/\/+$/, "");
       if (allowedOrigins.includes(normalized)) return callback(null, true);
-      // In non-production we accept any *.vercel.app preview to ease testing.
-      if (
-        process.env["NODE_ENV"] !== "production" &&
-        /^https?:\/\/[^/]+\.vercel\.app$/i.test(normalized)
-      ) {
-        return callback(null, true);
-      }
+      // Always allow the production domain (with or without www).
+      if (/^https?:\/\/(www\.)?castores\.info$/i.test(normalized)) return callback(null, true);
+      // Allow any *.vercel.app preview deploy (staging, PRs, smoke tests).
+      if (/^https?:\/\/[^/]+\.vercel\.app$/i.test(normalized)) return callback(null, true);
       // Allow localhost during dev regardless of NODE_ENV (Vite preview, etc.).
       if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(normalized)) {
         return callback(null, true);
@@ -186,7 +183,18 @@ app.use((req, res, next) => {
     path === "/invitations/validate" ||
     isPublicCatalogRead;
   if (isPublicPath) return next();
-  return clerk(req, res, next);
+  // Intercept Clerk middleware errors (e.g. missing CLERK_SECRET_KEY,
+  // JWT parsing failure) so they return a readable 503 instead of
+  // propagating to the generic "internal_error" global handler.
+  return clerk(req, res, (err?: unknown) => {
+    if (err) {
+      const detail = err instanceof Error ? err.message : String(err);
+      logger.error({ path, detail }, "Clerk middleware error");
+      res.status(503).json({ error: "auth_unavailable", detail });
+      return;
+    }
+    return next();
+  });
 });
 
 app.use("/api", router);
@@ -194,12 +202,12 @@ app.use("/api", router);
 // Final safety net: always return structured JSON on unhandled runtime errors.
 app.use((err: unknown, req: express.Request, res: express.Response, _next: express.NextFunction) => {
   const path = req.originalUrl || req.url || "unknown";
-  const message = err instanceof Error ? err.message : "unexpected_error";
-  logger.error({ path, message }, "Unhandled API error");
+  const detail = err instanceof Error ? err.message : String(err);
+  logger.error({ path, detail }, "Unhandled API error");
   res.status(500).json({
     ok: false,
     error: "internal_error",
-    message: "Error interno controlado",
+    detail,
     path,
   });
 });

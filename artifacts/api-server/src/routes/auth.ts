@@ -43,6 +43,7 @@ router.post("/auth/admin-access", async (req, res): Promise<void> => {
   }
 
   // Prefer email from verified JWT claims; fall back to email sent in body
+  // (safe because clerkUserId was already verified via JWT above).
   const verifiedEmail = getVerifiedEmail(req) || bodyEmail?.trim() || null;
   if (!verifiedEmail) {
     res.status(400).json({ error: "No se pudo verificar el correo de la sesión Clerk" });
@@ -371,7 +372,15 @@ router.post("/auth/test-email", async (req, res): Promise<void> => {
  * will promote/update them later.
  */
 router.post("/auth/clerk-me", async (req, res): Promise<void> => {
-  const { userId: clerkUserId } = getAuth(req);
+  let clerkUserId: string | null = null;
+  try {
+    clerkUserId = getAuth(req).userId ?? null;
+  } catch (authErr: unknown) {
+    const detail = authErr instanceof Error ? authErr.message : String(authErr);
+    logger.error({ detail }, "getAuth error in clerk-me");
+    res.status(503).json({ error: "auth_unavailable", detail });
+    return;
+  }
   if (!clerkUserId) {
     res.status(401).json({ error: "Sesión no verificada" });
     return;
@@ -383,43 +392,49 @@ router.post("/auth/clerk-me", async (req, res): Promise<void> => {
     return;
   }
 
-  const rows = await db
-    .select()
-    .from(usersTable)
-    .where(or(eq(usersTable.clerkId, clerkUserId), eq(usersTable.email, verifiedEmail)));
+  try {
+    const rows = await db
+      .select()
+      .from(usersTable)
+      .where(or(eq(usersTable.clerkId, clerkUserId), eq(usersTable.email, verifiedEmail)));
 
-  if (rows.length > 0) {
-    let user = rows[0];
-    if (!user.clerkId || user.clerkId !== clerkUserId) {
-      const [linked] = await db
-        .update(usersTable)
-        .set({ clerkId: clerkUserId, updatedAt: new Date() })
-        .where(eq(usersTable.id, user.id))
-        .returning();
-      if (linked) user = linked;
+    if (rows.length > 0) {
+      let user = rows[0];
+      if (!user.clerkId || user.clerkId !== clerkUserId) {
+        const [linked] = await db
+          .update(usersTable)
+          .set({ clerkId: clerkUserId, updatedAt: new Date() })
+          .where(eq(usersTable.id, user.id))
+          .returning();
+        if (linked) user = linked;
+      }
+      req.session.userId = user.id;
+      const { passwordHash: _, ...safeUser } = user;
+      res.json(safeUser);
+      return;
     }
+
+    const { name: bodyName } = req.body as { name?: string };
+    const [user] = await db
+      .insert(usersTable)
+      .values({
+        clerkId: clerkUserId,
+        name: bodyName?.trim() || "Usuario Nuevo",
+        email: verifiedEmail,
+        role: "worker",
+        isActive: false,
+        approvalStatus: "pending",
+      })
+      .returning();
+
     req.session.userId = user.id;
     const { passwordHash: _, ...safeUser } = user;
-    res.json(safeUser);
-    return;
+    res.status(201).json(safeUser);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "db_error";
+    logger.error({ err, msg }, "clerk-me db error");
+    res.status(503).json({ error: "Sin conexión a la base de datos", detail: msg });
   }
-
-  const { name: bodyName } = req.body as { name?: string };
-  const [user] = await db
-    .insert(usersTable)
-    .values({
-      clerkId: clerkUserId,
-      name: bodyName?.trim() || "Usuario Nuevo",
-      email: verifiedEmail,
-      role: "worker",
-      isActive: false,
-      approvalStatus: "pending",
-    })
-    .returning();
-
-  req.session.userId = user.id;
-  const { passwordHash: _, ...safeUser } = user;
-  res.status(201).json(safeUser);
 });
 
 /**
