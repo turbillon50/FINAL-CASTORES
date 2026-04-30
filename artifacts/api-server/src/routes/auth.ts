@@ -164,7 +164,15 @@ router.post("/auth/login", async (req, res): Promise<void> => {
  * The clerkId from the body is used as fallback if JWT validation is unavailable (dev mode).
  */
 router.post("/auth/clerk-register", async (req, res): Promise<void> => {
-  const { userId: clerkUserId } = getAuth(req);
+  let clerkUserId: string | null = null;
+  try {
+    clerkUserId = getAuth(req).userId ?? null;
+  } catch (authErr: unknown) {
+    const detail = authErr instanceof Error ? authErr.message : String(authErr);
+    logger.error({ detail }, "getAuth error in clerk-register");
+    res.status(503).json({ error: "auth_unavailable", detail });
+    return;
+  }
 
   const { name, email, role, company, phone, clerkId: bodyClerkId, invitationCode, acceptTerms, termsVersion } = req.body as {
     name?: string; email?: string; role?: string; company?: string;
@@ -435,7 +443,15 @@ router.post("/auth/clerk-me", async (req, res): Promise<void> => {
  * through the session cookie.
  */
 router.get("/auth/clerk-me", async (req, res): Promise<void> => {
-  const { userId: jwtUserId } = getAuth(req);
+  let jwtUserId: string | null = null;
+  try {
+    jwtUserId = getAuth(req).userId ?? null;
+  } catch (authErr: unknown) {
+    const detail = authErr instanceof Error ? authErr.message : String(authErr);
+    logger.error({ detail }, "getAuth error in GET clerk-me");
+    res.status(503).json({ error: "auth_unavailable", detail });
+    return;
+  }
   if (!jwtUserId) {
     res.status(401).json({ error: "Sesión no verificada" });
     return;
