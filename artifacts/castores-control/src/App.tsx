@@ -116,6 +116,46 @@ function parseClerkError(err: unknown): { msg: string; isEmailTaken: boolean } {
   return { msg: "Error al conectar con el servidor. Inténtalo de nuevo.", isEmailTaken: false };
 }
 
+function PwaInstallBanner({ defaultIOS }: { defaultIOS: boolean }) {
+  const [tab, setTab] = useState<"ios" | "android">(defaultIOS ? "ios" : "android");
+  return (
+    <div className="w-full mb-5 rounded-2xl text-sm overflow-hidden"
+      style={{ border: "1px solid rgba(200,149,42,0.30)" }}>
+      {/* Tabs */}
+      <div className="flex" style={{ background: "rgba(200,149,42,0.08)" }}>
+        {(["ios", "android"] as const).map(t => (
+          <button key={t} onClick={() => setTab(t)}
+            className="flex-1 py-2 text-xs font-bold transition-colors"
+            style={tab === t
+              ? { background: "#C8952A", color: "#fff" }
+              : { color: "#92400e" }}>
+            {t === "ios" ? "🍎 iPhone / iPad" : "🤖 Android"}
+          </button>
+        ))}
+      </div>
+      {/* Contenido */}
+      <div className="p-4" style={{ background: "rgba(200,149,42,0.06)" }}>
+        <p className="font-semibold text-amber-800 mb-2">📲 Instala la app en tu teléfono</p>
+        {tab === "ios" ? (
+          <ol className="text-amber-700 space-y-1.5">
+            <li>1. Abre esta página en <span className="font-bold">Safari</span></li>
+            <li>2. Toca el ícono <span className="font-bold">⬆ Compartir</span> (parte inferior de la pantalla)</li>
+            <li>3. Selecciona <span className="font-bold">"Agregar a pantalla de inicio"</span></li>
+            <li>4. Toca <span className="font-bold">"Agregar"</span> — ya tienes el ícono en tu inicio</li>
+          </ol>
+        ) : (
+          <ol className="text-amber-700 space-y-1.5">
+            <li>1. Abre esta página en <span className="font-bold">Chrome</span></li>
+            <li>2. Toca el menú <span className="font-bold">⋮</span> (esquina superior derecha)</li>
+            <li>3. Selecciona <span className="font-bold">"Añadir a pantalla de inicio"</span> o <span className="font-bold">"Instalar app"</span></li>
+            <li>4. Confirma — ya tienes el ícono en tu inicio</li>
+          </ol>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function SignUpPage() {
   const { isLoaded, isSignedIn } = useUser();
   const { isLoaded: signUpLoaded, signUp, setActive } = useSignUp();
@@ -388,7 +428,7 @@ function SignUpPage() {
   // ── Form step ─────────────────────────────────────────────────────────────
   const isStandalone = typeof window !== "undefined" &&
     (window.matchMedia("(display-mode: standalone)").matches || (window.navigator as { standalone?: boolean }).standalone === true);
-  const isIOS = typeof window !== "undefined" && /iphone|ipad|ipod/i.test(window.navigator.userAgent);
+  const detectedIOS = typeof window !== "undefined" && /iphone|ipad|ipod/i.test(window.navigator.userAgent);
 
   return (
     <div className="min-h-screen bg-[#f8f4ef] overflow-y-auto">
@@ -399,22 +439,8 @@ function SignUpPage() {
         <h1 className="text-2xl font-bold text-gray-900 text-center">Bienvenido a Castores</h1>
         <p className="text-sm text-gray-500 text-center mt-1 mb-5">Tu plataforma de gestión de obra</p>
 
-        {/* Banner instalar PWA */}
-        {!isStandalone && (
-          <div className="w-full mb-5 rounded-2xl p-4 text-sm"
-            style={{ background: "rgba(200,149,42,0.10)", border: "1px solid rgba(200,149,42,0.30)" }}>
-            <p className="font-semibold text-amber-800 mb-1">📲 Instala la app en tu teléfono</p>
-            {isIOS ? (
-              <p className="text-amber-700 leading-relaxed">
-                En Safari toca el ícono <span className="font-bold">⬆ Compartir</span> y luego <span className="font-bold">"Agregar a pantalla de inicio"</span>. Así la tendrás siempre a la mano.
-              </p>
-            ) : (
-              <p className="text-amber-700 leading-relaxed">
-                En Chrome toca el menú <span className="font-bold">⋮</span> y luego <span className="font-bold">"Añadir a pantalla de inicio"</span>. Así la tendrás siempre a la mano.
-              </p>
-            )}
-          </div>
-        )}
+        {/* Banner instalar PWA con toggle iOS / Android */}
+        {!isStandalone && <PwaInstallBanner defaultIOS={detectedIOS} />}
 
         {/* Pasos del proceso */}
         <div className="w-full mb-5">
