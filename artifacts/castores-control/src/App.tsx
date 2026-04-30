@@ -112,21 +112,39 @@ function SignUpPage() {
   const { isLoaded: signUpLoaded, signUp, setActive } = useSignUp();
   const [, setLocation] = useLocation();
 
-  // Capture invite code from URL → localStorage
-  if (typeof window !== "undefined") {
+  // Detect fresh invite link BEFORE state initializers so useState lazy
+  // initializers can read this value synchronously on first render.
+  const hasUrlCode = typeof window !== "undefined"
+    && new URLSearchParams(window.location.search).has("code");
+
+  // On mount only: capture invite code and clear stale signup state.
+  // Must be a useEffect — NOT inline — so that re-renders triggered during
+  // the OTP flow (e.g. setBusy, setStep) don't erase the
+  // castores_signup_step/email keys that handleSubmitForm writes for iOS
+  // background-kill recovery before the OTP screen appears.
+  useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const code = urlParams.get("code");
-    if (code) localStorage.setItem("castores_invite_code", code.toUpperCase());
-  }
+    if (code) {
+      localStorage.setItem("castores_invite_code", code.toUpperCase());
+      localStorage.removeItem("castores_signup_step");
+      localStorage.removeItem("castores_signup_email");
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   type SignUpStep = "form" | "otp";
-  const [step, setStep] = useState<SignUpStep>(() =>
-    typeof window !== "undefined" && localStorage.getItem("castores_signup_step") === "otp"
-      ? "otp" : "form"
-  );
-  const [email, setEmail] = useState(() =>
-    typeof window !== "undefined" ? (localStorage.getItem("castores_signup_email") ?? "") : ""
-  );
+  const [step, setStep] = useState<SignUpStep>(() => {
+    // Always start at the form when opening a fresh invitation link —
+    // ignore any cached OTP state from a previous session on this device.
+    if (hasUrlCode) return "form";
+    return typeof window !== "undefined" && localStorage.getItem("castores_signup_step") === "otp"
+      ? "otp" : "form";
+  });
+  const [email, setEmail] = useState(() => {
+    if (hasUrlCode) return "";
+    return typeof window !== "undefined" ? (localStorage.getItem("castores_signup_email") ?? "") : "";
+  });
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [password, setPassword] = useState("");
@@ -145,9 +163,11 @@ function SignUpPage() {
     setLocation("/complete-profile");
   }, [isLoaded, isSignedIn, setLocation]);
 
-  // If Clerk's signUp session survived an iOS restart, jump to OTP step
+  // If Clerk's signUp session survived an iOS restart, jump to OTP step.
+  // Skip this when a fresh invite link is open — we never want to restore
+  // a previous user's session when someone is starting a new registration.
   useEffect(() => {
-    if (!signUpLoaded) return;
+    if (!signUpLoaded || hasUrlCode) return;
     if (signUp?.status === "missing_requirements") {
       if (signUp.emailAddress) {
         setEmail(signUp.emailAddress);
@@ -156,7 +176,7 @@ function SignUpPage() {
       localStorage.setItem("castores_signup_step", "otp");
       setStep("otp");
     }
-  }, [signUpLoaded, signUp?.status]);
+  }, [signUpLoaded, signUp?.status, hasUrlCode]);
 
   const handleSubmitForm = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
