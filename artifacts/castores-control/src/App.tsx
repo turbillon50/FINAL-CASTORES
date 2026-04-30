@@ -92,14 +92,18 @@ function SignInPage() {
   );
 }
 
-function parseClerkError(err: unknown): string {
-  if (err && typeof err === "object" && "errors" in err) {
-    const errors = (err as { errors: Array<{ longMessage?: string; message?: string }> }).errors;
-    if (Array.isArray(errors) && errors.length > 0) {
-      return errors[0].longMessage ?? errors[0].message ?? "Error desconocido";
+function parseClerkError(err: unknown): { msg: string; isEmailTaken: boolean } {
+  if (err && typeof err === "object") {
+    const e = err as Record<string, unknown>;
+    if (Array.isArray(e.errors) && e.errors.length > 0) {
+      const first = e.errors[0] as Record<string, unknown>;
+      const code = String(first.code ?? "");
+      const msg = String(first.longMessage ?? first.message ?? "Error desconocido");
+      return { msg, isEmailTaken: code === "form_identifier_exists" };
     }
+    if (typeof e.message === "string") return { msg: e.message, isEmailTaken: false };
   }
-  return "Error al conectar con el servidor. Inténtalo de nuevo.";
+  return { msg: "Error al conectar con el servidor. Inténtalo de nuevo.", isEmailTaken: false };
 }
 
 function SignUpPage() {
@@ -128,6 +132,7 @@ function SignUpPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [otpCode, setOtpCode] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [emailTaken, setEmailTaken] = useState(false);
   const [resendOk, setResendOk] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -174,9 +179,11 @@ function SignUpPage() {
       setStep("otp");
     } catch (err) {
       localStorage.removeItem("castores_signup_step");
-      const msg = parseClerkError(err);
-      // If Clerk says password is required, reveal the password field
-      if (msg.toLowerCase().includes("password") || msg.toLowerCase().includes("contraseña")) {
+      const { msg, isEmailTaken } = parseClerkError(err);
+      if (isEmailTaken) {
+        setEmailTaken(true);
+        setError("Este correo ya está registrado.");
+      } else if (msg.toLowerCase().includes("password") || msg.toLowerCase().includes("contraseña")) {
         setShowPassword(true);
         setError("Por favor ingresa una contraseña para continuar.");
       } else {
@@ -199,7 +206,7 @@ function SignUpPage() {
         // isSignedIn effect above handles redirect to /complete-profile
       }
     } catch (err) {
-      setError(parseClerkError(err));
+      setError(parseClerkError(err).msg);
     } finally {
       setBusy(false);
     }
@@ -209,7 +216,6 @@ function SignUpPage() {
     setError(null);
     setResendOk(false);
     if (!signUp) {
-      // Clerk session expired after iOS restart — restart the form
       localStorage.removeItem("castores_signup_step");
       setStep("form");
       setError("Tu sesión expiró. Vuelve a ingresar tus datos para recibir un nuevo código.");
@@ -219,7 +225,7 @@ function SignUpPage() {
       await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
       setResendOk(true);
     } catch (err) {
-      setError(parseClerkError(err));
+      setError(parseClerkError(err).msg);
     }
   };
 
@@ -322,7 +328,16 @@ function SignUpPage() {
           {showPassword && (
             <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Contraseña" autoComplete="new-password" className={inputCls} />
           )}
-          {error && <p className="text-sm text-red-600">{error}</p>}
+          {error && (
+            <div className="text-sm text-red-600">
+              {error}{" "}
+              {emailTaken && (
+                <a href={`${basePath}/sign-in`} className="font-semibold underline text-amber-700">
+                  Inicia sesión →
+                </a>
+              )}
+            </div>
+          )}
           <button type="submit" disabled={busy} className={`${btnPrimary} mt-1`}>
             {busy ? "Enviando código..." : "Continuar →"}
           </button>
