@@ -4,7 +4,6 @@ import { Icons } from "@/lib/icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
 import { PageHero } from "@/components/ui/page-hero";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -25,6 +24,11 @@ const CATEGORY_META: Record<string, { label: string; icon: string; color: string
   other:     { label: "Otro",       icon: "📁", color: "#6B7280" },
 };
 
+function isImageUrl(url?: string | null): boolean {
+  if (!url) return false;
+  return url.startsWith("data:image/") || /\.(jpe?g|png|gif|webp|avif|svg)(\?|$)/i.test(url);
+}
+
 export default function Documentos() {
   const { data: documents = [], isLoading, refetch } = useListDocuments();
   const { data: projects = [] } = useListProjects();
@@ -37,6 +41,7 @@ export default function Documentos() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
+  const [previewDoc, setPreviewDoc] = useState<any | null>(null);
   const [form, setForm] = useState({
     title: "", description: "", category: "other", projectId: "",
   });
@@ -64,7 +69,6 @@ export default function Documentos() {
       if (selectedFile) {
         fileType = selectedFile.type || "application/octet-stream";
         fileSize = selectedFile.size;
-        fileUrl = URL.createObjectURL(selectedFile);
         if (selectedFile.type.startsWith("image/")) {
           fileUrl = await new Promise<string>((resolve) => {
             const reader = new FileReader();
@@ -116,8 +120,10 @@ export default function Documentos() {
       a.href = doc.fileUrl;
       a.download = doc.title;
       a.click();
-    } else {
+    } else if (doc.fileUrl && !doc.fileUrl.startsWith("file://")) {
       window.open(doc.fileUrl, "_blank");
+    } else {
+      toast({ variant: "destructive", title: "Sin archivo", description: "Este documento no tiene un archivo descargable." });
     }
   };
 
@@ -146,47 +152,42 @@ export default function Documentos() {
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {documents.map((doc, i) => {
               const meta = CATEGORY_META[doc.category] ?? CATEGORY_META.other;
+              const hasImage = isImageUrl(doc.fileUrl);
               return (
                 <motion.div key={doc.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.04 }}
-                  className="bg-white rounded-2xl p-4 flex flex-col gap-3 group relative"
-                  style={{ border: "1px solid rgba(0,0,0,0.07)", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
-                  {/* Action buttons */}
-                  <div className="absolute top-2.5 right-2.5 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onClick={() => handleDownload(doc)}
-                      className="w-7 h-7 rounded-lg flex items-center justify-center text-white text-xs font-bold"
-                      style={{ background: meta.color }}>
-                      <Icons.Download className="w-3.5 h-3.5" />
-                    </button>
-                    <button onClick={() => setConfirmDelete(doc.id)}
-                      className="w-7 h-7 rounded-lg flex items-center justify-center text-white text-xs bg-red-500">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="w-3.5 h-3.5">
-                        <path d="M18 6L6 18M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </div>
+                  className="bg-white rounded-2xl flex flex-col group relative overflow-hidden cursor-pointer active:scale-[0.98] transition-transform"
+                  style={{ border: "1px solid rgba(0,0,0,0.07)", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}
+                  onClick={() => setPreviewDoc(doc)}>
 
-                  {/* Icon */}
-                  <div className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl"
-                    style={{ background: `${meta.color}15`, border: `1px solid ${meta.color}25` }}>
-                    {meta.icon}
-                  </div>
+                  {/* Image thumbnail or icon */}
+                  {hasImage ? (
+                    <div className="w-full aspect-video overflow-hidden bg-gray-100">
+                      <img src={doc.fileUrl!} alt={doc.title}
+                        className="w-full h-full object-cover" />
+                    </div>
+                  ) : (
+                    <div className="w-full aspect-video flex items-center justify-center text-4xl"
+                      style={{ background: `${meta.color}10` }}>
+                      {meta.icon}
+                    </div>
+                  )}
 
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-sm text-foreground leading-tight line-clamp-2 mb-1">{doc.title}</h3>
+                  <div className="p-3 flex flex-col gap-2 flex-1">
+                    <h3 className="font-semibold text-sm text-foreground leading-tight line-clamp-2">{doc.title}</h3>
                     {doc.projectName && (
                       <p className="text-[10px] text-muted-foreground truncate">{doc.projectName}</p>
                     )}
-                  </div>
 
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
-                      style={{ background: `${meta.color}15`, color: meta.color }}>
-                      {meta.label}
-                    </span>
-                    <span className="text-[9px] text-muted-foreground font-mono">
-                      {format(new Date(doc.createdAt), "dd MMM yy", { locale: es })}
-                    </span>
+                    <div className="flex items-center justify-between mt-auto">
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
+                        style={{ background: `${meta.color}15`, color: meta.color }}>
+                        {meta.label}
+                      </span>
+                      <span className="text-[9px] text-muted-foreground font-mono">
+                        {format(new Date(doc.createdAt), "dd MMM yy", { locale: es })}
+                      </span>
+                    </div>
                   </div>
                 </motion.div>
               );
@@ -207,6 +208,98 @@ export default function Documentos() {
           </div>
         )}
       </div>
+
+      {/* ─── Preview Modal ─── */}
+      <AnimatePresence>
+        {previewDoc && (
+          <>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50" style={{ background: "rgba(0,0,0,0.85)", backdropFilter: "blur(8px)" }}
+              onClick={() => setPreviewDoc(null)} />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.94 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.94 }}
+              transition={{ type: "spring", stiffness: 380, damping: 30 }}
+              className="fixed inset-x-4 top-[5%] bottom-[5%] z-50 rounded-2xl flex flex-col overflow-hidden md:inset-x-auto md:left-1/2 md:-translate-x-1/2 md:w-[560px]"
+              style={{ background: "#fff", boxShadow: "0 24px 64px rgba(0,0,0,0.4)" }}
+              onClick={e => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between px-5 py-4 border-b border-black/[0.07] flex-shrink-0">
+                <div className="min-w-0 flex-1 mr-3">
+                  <h2 className="font-semibold text-base text-foreground truncate">{previewDoc.title}</h2>
+                  {previewDoc.projectName && (
+                    <p className="text-xs text-muted-foreground truncate">{previewDoc.projectName}</p>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  {(previewDoc.fileUrl?.startsWith("data:") || (previewDoc.fileUrl && !previewDoc.fileUrl.startsWith("file://"))) && (
+                    <button
+                      onClick={() => handleDownload(previewDoc)}
+                      className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold"
+                      style={{ background: CATEGORY_META[previewDoc.category]?.color ?? "#6B7280" }}>
+                      <Icons.Download className="w-4 h-4" />
+                    </button>
+                  )}
+                  <button
+                    onClick={() => { setConfirmDelete(previewDoc.id); setPreviewDoc(null); }}
+                    className="w-8 h-8 rounded-lg flex items-center justify-center text-white bg-red-500">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="w-4 h-4">
+                      <path d="M3 6h18M19 6l-1 14H6L5 6M10 11v6M14 11v6M9 6V4h6v2" />
+                    </svg>
+                  </button>
+                  <button onClick={() => setPreviewDoc(null)}
+                    className="w-8 h-8 rounded-full flex items-center justify-center text-foreground/40 hover:bg-foreground/8">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="w-5 h-5">
+                      <path d="M18 6L6 18M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              {/* Content */}
+              <div className="flex-1 overflow-auto flex flex-col">
+                {isImageUrl(previewDoc.fileUrl) ? (
+                  <div className="flex-1 flex items-center justify-center p-4 bg-gray-50">
+                    <img src={previewDoc.fileUrl} alt={previewDoc.title}
+                      className="max-w-full max-h-full object-contain rounded-lg"
+                      style={{ maxHeight: "calc(100vh - 240px)" }} />
+                  </div>
+                ) : (
+                  <div className="flex-1 flex flex-col items-center justify-center gap-4 p-8 text-center bg-gray-50">
+                    <span className="text-6xl">{CATEGORY_META[previewDoc.category]?.icon ?? "📁"}</span>
+                    <p className="text-sm text-muted-foreground">
+                      {previewDoc.fileUrl?.startsWith("file://")
+                        ? "Archivo local — no disponible para previsualización en línea."
+                        : "Este tipo de archivo no tiene vista previa."}
+                    </p>
+                    {!previewDoc.fileUrl?.startsWith("file://") && (
+                      <button onClick={() => handleDownload(previewDoc)}
+                        className="px-5 py-2.5 rounded-xl text-sm font-bold text-white"
+                        style={{ background: CATEGORY_META[previewDoc.category]?.color ?? "#6B7280" }}>
+                        Descargar / Abrir
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {/* Meta info */}
+                {(previewDoc.description || previewDoc.uploadedByName) && (
+                  <div className="px-5 py-4 border-t border-black/[0.07] space-y-1 flex-shrink-0">
+                    {previewDoc.description && (
+                      <p className="text-sm text-foreground/80">{previewDoc.description}</p>
+                    )}
+                    {previewDoc.uploadedByName && (
+                      <p className="text-xs text-muted-foreground">Subido por {previewDoc.uploadedByName}</p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       {/* ─── Modal Subir Documento ─── */}
       <AnimatePresence>
@@ -239,14 +332,15 @@ export default function Documentos() {
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
-                  {/* File drop zone */}
                   <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileSelect}
                     accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.dwg,.zip" />
                   <button type="button" onClick={() => fileInputRef.current?.click()}
                     className="w-full border-2 border-dashed border-black/10 rounded-xl p-5 text-center hover:border-blue-400/50 hover:bg-blue-50/30 transition-all">
                     {selectedFile ? (
                       <div className="flex items-center justify-center gap-3">
-                        <span className="text-2xl">📄</span>
+                        <span className="text-2xl">
+                          {selectedFile.type.startsWith("image/") ? "🖼️" : "📄"}
+                        </span>
                         <div className="text-left">
                           <p className="font-medium text-sm text-foreground">{selectedFile.name}</p>
                           <p className="text-xs text-muted-foreground">{(selectedFile.size / 1024).toFixed(0)} KB</p>
