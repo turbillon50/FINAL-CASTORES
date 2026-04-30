@@ -317,13 +317,25 @@ function SignUpPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#f8f4ef] p-4">
         <div className="w-full max-w-sm">
-          <div className="text-center mb-6">
+          <div className="text-center mb-5">
             <div className="text-4xl mb-2">📧</div>
-            <h1 className="text-2xl font-bold text-gray-900">Verifica tu correo</h1>
+            <h1 className="text-2xl font-bold text-gray-900">Revisa tu correo</h1>
             <p className="text-sm text-gray-500 mt-1">
               Enviamos un código de 6 dígitos a
             </p>
             <p className="font-semibold text-gray-800 text-sm mt-0.5 break-all">{email}</p>
+          </div>
+
+          {/* Instrucción explícita paso a paso */}
+          <div className="rounded-xl p-3 text-sm mb-4"
+            style={{ background: "rgba(200,149,42,0.08)", border: "1px solid rgba(200,149,42,0.25)" }}>
+            <p className="font-semibold text-amber-800 mb-1">¿Qué hacer ahora?</p>
+            <ol className="text-amber-700 space-y-1 list-none">
+              <li>1. Abre tu app de correo</li>
+              <li>2. Busca el mensaje de Castores</li>
+              <li>3. Copia el código de 6 dígitos</li>
+              <li>4. Regresa aquí e ingrésalo abajo</li>
+            </ol>
           </div>
 
           {!signUp && signUpLoaded && (
@@ -374,14 +386,60 @@ function SignUpPage() {
   }
 
   // ── Form step ─────────────────────────────────────────────────────────────
+  const isStandalone = typeof window !== "undefined" &&
+    (window.matchMedia("(display-mode: standalone)").matches || (window.navigator as { standalone?: boolean }).standalone === true);
+  const isIOS = typeof window !== "undefined" && /iphone|ipad|ipod/i.test(window.navigator.userAgent);
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#f8f4ef] p-4">
-      <div className="w-full max-w-sm">
-        <div className="text-center mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">Crear cuenta</h1>
-          <p className="text-sm text-gray-500 mt-1">Ingresa tus datos para registrarte</p>
+    <div className="min-h-screen bg-[#f8f4ef] overflow-y-auto">
+      <div className="flex flex-col items-center px-4 py-8 max-w-sm mx-auto">
+
+        {/* Logo + bienvenida */}
+        <img src={`${basePath}/castores-logo.jpeg`} alt="Castores" className="w-16 h-16 rounded-2xl object-cover shadow mb-3" />
+        <h1 className="text-2xl font-bold text-gray-900 text-center">Bienvenido a Castores</h1>
+        <p className="text-sm text-gray-500 text-center mt-1 mb-5">Tu plataforma de gestión de obra</p>
+
+        {/* Banner instalar PWA */}
+        {!isStandalone && (
+          <div className="w-full mb-5 rounded-2xl p-4 text-sm"
+            style={{ background: "rgba(200,149,42,0.10)", border: "1px solid rgba(200,149,42,0.30)" }}>
+            <p className="font-semibold text-amber-800 mb-1">📲 Instala la app en tu teléfono</p>
+            {isIOS ? (
+              <p className="text-amber-700 leading-relaxed">
+                En Safari toca el ícono <span className="font-bold">⬆ Compartir</span> y luego <span className="font-bold">"Agregar a pantalla de inicio"</span>. Así la tendrás siempre a la mano.
+              </p>
+            ) : (
+              <p className="text-amber-700 leading-relaxed">
+                En Chrome toca el menú <span className="font-bold">⋮</span> y luego <span className="font-bold">"Añadir a pantalla de inicio"</span>. Así la tendrás siempre a la mano.
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Pasos del proceso */}
+        <div className="w-full mb-5">
+          <p className="text-xs uppercase tracking-wider text-gray-400 font-semibold mb-3 text-center">Cómo funciona el registro</p>
+          <div className="flex flex-col gap-2">
+            {[
+              { n: "1", title: "Llena tus datos", desc: "Nombre, apellido y correo electrónico" },
+              { n: "2", title: "Revisa tu correo", desc: "Te enviamos un código de 6 dígitos — ve a tu correo, cópialo y regresa aquí" },
+              { n: "3", title: "¡Listo!", desc: "Ingresa el código y entra a la plataforma" },
+            ].map(s => (
+              <div key={s.n} className="flex items-start gap-3 bg-white rounded-xl px-4 py-3"
+                style={{ border: "1px solid rgba(0,0,0,0.06)" }}>
+                <span className="flex-shrink-0 w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center text-white"
+                  style={{ background: "#C8952A" }}>{s.n}</span>
+                <div>
+                  <p className="text-sm font-semibold text-gray-800">{s.title}</p>
+                  <p className="text-xs text-gray-500 mt-0.5">{s.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
-        <form onSubmit={handleSubmitForm} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-3">
+
+        {/* Formulario */}
+        <form onSubmit={handleSubmitForm} className="w-full bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-3">
           <div className="flex gap-2">
             <input type="text" value={firstName} onChange={e => setFirstName(e.target.value)} placeholder="Nombre" required className={inputCls} />
             <input type="text" value={lastName} onChange={e => setLastName(e.target.value)} placeholder="Apellido" required className={inputCls} />
@@ -404,6 +462,7 @@ function SignUpPage() {
             {busy ? "Enviando código..." : "Continuar →"}
           </button>
         </form>
+
         <p className="text-center text-sm text-gray-500 mt-4">
           ¿Ya tienes cuenta?{" "}
           <a href={`${basePath}/sign-in`} className="text-amber-700 font-medium hover:text-amber-900">Inicia sesión</a>
