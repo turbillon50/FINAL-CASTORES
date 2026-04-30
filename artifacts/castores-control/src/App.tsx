@@ -3,7 +3,8 @@ import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/reac
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/lib/auth";
-import { ClerkProvider, SignIn, SignUp, useUser, useClerk, useAuth as useClerkAuth, useSignUp } from "@clerk/react";
+import { ClerkProvider, SignIn, SignUp, useUser, useClerk, useAuth as useClerkAuth } from "@clerk/react";
+import { useSignUp } from "@clerk/react/legacy";
 import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import { setBaseUrl, setDemoMode, setAuthTokenGetter, setClerkUserInfo } from "@workspace/api-client-react";
 import { apiUrl } from "@/lib/api-url";
@@ -201,7 +202,7 @@ function SignUpPage() {
     setBusy(true);
     setError(null);
     try {
-      const result = await signUp.attemptVerification({ code: otpCode });
+      const result = await signUp.attemptVerification({ strategy: "email_code", code: otpCode });
       if (result.status === "complete") {
         await setActive({ session: result.createdSessionId });
         // isSignedIn effect above handles redirect to /complete-profile
