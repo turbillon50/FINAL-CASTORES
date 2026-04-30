@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/reac
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/lib/auth";
-import { ClerkProvider, SignIn, SignUp, useUser, useClerk, useAuth as useClerkAuth } from "@clerk/react";
+import { ClerkProvider, SignIn, useUser, useClerk, useAuth as useClerkAuth } from "@clerk/react";
 import { useSignUp } from "@clerk/react/legacy";
 import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import { setBaseUrl, setDemoMode, setAuthTokenGetter, setClerkUserInfo } from "@workspace/api-client-react";

@@ -164,7 +164,7 @@ export default function Login() {
         {/* Logo */}
         <div className="absolute top-5 left-5 flex items-center gap-2.5">
           <div className="w-10 h-10 rounded-xl bg-white/95 shadow-lg flex items-center justify-center overflow-hidden">
-            <img src="/castores-logo.jpeg" alt="CASTORES" className="h-8 w-auto object-contain" />
+            <img src={`${import.meta.env.BASE_URL}castores-logo.jpeg`} alt="CASTORES" className="h-8 w-auto object-contain" />
           </div>
           <div>
             <p className="text-white font-bold text-sm leading-tight tracking-wide drop-shadow">CASTORES</p>
