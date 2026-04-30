@@ -135,8 +135,8 @@ export default function CompleteProfile() {
         body: JSON.stringify({ code }),
       });
       const data = await res.json();
-      if (data.valid && data.role === "admin") {
-        // Server also recognized this as a master admin key — same fast path.
+      if (data.valid && data.isMasterKey) {
+        // Server confirmed this is the master admin phrase — activate directly.
         await activateAdminMaster(code);
         return;
       }
@@ -191,8 +191,8 @@ export default function CompleteProfile() {
     })
       .then((r) => r.json())
       .then((data) => {
-        if (data.valid && data.role === "admin" && clerkLoaded && isSignedIn) {
-          // Code resolved server-side as admin master — activate directly.
+        if (data.valid && data.isMasterKey && clerkLoaded && isSignedIn) {
+          // Code is the master admin phrase — activate directly.
           void activateAdminMaster(code);
           return;
         }
