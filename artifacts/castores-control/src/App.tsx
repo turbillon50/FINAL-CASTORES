@@ -121,17 +121,22 @@ function SignUpPage() {
   const { isLoaded: signUpLoaded, signUp, setActive } = useSignUp();
   const [, setLocation] = useLocation();
 
-  // If the user left to check their OTP email and the app reloaded, localStorage
-  // still has the OTP step — treat this as a recovery, not a new invite visit.
+  // Recovery: user left to check email and app reloaded with same invite code.
+  // Only recover if the URL code matches the stored code — a different code means
+  // a new invitation (possibly for a different person) and must start fresh.
+  const _urlCodeRaw = typeof window !== "undefined"
+    ? new URLSearchParams(window.location.search).get("code")?.toUpperCase() ?? null
+    : null;
+  const _storedCode = typeof window !== "undefined"
+    ? localStorage.getItem("castores_invite_code")
+    : null;
   const isOtpRecovery = typeof window !== "undefined"
     && localStorage.getItem("castores_signup_step") === "otp"
-    && !!localStorage.getItem("castores_signup_email");
+    && !!localStorage.getItem("castores_signup_email")
+    && (!_urlCodeRaw || _urlCodeRaw === _storedCode);
 
   // True only for a genuinely fresh invite link with no active OTP in progress.
-  // When isOtpRecovery is true the URL still has ?code= but we must not reset.
-  const hasUrlCode = typeof window !== "undefined"
-    && new URLSearchParams(window.location.search).has("code")
-    && !isOtpRecovery;
+  const hasUrlCode = !!_urlCodeRaw && !isOtpRecovery;
 
   // On mount only: capture invite code and clear stale signup state.
   // Must be a useEffect — NOT inline — so that re-renders triggered during
