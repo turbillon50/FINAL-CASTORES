@@ -46,7 +46,7 @@ export default function NewBitacoraEntry() {
   const { toast } = useToast();
   const createLog = useCreateLog();
   const signLog = useSignLog();
-  const { data: projects = [] } = useListProjects({ status: "active" });
+  const { data: projects = [] } = useListProjects();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [photoFiles, setPhotoFiles] = useState<File[]>([]);
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
