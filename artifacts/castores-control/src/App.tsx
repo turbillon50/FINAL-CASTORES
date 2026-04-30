@@ -358,12 +358,6 @@ function InvitePage() {
  * and redirects back to /sign-up so the OTP entry form reappears automatically.
  * This handles iOS PWA reloading to "/" when the user switches back from Mail.
  */
-/**
- * Detects an in-progress Clerk sign-up (OTP pending) and redirects back to
- * /sign-up so the entry form reappears after iOS PWA reloads.
- * Uses two signals: Clerk's own cookie state AND a localStorage flag set by
- * SignUpPage, so it works even when iOS clears Clerk's cookies.
- */
 function SignUpGuard() {
   const { isLoaded: userLoaded, isSignedIn } = useUser();
   const { isLoaded: signUpLoaded, signUp } = useSignUp();
