@@ -62,6 +62,28 @@ export default function CompleteProfile() {
     }
   }, [clerkLoaded, isSignedIn, setLocation]);
 
+  // Pre-seed: as soon as Clerk confirms the session, create (or re-link) a
+  // DB record for this user so admin-access / clerk-register always have a
+  // row to UPDATE rather than INSERT, reducing the chance of duplicates on
+  // retries or race conditions.
+  useEffect(() => {
+    if (!clerkLoaded || !isSignedIn) return;
+    getToken().then((token) => {
+      if (!token) return;
+      return fetch(apiUrl("/api/auth/clerk-me"), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          name: user?.fullName || user?.firstName || "",
+        }),
+      });
+    }).catch(() => {}); // fire-and-forget
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clerkLoaded, isSignedIn]);
+
   // Activates the current Clerk-authenticated user as admin general using the
   // master phrase. This is what makes typing "CASTORES" a one-step action:
   // no name/company/phone form, just instant access.
