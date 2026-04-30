@@ -22,7 +22,7 @@ export default function Cuenta() {
     setStep("deleting");
     try {
       const token = await getAuthToken().catch(() => null);
-      const res = await fetch(apiUrl(`/api/users/me?clerkId=${encodeURIComponent((user as any).clerkId || "")}&email=${encodeURIComponent(user!.email)}`), {
+      const res = await fetch(apiUrl(`/api/users/me`), {
         method: "DELETE",
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         credentials: "include",

@@ -40,6 +40,12 @@ export default function CompleteProfile() {
 
   const [codeState, setCodeState] = useState<CodeState>({ status: "checking" });
   const [name, setName] = useState(user?.fullName || "");
+
+  // Clerk user loads asynchronously — fill the name field once it arrives
+  // so the user doesn't have to retype what they already entered on sign-up
+  useEffect(() => {
+    if (user?.fullName) setName(prev => prev || user.fullName!);
+  }, [user?.fullName]);
   const [company, setCompany] = useState("");
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
@@ -396,7 +402,7 @@ export default function CompleteProfile() {
         <div className="flex items-center gap-2.5 mb-8 justify-center">
           <div className="w-10 h-10 rounded-xl flex items-center justify-center overflow-hidden"
             style={{ background: "rgba(200,149,42,0.12)", border: "1px solid rgba(200,149,42,0.25)" }}>
-            <img src="/castores-logo.jpeg" alt="CASTORES" className="h-8 w-auto object-contain" />
+            <img src={`${import.meta.env.BASE_URL}castores-logo.jpeg`} alt="CASTORES" className="h-8 w-auto object-contain" />
           </div>
           <span className="font-black text-white uppercase tracking-widest text-lg"
             style={{ fontFamily: "'Bebas Neue', sans-serif" }}>Castores Control</span>
