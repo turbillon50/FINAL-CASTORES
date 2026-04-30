@@ -69,15 +69,11 @@ export default function Documentos() {
       if (selectedFile) {
         fileType = selectedFile.type || "application/octet-stream";
         fileSize = selectedFile.size;
-        if (selectedFile.type.startsWith("image/")) {
-          fileUrl = await new Promise<string>((resolve) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result as string);
-            reader.readAsDataURL(selectedFile);
-          });
-        } else {
-          fileUrl = `file://${selectedFile.name}`;
-        }
+        fileUrl = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.readAsDataURL(selectedFile);
+        });
       }
 
       await createDocument.mutateAsync({
