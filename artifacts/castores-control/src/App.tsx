@@ -297,10 +297,20 @@ function SignUpPage() {
     localStorage.setItem("castores_signup_step", "otp");
     localStorage.setItem("castores_signup_email", email);
 
+    // Clerk's instance requires a username for sign-up to complete (otherwise
+    // attemptVerification returns status="missing_requirements" with
+    // missingFields=["username"]). Derive a deterministic, Clerk-compatible
+    // username from the email's local part (4-64 chars, alphanumeric + _).
+    // A 4-char random suffix prevents collisions when users share a base email.
+    const usernameBase = email.split("@")[0].toLowerCase().replace(/[^a-z0-9_]/g, "_").slice(0, 50) || "user";
+    const usernameSuffix = Math.random().toString(36).slice(2, 6);
+    const generatedUsername = `${usernameBase}_${usernameSuffix}`.slice(0, 64);
+
     try {
       const resource = await signUp.create({
         emailAddress: email,
         password,
+        username: generatedUsername,
         ...(firstName ? { firstName } : {}),
         ...(lastName ? { lastName } : {}),
       });
@@ -343,13 +353,34 @@ function SignUpPage() {
         window.location.replace(basePath ? `${basePath}/complete-profile` : "/complete-profile");
         return;
       }
-      // OTP verified but Clerk still needs more fields (e.g. username/phone
-      // required by instance settings). Without surfacing this the user thinks
-      // the click did nothing while the abandoned signup is silently discarded.
+      // OTP verified but Clerk still needs more fields. Most common case in
+      // this instance is missingFields=["username"] because the Clerk dashboard
+      // has username required. Auto-fill it from the email rather than failing
+      // the user.
       const missing = (result as unknown as { missingFields?: string[]; unverifiedFields?: string[] }).missingFields ?? [];
       const unverified = (result as unknown as { unverifiedFields?: string[] }).unverifiedFields ?? [];
       // eslint-disable-next-line no-console
-      console.error("[signup] attemptVerification did not complete", { status: result.status, missing, unverified, result });
+      console.error("[signup] attemptVerification did not complete", { status: result.status, missing, unverified });
+
+      if (missing.includes("username") && signUp) {
+        try {
+          const baseEmail = (signUp.emailAddress || email).split("@")[0].toLowerCase();
+          const base = baseEmail.replace(/[^a-z0-9_]/g, "_").slice(0, 50) || "user";
+          const suffix = Math.random().toString(36).slice(2, 6);
+          const updated = await signUp.update({ username: `${base}_${suffix}`.slice(0, 64) });
+          if (updated.status === "complete" && updated.createdSessionId) {
+            await setActive({ session: updated.createdSessionId });
+            localStorage.removeItem("castores_signup_step");
+            localStorage.removeItem("castores_signup_email");
+            window.location.replace(basePath ? `${basePath}/complete-profile` : "/complete-profile");
+            return;
+          }
+        } catch (updateErr) {
+          // eslint-disable-next-line no-console
+          console.error("[signup] username patch failed", updateErr);
+        }
+      }
+
       const detail = [
         missing.length ? `Faltan: ${missing.join(", ")}` : null,
         unverified.length ? `Sin verificar: ${unverified.join(", ")}` : null,
