@@ -8,6 +8,7 @@ import { and } from "drizzle-orm";
 
 const ADMIN_MASTER_KEY = (process.env["ADMIN_ACCESS_PHRASE"] || process.env["ADMIN_MASTER_KEY"] || "").trim().toUpperCase();
 const LEGACY_MASTER_KEY = "CASTORES";
+const CLERK_SECRET_KEY = process.env["CLERK_SECRET_KEY"] ?? "";
 
 function isMasterAdminKey(rawCode: string): boolean {
   const normalized = rawCode.trim().toUpperCase();
@@ -17,6 +18,37 @@ function isMasterAdminKey(rawCode: string): boolean {
 function getVerifiedEmail(req: any): string | null {
   const claims = (req as { auth?: { sessionClaims?: { email?: string } } }).auth?.sessionClaims;
   return claims?.email ?? null;
+}
+
+/**
+ * Calls Clerk Backend API. Throws on non-2xx with a normalized error.
+ * Used by the invite-register endpoint to create a fully verified Clerk
+ * user without going through the email OTP flow (which has been blocked
+ * by various email providers' anti-spam filters).
+ */
+async function clerkApi(path: string, init: RequestInit = {}): Promise<any> {
+  if (!CLERK_SECRET_KEY) {
+    throw new Error("CLERK_SECRET_KEY missing on server");
+  }
+  const res = await fetch(`https://api.clerk.com/v1${path}`, {
+    ...init,
+    headers: {
+      ...(init.headers ?? {}),
+      Authorization: `Bearer ${CLERK_SECRET_KEY}`,
+      "Content-Type": "application/json",
+    },
+  });
+  const text = await res.text();
+  let body: any = null;
+  try { body = text ? JSON.parse(text) : null; } catch { body = text; }
+  if (!res.ok) {
+    const msg = (body && (body.errors?.[0]?.long_message || body.errors?.[0]?.message || body.message)) || `Clerk ${path} ${res.status}`;
+    const err = new Error(msg) as Error & { status?: number; body?: unknown };
+    err.status = res.status;
+    err.body = body;
+    throw err;
+  }
+  return body;
 }
 
 const router: IRouter = Router();
@@ -148,6 +180,196 @@ router.post("/auth/login", async (req, res): Promise<void> => {
   res.json({
     user: safeUser,
     token: `demo-token-${user.id}`,
+  });
+});
+
+/**
+ * Backend-driven registration that bypasses Clerk's email OTP entirely.
+ *
+ * Why this exists: the email OTP path has repeatedly failed to deliver
+ * verification codes (Hotmail filtering, custom domain mail rejecting Clerk's
+ * sender, even Gmail intermittently dropping). Each failure stranded the
+ * invitee on the "Revisa tu correo" screen with no way forward.
+ *
+ * This endpoint takes the registration form data + an invitation code and
+ * does everything server-to-server with Clerk's Backend API:
+ *   1. Validates the invitation against our DB (or recognises the master phrase).
+ *   2. Creates the Clerk user with email pre-verified (skip_password_checks=false
+ *      so the password meets Clerk's policy).
+ *   3. Creates the Castores DB row with the invitation's role + approved status.
+ *   4. Marks the invitation as used and writes an activity log entry.
+ *   5. Mints a single-use Clerk sign_in_token so the frontend can hard-redirect
+ *      the user straight into the dashboard with an active session, no email
+ *      verification step required.
+ *
+ * Public endpoint (no Clerk JWT required) — security relies entirely on the
+ * invitation code (or master phrase) being valid.
+ *
+ * Body: { name, email, password, role, invitationCode, acceptTerms, termsVersion?, company?, phone? }
+ * Response 201: { user, signInUrl }
+ */
+router.post("/auth/invite-register", async (req, res): Promise<void> => {
+  const {
+    name, email: rawEmail, password, role, invitationCode,
+    acceptTerms, termsVersion, company, phone,
+  } = req.body as {
+    name?: string; email?: string; password?: string; role?: string;
+    invitationCode?: string; acceptTerms?: boolean; termsVersion?: string;
+    company?: string; phone?: string;
+  };
+
+  if (!acceptTerms) {
+    res.status(400).json({ error: "Debes aceptar los Términos y la Política de Privacidad" });
+    return;
+  }
+  if (!name || !name.trim()) { res.status(400).json({ error: "Nombre requerido" }); return; }
+  if (!rawEmail || !rawEmail.trim()) { res.status(400).json({ error: "Correo requerido" }); return; }
+  if (!password || password.length < 8) { res.status(400).json({ error: "Contraseña debe tener al menos 8 caracteres" }); return; }
+  if (!role || !(USER_ROLES as readonly string[]).includes(role)) { res.status(400).json({ error: "Rol inválido" }); return; }
+  if (!invitationCode || !invitationCode.trim()) { res.status(400).json({ error: "Clave de invitación requerida" }); return; }
+
+  const email = rawEmail.trim().toLowerCase();
+  const upperCode = invitationCode.trim().toUpperCase();
+
+  // Validate invitation
+  let invitationRecord: typeof invitationCodesTable.$inferSelect | null = null;
+  if (isMasterAdminKey(upperCode)) {
+    if (role !== "admin") {
+      res.status(400).json({ error: "La clave maestra es solo para administradores" });
+      return;
+    }
+  } else {
+    try {
+      const [inv] = await db.select().from(invitationCodesTable)
+        .where(and(eq(invitationCodesTable.code, upperCode), eq(invitationCodesTable.isActive, true)));
+      if (!inv || inv.usedBy) {
+        res.status(400).json({ error: "Código de invitación inválido o ya utilizado" });
+        return;
+      }
+      if (inv.expiresAt && new Date(inv.expiresAt) < new Date()) {
+        res.status(400).json({ error: "El código de invitación ha expirado" });
+        return;
+      }
+      if (inv.role !== role) {
+        res.status(400).json({ error: `Este código es para el rol: ${inv.role}` });
+        return;
+      }
+      invitationRecord = inv;
+    } catch (err: unknown) {
+      logger.error({ err }, "invite-register: invitation lookup failed");
+      res.status(503).json({ error: "Sin conexión a la base de datos" });
+      return;
+    }
+  }
+
+  // Pre-check: refuse if a row with the same email already exists in our DB
+  // (we won't try to merge on top of someone else's account).
+  const [existingByEmail] = await db.select().from(usersTable).where(eq(usersTable.email, email));
+  if (existingByEmail) {
+    res.status(409).json({ error: "Este correo ya está registrado. Si eres tú, usa Iniciar sesión." });
+    return;
+  }
+
+  // Generate a Clerk-friendly username from the email's local part. Clerk's
+  // instance has username required and rejects values with @ / dots / dashes.
+  const usernameBase = email.split("@")[0].toLowerCase().replace(/[^a-z0-9_]/g, "_").slice(0, 50) || "user";
+  const usernameSuffix = Math.random().toString(36).slice(2, 6);
+  const generatedUsername = `${usernameBase}_${usernameSuffix}`.slice(0, 64);
+
+  const trimmedName = name.trim();
+  const [firstName, ...rest] = trimmedName.split(/\s+/);
+  const lastName = rest.join(" ") || trimmedName;
+
+  // Create Clerk user (server-to-server, email auto-verified)
+  let clerkUserId: string;
+  try {
+    const created = await clerkApi("/users", {
+      method: "POST",
+      body: JSON.stringify({
+        email_address: [email],
+        password,
+        username: generatedUsername,
+        first_name: firstName,
+        last_name: lastName,
+        skip_password_checks: false,
+        skip_password_requirement: false,
+      }),
+    });
+    clerkUserId = created.id;
+  } catch (err: unknown) {
+    const e = err as { status?: number; message?: string; body?: any };
+    logger.error({ err: e, status: e.status, body: e.body }, "invite-register: Clerk user create failed");
+    if (e.status === 422 || e.status === 400) {
+      const longMsg = (e.body as any)?.errors?.[0]?.long_message;
+      res.status(400).json({ error: longMsg || e.message || "Clerk rechazó el registro. Verifica tu correo y contraseña." });
+      return;
+    }
+    res.status(503).json({ error: "No se pudo crear la cuenta. Intenta de nuevo en unos minutos." });
+    return;
+  }
+
+  // Persist in our DB
+  let user;
+  try {
+    const [row] = await db.insert(usersTable).values({
+      clerkId: clerkUserId,
+      name: trimmedName,
+      email,
+      role,
+      isActive: true,
+      approvalStatus: "approved",
+      termsAcceptedAt: new Date(),
+      termsVersion: termsVersion ?? "1.0",
+      company: company?.trim() || undefined,
+      phone: phone?.trim() || undefined,
+    }).returning();
+    user = row;
+  } catch (err: unknown) {
+    logger.error({ err }, "invite-register: DB insert failed; rolling back Clerk user");
+    // Best-effort rollback: delete the Clerk user we just created.
+    await clerkApi(`/users/${clerkUserId}`, { method: "DELETE" }).catch(() => {});
+    res.status(503).json({ error: "Sin conexión a la base de datos. La cuenta no quedó creada." });
+    return;
+  }
+
+  // Mark invitation used
+  if (invitationRecord) {
+    await db.update(invitationCodesTable).set({
+      usedBy: user.id,
+      usedAt: new Date(),
+      isActive: false,
+    }).where(eq(invitationCodesTable.id, invitationRecord.id)).catch((err) => {
+      logger.error({ err }, "invite-register: failed to mark invitation used");
+    });
+  }
+
+  await db.insert(activityLogTable).values({
+    type: "invite_register",
+    description: `Registro vía invitación (${invitationRecord ? `código ${invitationRecord.code}` : "frase maestra"})`,
+    userId: user.id,
+  }).catch(() => {});
+
+  // Mint a one-shot sign_in_token so the frontend can drop the user straight
+  // into an authenticated session — no password retype, no OTP.
+  let signInUrl: string | null = null;
+  try {
+    const tokenRes = await clerkApi("/sign_in_tokens", {
+      method: "POST",
+      body: JSON.stringify({ user_id: clerkUserId, expires_in_seconds: 600 }),
+    });
+    signInUrl = tokenRes?.url ?? null;
+  } catch (err: unknown) {
+    logger.error({ err }, "invite-register: sign_in_token mint failed (non-fatal)");
+  }
+
+  // Optional welcome email — never block on it.
+  Promise.resolve().then(() => sendWelcomeEmail(email, trimmedName, role)).catch(() => {});
+
+  const { passwordHash: _, ...safeUser } = user;
+  res.status(201).json({
+    user: safeUser,
+    signInUrl,
+    role,
   });
 });
 

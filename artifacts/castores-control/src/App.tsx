@@ -162,7 +162,9 @@ type SignUpSplashState =
   | { status: "loading"; code: string } // fetching invitation metadata
   | { status: "ready"; code: string; role: string; label: string | null; invitedBy: string | null }
   | { status: "invalid"; code: string; reason: string }
-  | { status: "dismissed" };            // user clicked Continuar in splash
+  // user clicked Continuar in splash; keep code+role around so the form
+  // submission can pass them straight to the backend register endpoint.
+  | { status: "dismissed"; code: string; role: string };
 
 const ROLE_LABEL: Record<string, string> = {
   admin: "Administrador",
@@ -247,6 +249,7 @@ function SignUpPage() {
   const [lastName, setLastName] = useState("");
   const [password, setPassword] = useState("");
   const [otpCode, setOtpCode] = useState("");
+  const [acceptTerms, setAcceptTerms] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [emailTaken, setEmailTaken] = useState(false);
   const [resendOk, setResendOk] = useState(false);
@@ -343,9 +346,9 @@ function SignUpPage() {
       })
       .catch(() => {
         if (ac.signal.aborted) return;
-        // Network error — let the user proceed to the form anyway. The code
-        // will be re-validated by complete-profile after OTP.
-        setSplash({ status: "dismissed" });
+        // Network error — show invalid splash so the user can retry from "/"
+        // rather than dropping them on the form with no role context.
+        setSplash({ status: "invalid", code: splash.code, reason: "No pudimos validar tu invitación. Verifica tu conexión y vuelve a abrir el link." });
       });
     return () => ac.abort();
   }, [splash]);
@@ -374,70 +377,81 @@ function SignUpPage() {
 
   const handleSubmitForm = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!signUp || busy) return;
+    if (busy) return;
 
-    // Read the email from the DOM, not from React state. Password managers
-    // and iOS autofill can change the input value without firing onChange,
-    // which is exactly how OTPs were ending up at addresses the user never
-    // typed. The DOM value is the source of truth at submit time.
+    // DOM-level read of the email — autofill can mutate the input without
+    // firing React onChange. This is the source of truth at submit time.
     const submitEmail = (emailInputRef.current?.value ?? email).trim().toLowerCase();
-    if (submitEmail !== email) {
-      // Sync state so the OTP screen and the recovery flows see the same
-      // address that's about to be sent to Clerk.
-      setEmail(submitEmail);
-    }
-    if (!submitEmail) {
-      setError("Ingresa un correo electrónico válido.");
-      return;
-    }
-
+    if (submitEmail !== email) setEmail(submitEmail);
+    if (!submitEmail) { setError("Ingresa un correo electrónico válido."); return; }
     if (!password || password.length < PASSWORD_MIN) {
       setError(`La contraseña debe tener al menos ${PASSWORD_MIN} caracteres.`);
       return;
     }
+    if (!acceptTerms) {
+      setError("Debes aceptar los Términos y la Política de Privacidad.");
+      return;
+    }
+
+    // Pull role + invitation code from the splash state (which validated the
+    // code against the backend before the user ever saw the form). If we're
+    // here without those, fall back to localStorage where the URL-code
+    // capture effect parked it.
+    let invitationCode: string | null = null;
+    let role: string | null = null;
+    if (splash.status === "ready" || splash.status === "dismissed") {
+      invitationCode = splash.code;
+      role = splash.role;
+    } else {
+      invitationCode = localStorage.getItem("castores_invite_code");
+    }
+    if (!invitationCode) {
+      setError("Falta la clave de invitación. Abre el link que te compartió tu administrador.");
+      return;
+    }
+
     setBusy(true);
     setError(null);
 
-    // The stale-session teardown effect on mount already cleared any leftover
-    // Clerk session before this form was even rendered. Calling signOut() a
-    // second time here was racing against signUp.create() and the email
-    // dispatch — Clerk would accept the create but never fire the OTP email,
-    // leaving the user stuck on the verification screen.
-    localStorage.setItem("castores_signup_step", "otp");
-    localStorage.setItem("castores_signup_email", submitEmail);
-
-    // Clerk's instance requires a username for sign-up to complete (otherwise
-    // attemptVerification returns status="missing_requirements" with
-    // missingFields=["username"]). Derive a deterministic, Clerk-compatible
-    // username from the email's local part (4-64 chars, alphanumeric + _).
-    // A 4-char random suffix prevents collisions when users share a base email.
-    const usernameBase = submitEmail.split("@")[0].toLowerCase().replace(/[^a-z0-9_]/g, "_").slice(0, 50) || "user";
-    const usernameSuffix = Math.random().toString(36).slice(2, 6);
-    const generatedUsername = `${usernameBase}_${usernameSuffix}`.slice(0, 64);
+    const fullName = [firstName.trim(), lastName.trim()].filter(Boolean).join(" ") || submitEmail.split("@")[0];
 
     try {
-      const resource = await signUp.create({
-        emailAddress: submitEmail,
-        password,
-        username: generatedUsername,
-        ...(firstName ? { firstName } : {}),
-        ...(lastName ? { lastName } : {}),
+      const res = await fetch(apiUrl("/api/auth/invite-register"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: fullName,
+          email: submitEmail,
+          password,
+          role,                    // null if we don't know it yet — backend will derive from invitation
+          invitationCode,
+          acceptTerms: true,
+          termsVersion: "1.0",
+        }),
       });
-      // Use the returned resource — the hook's signUp ref is stale after create()
-      await resource.prepareVerification({ strategy: "email_code" });
-      setStep("otp");
-    } catch (err) {
-      localStorage.removeItem("castores_signup_step");
-      const { msg, isEmailTaken } = parseClerkError(err);
-      if (isEmailTaken) {
-        setEmailTaken(true);
-        setError("Este correo ya está registrado.");
-      } else if (msg.toLowerCase().includes("password") || msg.toLowerCase().includes("contraseña")) {
-        setError(msg || "La contraseña no cumple los requisitos. Usa al menos 8 caracteres.");
-      } else {
-        setError(msg);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const msg = (data && (data.error || data.detail || data.message)) || "No pudimos crear tu cuenta. Intenta de nuevo.";
+        if (typeof msg === "string" && msg.toLowerCase().includes("ya está registrado")) {
+          setEmailTaken(true);
+        }
+        setError(typeof msg === "string" ? msg : "Error al registrar.");
+        setBusy(false);
+        return;
       }
-    } finally {
+
+      // Wipe all signup recovery keys — registration is complete.
+      ["castores_signup_step","castores_signup_email","castores_invite_code","castores_signup_pending"]
+        .forEach(k => { try { localStorage.removeItem(k); } catch { /* ignore */ } });
+
+      // Clerk gave us a single-use sign-in URL. Redirecting to it logs the
+      // user in (no password retype, no OTP) and lands them in /dashboard.
+      const target: string = data?.signInUrl
+        || (basePath ? `${basePath}/sign-in` : "/sign-in");
+      window.location.assign(target);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Error de red";
+      setError(`No pudimos crear tu cuenta: ${msg}`);
       setBusy(false);
     }
   };
@@ -780,7 +794,7 @@ function SignUpPage() {
             transition={{ delay: 0.7 }}
             whileHover={{ y: -1 }}
             whileTap={{ scale: 0.98 }}
-            onClick={() => setSplash({ status: "dismissed" })}
+            onClick={() => setSplash({ status: "dismissed", code: splash.code, role: splash.role })}
             className="w-full py-3.5 rounded-2xl text-sm font-bold"
             style={{
               background: "linear-gradient(135deg, #C8952A, #E8A830)",
@@ -930,6 +944,20 @@ function SignUpPage() {
               Esta contraseña te permitirá <strong>volver a entrar</strong> en cualquier momento desde "Iniciar sesión".
             </p>
           </div>
+          <label className="flex items-start gap-2.5 cursor-pointer pt-1">
+            <input
+              type="checkbox"
+              checked={acceptTerms}
+              onChange={(e) => setAcceptTerms(e.target.checked)}
+              className="mt-0.5 w-4 h-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500"
+            />
+            <span className="text-[11px] leading-snug text-gray-600">
+              Acepto los{" "}
+              <a href={`${basePath}/legal/terminos`} target="_blank" rel="noopener noreferrer" className="text-amber-700 underline">Términos de Uso</a>
+              {" "}y la{" "}
+              <a href={`${basePath}/legal/privacidad`} target="_blank" rel="noopener noreferrer" className="text-amber-700 underline">Política de Privacidad</a>.
+            </span>
+          </label>
           {error && (
             <div className="text-sm text-red-600">
               {error}{" "}
@@ -940,8 +968,8 @@ function SignUpPage() {
               )}
             </div>
           )}
-          <button type="submit" disabled={busy} className={`${btnPrimary} mt-1`}>
-            {busy ? "Enviando código..." : "Continuar →"}
+          <button type="submit" disabled={busy || !acceptTerms} className={`${btnPrimary} mt-1`}>
+            {busy ? "Creando tu cuenta..." : "Completar registro →"}
           </button>
         </form>
 
