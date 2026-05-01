@@ -267,6 +267,13 @@ function SignUpPage() {
   // and both see busy=false. A ref is read/written synchronously, so the second
   // tap bails out immediately.
   const verifyingRef = useRef(false);
+  // Direct DOM ref for the email input. We read its `.value` on submit
+  // instead of trusting the React state — iOS Safari and password managers
+  // can inject autofilled values without firing onChange, which would
+  // leave the React state stale while the DOM holds the real (often
+  // unwanted) value. Reading the DOM ensures we always see what the user
+  // is actually about to send.
+  const emailInputRef = useRef<HTMLInputElement>(null);
   // Password is always required: without it the Clerk account is OTP-only and
   // the user cannot sign in again later via /sign-in (which uses email+password).
   const PASSWORD_MIN = 8;
@@ -368,6 +375,22 @@ function SignUpPage() {
   const handleSubmitForm = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!signUp || busy) return;
+
+    // Read the email from the DOM, not from React state. Password managers
+    // and iOS autofill can change the input value without firing onChange,
+    // which is exactly how OTPs were ending up at addresses the user never
+    // typed. The DOM value is the source of truth at submit time.
+    const submitEmail = (emailInputRef.current?.value ?? email).trim().toLowerCase();
+    if (submitEmail !== email) {
+      // Sync state so the OTP screen and the recovery flows see the same
+      // address that's about to be sent to Clerk.
+      setEmail(submitEmail);
+    }
+    if (!submitEmail) {
+      setError("Ingresa un correo electrónico válido.");
+      return;
+    }
+
     if (!password || password.length < PASSWORD_MIN) {
       setError(`La contraseña debe tener al menos ${PASSWORD_MIN} caracteres.`);
       return;
@@ -375,23 +398,34 @@ function SignUpPage() {
     setBusy(true);
     setError(null);
 
-    // Write localStorage BEFORE calling Clerk — prevents iOS race condition
-    // where the app is killed between the button tap and the server response
+    // CRITICAL: nuke any lingering Clerk signUp resource before creating the
+    // new one. Clerk's client caches the most recent signUp; calling
+    // create() with a different email is supposed to replace it but in
+    // practice (especially with verified-but-uncompleted users from earlier
+    // attempts) it has been keeping the OLD email and sending the OTP there.
+    // signOut() guarantees a clean slate for both sessions and signUps.
+    try {
+      await signOut().catch(() => {});
+    } catch { /* ignore */ }
+
+    // Write localStorage AFTER the signOut (signOut clears Clerk cookies but
+    // not our app's localStorage; we want the recovery state pointing at the
+    // address we're about to use, not at whatever a previous attempt left).
     localStorage.setItem("castores_signup_step", "otp");
-    localStorage.setItem("castores_signup_email", email);
+    localStorage.setItem("castores_signup_email", submitEmail);
 
     // Clerk's instance requires a username for sign-up to complete (otherwise
     // attemptVerification returns status="missing_requirements" with
     // missingFields=["username"]). Derive a deterministic, Clerk-compatible
     // username from the email's local part (4-64 chars, alphanumeric + _).
     // A 4-char random suffix prevents collisions when users share a base email.
-    const usernameBase = email.split("@")[0].toLowerCase().replace(/[^a-z0-9_]/g, "_").slice(0, 50) || "user";
+    const usernameBase = submitEmail.split("@")[0].toLowerCase().replace(/[^a-z0-9_]/g, "_").slice(0, 50) || "user";
     const usernameSuffix = Math.random().toString(36).slice(2, 6);
     const generatedUsername = `${usernameBase}_${usernameSuffix}`.slice(0, 64);
 
     try {
       const resource = await signUp.create({
-        emailAddress: email,
+        emailAddress: submitEmail,
         password,
         username: generatedUsername,
         ...(firstName ? { firstName } : {}),
@@ -856,18 +890,21 @@ function SignUpPage() {
           </div>
           <div>
             <input
+              ref={emailInputRef}
               type="email"
               value={email}
               onChange={e => setEmail(e.target.value.trim().toLowerCase())}
+              onInput={e => setEmail((e.target as HTMLInputElement).value.trim().toLowerCase())}
+              onBlur={e => setEmail(e.target.value.trim().toLowerCase())}
               placeholder="Correo electrónico"
               required
               // CRITICAL: every browser's "email" autocomplete kept silently
-              // swapping the typed address for a previously-used one (e.g.
-              // turbillon50@gmail.com from earlier tests on the same device).
-              // Setting autoComplete=off plus password-manager opt-outs gives
-              // us deterministic submission of whatever the user actually
-              // types. The visible preview below ALWAYS shows the value
-              // about to be sent, so the user can spot a swap if it happens.
+              // swapping the typed address for a previously-used one. Setting
+              // autoComplete=off + password-manager opt-outs + reading the
+              // DOM at submit time gives deterministic submission of whatever
+              // is actually visible in the field. The preview below ALWAYS
+              // shows that value, so the user can spot a swap before pressing
+              // Continuar.
               autoComplete="off"
               autoCorrect="off"
               autoCapitalize="off"
