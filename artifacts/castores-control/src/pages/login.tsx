@@ -260,7 +260,7 @@ export default function Login() {
             </motion.button>
           </div>
 
-          {/* Separador con info */}
+          {/* Separador con info — dos rutas de acceso */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -269,11 +269,24 @@ export default function Login() {
             style={{ background: "rgba(200,149,42,0.06)", border: "1px solid rgba(200,149,42,0.15)" }}
           >
             <p className="text-xs font-semibold mb-2" style={{ color: "#C8952A" }}>
-              🔑 ¿Tienes una clave de invitación?
+              🔑 ¿Cómo entrar al sistema?
             </p>
-            <p className="text-[11px] leading-relaxed" style={{ color: "rgba(26,22,18,0.5)" }}>
-              Si un administrador te compartió una clave, regístrate con el botón de arriba e ingrésala en el formulario para obtener acceso inmediato.
-            </p>
+            <ol className="text-[11px] leading-relaxed space-y-1.5 list-none" style={{ color: "rgba(26,22,18,0.55)" }}>
+              <li>
+                <span className="font-bold" style={{ color: "#1a1612" }}>1.</span>{" "}
+                Toca <span className="font-semibold">Solicitar acceso al sistema</span> y registra tu correo.
+              </li>
+              <li>
+                <span className="font-bold" style={{ color: "#1a1612" }}>2.</span>{" "}
+                Cuando te pida la clave, ingresa una de estas:
+              </li>
+              <li className="pl-4">
+                · <span className="font-mono font-semibold">CASTORES</span> — para administrador general
+              </li>
+              <li className="pl-4">
+                · La clave que te compartió tu administrador — para tu rol asignado
+              </li>
+            </ol>
           </motion.div>
 
           {/* PWA install */}
