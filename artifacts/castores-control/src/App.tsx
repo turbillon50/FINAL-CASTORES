@@ -81,15 +81,107 @@ const clerkAppearance = {
 };
 
 function SignInPage() {
+  // Custom email + password sign-in that bypasses Clerk's hosted UI. Clerk's
+  // <SignIn /> component requires an email OTP every time it sees a "new
+  // device", which is unworkable for users who already have a password set
+  // (they get stuck on a verification screen on every fresh phone or
+  // browser). We POST to /api/auth/invite-login instead — the backend
+  // verifies the password against Clerk Backend API and mints a one-shot
+  // sign_in_token URL we redirect to. No OTP, ever, on the sign-in path.
+  const { signOut } = useClerk();
+  const { isSignedIn } = useUser();
+  const [, setLocation] = useLocation();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const inputCls = "w-full px-4 py-3 rounded-xl border border-gray-200 bg-white focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-100 text-gray-900 placeholder-gray-400 transition text-sm";
+
+  // If a previous Clerk session is sitting around (user opened /sign-in while
+  // already signed in), wipe it before showing the form so the new login
+  // can't be intercepted by the cached session.
+  useEffect(() => {
+    if (isSignedIn) {
+      signOut().catch(() => {});
+    }
+  }, [isSignedIn, signOut]);
+
+  const onSubmit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (busy) return;
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail || !password) {
+      setError("Ingresa tu correo y contraseña.");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(apiUrl("/api/auth/invite-login"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: cleanEmail, password }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError((data && (data.error || data.detail)) || "No pudimos iniciar sesión.");
+        setBusy(false);
+        return;
+      }
+      ["castores_signup_step","castores_signup_email","castores_invite_code","castores_invite_pending","castores_signup_pending"]
+        .forEach(k => { try { localStorage.removeItem(k); } catch { /* ignore */ } });
+      const target: string = data?.signInUrl || (basePath ? `${basePath}/dashboard` : "/dashboard");
+      window.location.assign(target);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Error de red";
+      setError(`No pudimos iniciar sesión: ${msg}`);
+      setBusy(false);
+    }
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#f8f4ef]">
-      <SignIn
-        routing="path"
-        path={`${basePath}/sign-in`}
-        signUpUrl={`${basePath}/sign-up`}
-        fallbackRedirectUrl={`${basePath}/dashboard`}
-        appearance={clerkAppearance}
-      />
+    <div className="min-h-screen flex items-center justify-center bg-[#f8f4ef] px-4">
+      <div className="w-full max-w-sm">
+        <div className="text-center mb-6">
+          <img src={`${basePath}/castores-logo.jpeg`} alt="Castores" className="w-16 h-16 rounded-2xl object-cover shadow mx-auto mb-3" />
+          <h1 className="text-2xl font-bold text-gray-900">Iniciar sesión</h1>
+          <p className="text-sm text-gray-500 mt-1">Entra con el correo y contraseña que creaste al registrarte.</p>
+        </div>
+        <form onSubmit={onSubmit} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-3">
+          <input
+            type="email"
+            value={email}
+            onChange={e => setEmail(e.target.value.trim().toLowerCase())}
+            placeholder="Correo electrónico"
+            required
+            autoComplete="email"
+            autoCorrect="off"
+            autoCapitalize="off"
+            spellCheck={false}
+            inputMode="email"
+            className={inputCls}
+          />
+          <input
+            type="password"
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+            placeholder="Contraseña"
+            autoComplete="current-password"
+            required
+            className={inputCls}
+          />
+          {error && <p className="text-sm text-red-600 text-center">{error}</p>}
+          <button type="submit" disabled={busy} className="w-full py-3 rounded-xl font-semibold text-white bg-amber-600 hover:bg-amber-700 transition disabled:opacity-50 text-sm mt-1">
+            {busy ? "Entrando..." : "Iniciar sesión →"}
+          </button>
+        </form>
+        <p className="text-center text-sm text-gray-500 mt-4">
+          ¿Aún no tienes cuenta?{" "}
+          <button onClick={() => setLocation("/")} className="text-amber-700 font-medium hover:text-amber-900 underline">
+            Volver al inicio
+          </button>
+        </p>
+      </div>
     </div>
   );
 }

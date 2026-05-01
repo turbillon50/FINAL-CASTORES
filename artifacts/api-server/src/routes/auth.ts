@@ -184,6 +184,104 @@ router.post("/auth/login", async (req, res): Promise<void> => {
 });
 
 /**
+ * Backend-driven sign-in that bypasses Clerk's hosted sign-in UI entirely.
+ *
+ * Clerk's `<SignIn />` component asks the user for an email OTP every time
+ * it sees a "new device" — even when the user already has a password. That
+ * defeats the whole reason we made the user pick a password during sign-up.
+ * The user gets stuck on the OTP screen on every fresh phone, browser, or
+ * incognito window.
+ *
+ * This endpoint takes email + password directly, asks Clerk's Backend API to
+ * verify the password (server-to-server, fully trusted), and if valid mints a
+ * single-use Clerk sign_in_token. The frontend redirects to that token URL
+ * and the user lands signed in. No OTP, no device verification.
+ *
+ * Public endpoint. Security comes from the password verification + the fact
+ * that an attacker would need both the email and the password to reach the
+ * sign_in_tokens step.
+ *
+ * Body: { email, password }
+ * Response 200: { user, signInUrl }
+ */
+router.post("/auth/invite-login", async (req, res): Promise<void> => {
+  const { email: rawEmail, password } = req.body as { email?: string; password?: string };
+  if (!rawEmail || !password) {
+    res.status(400).json({ error: "Correo y contraseña requeridos" });
+    return;
+  }
+  const email = rawEmail.trim().toLowerCase();
+
+  // 1) Find the Clerk user by email.
+  let clerkUserId: string | null = null;
+  try {
+    const list = await clerkApi(`/users?email_address[]=${encodeURIComponent(email)}&limit=1`);
+    const arr = Array.isArray(list) ? list : (list?.data ?? []);
+    if (Array.isArray(arr) && arr.length > 0) clerkUserId = arr[0].id;
+  } catch (err: unknown) {
+    logger.error({ err }, "invite-login: lookup by email failed");
+  }
+  if (!clerkUserId) {
+    res.status(401).json({ error: "Correo o contraseña incorrectos" });
+    return;
+  }
+
+  // 2) Verify the password against Clerk.
+  try {
+    const verify = await clerkApi(`/users/${clerkUserId}/verify_password`, {
+      method: "POST",
+      body: JSON.stringify({ password }),
+    });
+    if (!verify || verify.verified !== true) {
+      res.status(401).json({ error: "Correo o contraseña incorrectos" });
+      return;
+    }
+  } catch (err: unknown) {
+    const e = err as { status?: number; message?: string };
+    if (e.status === 400 || e.status === 422) {
+      // Clerk returns 400 / 422 when the password is wrong or the user has
+      // no password set. Either way the safe answer for the user is the
+      // same — generic "wrong creds" — so we don't leak which case it is.
+      res.status(401).json({ error: "Correo o contraseña incorrectos" });
+      return;
+    }
+    logger.error({ err: e, status: e.status }, "invite-login: verify_password call failed");
+    res.status(503).json({ error: "No pudimos validar tu contraseña ahora. Intenta de nuevo." });
+    return;
+  }
+
+  // 3) Make sure the user exists and is active in our DB.
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.clerkId, clerkUserId));
+  if (!user) {
+    res.status(403).json({ error: "Tu cuenta no está dada de alta en Castores. Contacta a un administrador." });
+    return;
+  }
+  if (!user.isActive) {
+    res.status(403).json({ error: "Tu cuenta está deshabilitada. Contacta a un administrador." });
+    return;
+  }
+
+  // 4) Mint a one-shot sign-in token Clerk will accept as proof of identity.
+  let signInUrl: string | null = null;
+  try {
+    const tokenRes = await clerkApi("/sign_in_tokens", {
+      method: "POST",
+      body: JSON.stringify({ user_id: clerkUserId, expires_in_seconds: 600 }),
+    });
+    signInUrl = tokenRes?.url ?? null;
+  } catch (err: unknown) {
+    logger.error({ err }, "invite-login: sign_in_token mint failed");
+  }
+  if (!signInUrl) {
+    res.status(503).json({ error: "No pudimos iniciar sesión ahora. Intenta de nuevo." });
+    return;
+  }
+
+  const { passwordHash: _, ...safeUser } = user;
+  res.json({ user: safeUser, signInUrl });
+});
+
+/**
  * Backend-driven registration that bypasses Clerk's email OTP entirely.
  *
  * Why this exists: the email OTP path has repeatedly failed to deliver
