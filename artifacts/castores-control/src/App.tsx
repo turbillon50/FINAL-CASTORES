@@ -1224,17 +1224,24 @@ function SignUpGuard() {
       return;
     }
 
-    // Never redirect away from the public landing ("/"). A stale Clerk
-    // missing_requirements session (e.g. an abandoned signup from days ago)
-    // would otherwise trap the user in an OTP screen that no longer applies.
-    // From "/" the user can choose Iniciar sesión or Solicitar acceso themselves.
-    if (
-      clerkPending &&
-      location !== "/" &&
-      !location.startsWith("/sign-up") &&
-      !location.startsWith("/complete-profile") &&
-      !location.startsWith("/sign-in")
-    ) {
+    // Never redirect away from the public landing ("/") or from public/legal
+    // pages. A stale Clerk missing_requirements session (e.g. an abandoned
+    // signup from days ago) would otherwise hijack the user when they tap a
+    // "Términos de uso" or "Política de privacidad" link mid-registration —
+    // they need to be able to read those pages without being thrown back to
+    // the OTP screen.
+    const isPublicReadOnlyPath =
+      location === "/" ||
+      location.startsWith("/sign-up") ||
+      location.startsWith("/complete-profile") ||
+      location.startsWith("/sign-in") ||
+      location.startsWith("/legal/") ||
+      location === "/legal" ||
+      location === "/faq" ||
+      location === "/explorar" ||
+      location.startsWith("/invite/") ||
+      location.startsWith("/api/invite/");
+    if (clerkPending && !isPublicReadOnlyPath) {
       navigate("/sign-up", { replace: true });
     }
   }, [userLoaded, signUpLoaded, isSignedIn, signUp?.status, location, navigate]);
