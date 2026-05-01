@@ -426,14 +426,25 @@ function SignUpPage() {
             </button>
             <button
               onClick={() => {
+                localStorage.removeItem("castores_signup_step");
+                localStorage.removeItem("castores_signup_email");
                 setStep("form");
                 setOtpCode("");
                 setError(null);
-                localStorage.removeItem("castores_signup_step");
               }}
               className="text-sm text-gray-500 hover:text-gray-700"
             >
               Cambiar correo electrónico
+            </button>
+            <button
+              onClick={() => {
+                localStorage.removeItem("castores_signup_step");
+                localStorage.removeItem("castores_signup_email");
+                window.location.assign(basePath ? `${basePath}/sign-in` : "/sign-in");
+              }}
+              className="text-sm text-gray-400 hover:text-gray-600"
+            >
+              ¿Ya tienes cuenta? Iniciar sesión →
             </button>
           </div>
         </div>
@@ -750,7 +761,8 @@ function SignUpGuard() {
     if (
       clerkPending &&
       !location.startsWith("/sign-up") &&
-      !location.startsWith("/complete-profile")
+      !location.startsWith("/complete-profile") &&
+      !location.startsWith("/sign-in")
     ) {
       navigate("/sign-up", { replace: true });
     }
