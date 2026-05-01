@@ -212,7 +212,6 @@ function SignUpPage() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
   const [otpCode, setOtpCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [emailTaken, setEmailTaken] = useState(false);
@@ -223,6 +222,9 @@ function SignUpPage() {
   // and both see busy=false. A ref is read/written synchronously, so the second
   // tap bails out immediately.
   const verifyingRef = useRef(false);
+  // Password is always required: without it the Clerk account is OTP-only and
+  // the user cannot sign in again later via /sign-in (which uses email+password).
+  const PASSWORD_MIN = 8;
 
   // Redirect once Clerk session is active (sign-up completed)
   useEffect(() => {
@@ -257,6 +259,10 @@ function SignUpPage() {
   const handleSubmitForm = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!signUp || busy) return;
+    if (!password || password.length < PASSWORD_MIN) {
+      setError(`La contraseña debe tener al menos ${PASSWORD_MIN} caracteres.`);
+      return;
+    }
     setBusy(true);
     setError(null);
 
@@ -268,7 +274,7 @@ function SignUpPage() {
     try {
       const resource = await signUp.create({
         emailAddress: email,
-        ...(password ? { password } : {}),
+        password,
         ...(firstName ? { firstName } : {}),
         ...(lastName ? { lastName } : {}),
       });
@@ -283,7 +289,7 @@ function SignUpPage() {
         setError("Este correo ya está registrado.");
       } else if (msg.toLowerCase().includes("password") || msg.toLowerCase().includes("contraseña")) {
         setShowPassword(true);
-        setError("Por favor ingresa una contraseña para continuar.");
+        setError(msg || "La contraseña no cumple los requisitos. Usa al menos 8 caracteres.");
       } else {
         setError(msg);
       }
@@ -502,9 +508,21 @@ function SignUpPage() {
             <input type="text" value={lastName} onChange={e => setLastName(e.target.value)} placeholder="Apellido" required className={inputCls} />
           </div>
           <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Correo electrónico" required autoComplete="email" className={inputCls} />
-          {showPassword && (
-            <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Contraseña" autoComplete="new-password" className={inputCls} />
-          )}
+          <div>
+            <input
+              type="password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              placeholder="Contraseña (mínimo 8 caracteres)"
+              autoComplete="new-password"
+              minLength={PASSWORD_MIN}
+              required
+              className={inputCls}
+            />
+            <p className="text-[11px] text-gray-500 mt-1.5 leading-snug">
+              Esta contraseña te permitirá <strong>volver a entrar</strong> en cualquier momento desde "Iniciar sesión".
+            </p>
+          </div>
           {error && (
             <div className="text-sm text-red-600">
               {error}{" "}

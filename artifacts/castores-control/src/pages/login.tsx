@@ -244,11 +244,28 @@ export default function Login() {
               transition={{ delay: 0.4 }}
               whileHover={{ y: -2 }}
               whileTap={{ scale: 0.98 }}
-              onClick={() => {
-                clearDemoUser();
-                setLocation("/sign-up");
+              disabled={signingOut}
+              onClick={async () => {
+                setSigningOut(true);
+                try {
+                  // Force a clean slate so a previous user's Clerk session
+                  // (e.g. an admin already logged in on this device) is not
+                  // silently reused — that's how new sign-ups were ending up
+                  // as the existing admin instead of creating a fresh account.
+                  if (isSignedIn) {
+                    await signOut().catch(() => {});
+                  }
+                  clearDemoUser();
+                  ["castores_signup_step","castores_signup_email","castores_invite_code","castores_real_user","castores_signup_pending"]
+                    .forEach(k => { try { localStorage.removeItem(k); } catch { /* ignore */ } });
+                  // Hard navigate so Clerk's signOut fully propagates before
+                  // SignUpPage runs its isSignedIn checks.
+                  window.location.assign(`${import.meta.env.BASE_URL}sign-up`);
+                } finally {
+                  setSigningOut(false);
+                }
               }}
-              className="w-full flex items-center justify-center gap-2.5 py-3.5 px-5 rounded-2xl text-sm font-bold"
+              className="w-full flex items-center justify-center gap-2.5 py-3.5 px-5 rounded-2xl text-sm font-bold disabled:opacity-60"
               style={{
                 background: "white",
                 color: "#1a1612",
@@ -256,7 +273,7 @@ export default function Login() {
                 boxShadow: "0 1px 8px rgba(0,0,0,0.06)",
               }}
             >
-              Solicitar acceso al sistema →
+              {signingOut ? "Preparando..." : "Solicitar acceso al sistema →"}
             </motion.button>
           </div>
 
