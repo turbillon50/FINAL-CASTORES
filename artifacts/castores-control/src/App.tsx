@@ -218,6 +218,11 @@ function SignUpPage() {
   const [emailTaken, setEmailTaken] = useState(false);
   const [resendOk, setResendOk] = useState(false);
   const [busy, setBusy] = useState(false);
+  // Synchronous double-tap guard: setBusy schedules a state update but on a fast
+  // double-tap (especially iOS PWA) both handlers fire before React re-renders
+  // and both see busy=false. A ref is read/written synchronously, so the second
+  // tap bails out immediately.
+  const verifyingRef = useRef(false);
 
   // Redirect once Clerk session is active (sign-up completed)
   useEffect(() => {
@@ -289,7 +294,10 @@ function SignUpPage() {
 
   const handleVerifyOtp = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!signUp || busy || otpCode.length < 6) return;
+    // Synchronous guard wins the double-tap race; the React state guard is
+    // kept for the disabled button styling.
+    if (verifyingRef.current || !signUp || otpCode.length < 6) return;
+    verifyingRef.current = true;
     setBusy(true);
     setError(null);
     try {
@@ -298,35 +306,31 @@ function SignUpPage() {
         await setActive({ session: result.createdSessionId });
         localStorage.removeItem("castores_signup_step");
         localStorage.removeItem("castores_signup_email");
-        // Hard navigation so Clerk's session is fully committed before
-        // complete-profile.tsx renders — SPA routing (setLocation) was too fast
-        // and isSignedIn was still false, causing an immediate redirect back.
-        window.location.assign(basePath ? `${basePath}/complete-profile` : "/complete-profile");
+        // replace() is more reliable than assign() inside iOS PWA and also
+        // removes the OTP page from history so back-button can't return to it.
+        window.location.replace(basePath ? `${basePath}/complete-profile` : "/complete-profile");
         return;
       }
       setBusy(false);
+      verifyingRef.current = false;
     } catch (err) {
       const { msg } = parseClerkError(err);
       if (
         msg.toLowerCase().includes("already been verified") ||
         msg.toLowerCase().includes("already verified")
       ) {
-        // First click succeeded but user tapped again before navigation.
-        // Try to activate the completed session directly.
-        if (signUp?.status === "complete" && signUp.createdSessionId) {
-          try {
-            await setActive({ session: signUp.createdSessionId });
-            localStorage.removeItem("castores_signup_step");
-            localStorage.removeItem("castores_signup_email");
-            window.location.assign(basePath ? `${basePath}/complete-profile` : "/complete-profile");
-            return;
-          } catch { /* fall through */ }
-        }
-        setError("Este código ya fue verificado. Si no puedes continuar, usa el botón Reenviar para recibir uno nuevo.");
-      } else {
-        setError(translateClerkError(msg));
+        // The first verification call already created the Clerk session and
+        // set the cookie. The local signUp ref may still be stale — don't
+        // depend on it. Hard-reload to "/" and let Login.tsx route the now
+        // signed-in user to /complete-profile or /dashboard.
+        localStorage.removeItem("castores_signup_step");
+        localStorage.removeItem("castores_signup_email");
+        window.location.replace(basePath ? `${basePath}/` : "/");
+        return;
       }
+      setError(translateClerkError(msg));
       setBusy(false);
+      verifyingRef.current = false;
     }
   };
 
@@ -767,8 +771,13 @@ function SignUpGuard() {
       return;
     }
 
+    // Never redirect away from the public landing ("/"). A stale Clerk
+    // missing_requirements session (e.g. an abandoned signup from days ago)
+    // would otherwise trap the user in an OTP screen that no longer applies.
+    // From "/" the user can choose Iniciar sesión or Solicitar acceso themselves.
     if (
       clerkPending &&
+      location !== "/" &&
       !location.startsWith("/sign-up") &&
       !location.startsWith("/complete-profile") &&
       !location.startsWith("/sign-in")
