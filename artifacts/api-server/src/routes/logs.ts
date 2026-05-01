@@ -85,6 +85,13 @@ router.post("/logs", async (req, res): Promise<void> => {
 });
 
 router.get("/logs/:id", async (req, res): Promise<void> => {
+  const user = await getRequestUser(req);
+  if (!user) { res.status(401).json({ error: "No autenticado" }); return; }
+  if (!await hasPermission(user.role, "bitacoraView")) {
+    res.status(403).json({ error: "No tienes permiso para ver bitácoras" });
+    return;
+  }
+
   const params = GetLogParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: formatZodError(params.error) });
@@ -96,11 +103,22 @@ router.get("/logs/:id", async (req, res): Promise<void> => {
     res.status(404).json({ error: "Bitácora no encontrada" });
     return;
   }
+  if (log.projectId && !(await canAccessProject(user, log.projectId))) {
+    res.status(403).json({ error: "Acceso denegado" });
+    return;
+  }
 
   res.json(await enrichLog(log));
 });
 
 router.patch("/logs/:id", async (req, res): Promise<void> => {
+  const user = await getRequestUser(req);
+  if (!user) { res.status(401).json({ error: "No autenticado" }); return; }
+  if (!await hasPermission(user.role, "bitacoraCreate")) {
+    res.status(403).json({ error: "No tienes permiso para editar bitácoras" });
+    return;
+  }
+
   const params = UpdateLogParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: formatZodError(params.error) });
@@ -110,6 +128,10 @@ router.patch("/logs/:id", async (req, res): Promise<void> => {
   const [existing] = await db.select().from(workLogsTable).where(eq(workLogsTable.id, params.data.id));
   if (!existing) {
     res.status(404).json({ error: "Bitácora no encontrada" });
+    return;
+  }
+  if (existing.projectId && !(await canAccessProject(user, existing.projectId))) {
+    res.status(403).json({ error: "Acceso denegado" });
     return;
   }
   if (existing.isSubmitted) {
@@ -133,9 +155,26 @@ router.patch("/logs/:id", async (req, res): Promise<void> => {
 });
 
 router.post("/logs/:id/submit", async (req, res): Promise<void> => {
+  const user = await getRequestUser(req);
+  if (!user) { res.status(401).json({ error: "No autenticado" }); return; }
+  if (!await hasPermission(user.role, "bitacoraCreate")) {
+    res.status(403).json({ error: "No tienes permiso para enviar bitácoras" });
+    return;
+  }
+
   const params = SubmitLogParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: formatZodError(params.error) });
+    return;
+  }
+
+  const [existing] = await db.select().from(workLogsTable).where(eq(workLogsTable.id, params.data.id));
+  if (!existing) {
+    res.status(404).json({ error: "Bitácora no encontrada" });
+    return;
+  }
+  if (existing.projectId && !(await canAccessProject(user, existing.projectId))) {
+    res.status(403).json({ error: "Acceso denegado" });
     return;
   }
 

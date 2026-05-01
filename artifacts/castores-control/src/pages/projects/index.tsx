@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
+import { usePermissions } from "@/hooks/use-permissions";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -21,6 +22,8 @@ const STATUS_META: Record<string, { label: string; color: string }> = {
 };
 
 export default function Projects() {
+  const permissions = usePermissions();
+  const canCreate = permissions.has("projectsCreateEdit");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
@@ -119,10 +122,12 @@ export default function Projects() {
             <Input placeholder="Buscar por nombre o ubicación..." className="pl-9 bg-white border-black/10 rounded-xl"
               value={search} onChange={e => setSearch(e.target.value)} />
           </div>
-          <Button onClick={() => setShowForm(true)} className="rounded-xl font-bold"
-            style={{ background: "#C8952A", color: "#fff" }}>
-            <Icons.Plus className="w-4 h-4 mr-2" /> Nueva Obra
-          </Button>
+          {canCreate && (
+            <Button onClick={() => setShowForm(true)} className="rounded-xl font-bold"
+              style={{ background: "#C8952A", color: "#fff" }}>
+              <Icons.Plus className="w-4 h-4 mr-2" /> Nueva Obra
+            </Button>
+          )}
         </div>
 
         {/* Grid */}

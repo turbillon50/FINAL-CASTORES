@@ -2,7 +2,6 @@ import { Material } from "@workspace/api-client-react";
 import { Icons } from "@/lib/icons";
 import { Badge } from "./badge";
 import { motion } from "framer-motion";
-import { useAuth } from "@/lib/auth";
 
 interface MaterialKanbanProps {
   materials: Material[];
@@ -11,8 +10,11 @@ interface MaterialKanbanProps {
 }
 
 export function MaterialKanban({ materials, onApprove, onReject }: MaterialKanbanProps) {
-  const { user } = useAuth();
-  const isAdminOrSupervisor = user?.role === 'admin' || user?.role === 'supervisor';
+  // The approve/reject affordances appear only when the parent passes
+  // callbacks for them. The parent in turn checks materialsApprove via the
+  // usePermissions hook. This avoids the old hard-coded role check that was
+  // ignoring permission overrides set by an admin in /admin → Permisos.
+  const showApprovalActions = typeof onApprove === "function" || typeof onReject === "function";
 
   const columns = [
     { id: "pending", title: "Solicitud Pendiente", status: "pending", color: "border-[#F39C12]" },
@@ -77,7 +79,7 @@ export function MaterialKanban({ materials, onApprove, onReject }: MaterialKanba
                   )}
                 </div>
 
-                {col.status === "pending" && isAdminOrSupervisor && (
+                {col.status === "pending" && showApprovalActions && (
                   <div className="absolute inset-0 bg-card/90 backdrop-blur-[2px] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3 p-4">
                     <button
                       onClick={() => onApprove?.(material.id)}

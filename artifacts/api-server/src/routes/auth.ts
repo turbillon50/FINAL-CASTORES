@@ -717,4 +717,45 @@ router.get("/auth/me", async (req, res): Promise<void> => {
   res.json(safeUser);
 });
 
+/**
+ * Returns the current user's role + the full permission map the backend
+ * actually applies. The frontend uses this to drive role-aware UI: hiding
+ * sidebar items, disabling buttons, gating routes — all using exactly the
+ * same source of truth the backend uses to authorise requests. Without this
+ * the frontend was showing "Crear obra" / "Aprobar material" buttons that
+ * any authenticated role could see and the backend would just reject when
+ * clicked.
+ */
+router.get("/auth/me-permissions", async (req, res): Promise<void> => {
+  const { getEffectivePermissions } = await import("../lib/permissions");
+  let user: typeof usersTable.$inferSelect | null = null;
+
+  // Resolve the current user via session OR via Clerk JWT, whichever is
+  // available. The frontend expects this endpoint to work in both early
+  // (Clerk-only) and steady (cookie-session) phases.
+  const sessionUserId = req.session.userId;
+  if (sessionUserId) {
+    const [u] = await db.select().from(usersTable).where(eq(usersTable.id, sessionUserId));
+    user = u ?? null;
+  }
+  if (!user) {
+    let clerkUserId: string | null = null;
+    try { clerkUserId = getAuth(req).userId ?? null; } catch { /* ignore */ }
+    if (clerkUserId) {
+      const [u] = await db.select().from(usersTable).where(eq(usersTable.clerkId, clerkUserId));
+      user = u ?? null;
+    }
+  }
+  if (!user) { res.status(401).json({ error: "No autenticado" }); return; }
+
+  const permissions = await getEffectivePermissions(user.role);
+  res.json({
+    userId: user.id,
+    role: user.role,
+    isActive: user.isActive,
+    approvalStatus: user.approvalStatus,
+    permissions,
+  });
+});
+
 export default router;
