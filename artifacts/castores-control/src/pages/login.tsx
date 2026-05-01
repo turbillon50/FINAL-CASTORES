@@ -22,26 +22,45 @@ export default function Login() {
     : false;
 
   // Detect invite code from URL query param.
-  // Also fall back to localStorage when the server-side /api/invite/:code handler
-  // set the code there and then redirected here — in that case the URL includes a
-  // cache-buster "_t" param even if iOS dropped "?code=" when launching the PWA.
+  // Detect an invitation pending. We check three signals in order:
+  //   1) ?code=XYZ in the URL — direct link
+  //   2) ?_t=… in the URL + localStorage — server-side /api/invite redirect
+  //   3) localStorage castores_invite_code + recent castores_invite_pending
+  //      timestamp (≤30min) — covers the iOS PWA case where the manifest's
+  //      start_url ("/") wins over the actual ?code= URL when the invitee
+  //      taps the WhatsApp link with the PWA installed.
   const _urlParams = typeof window !== "undefined"
     ? new URLSearchParams(window.location.search) : null;
-  const hasInviteCode = !!(_urlParams?.has("code") ||
-    (_urlParams?.has("_t") && !!localStorage.getItem("castores_invite_code")));
+  const _storedCode = typeof window !== "undefined"
+    ? localStorage.getItem("castores_invite_code") : null;
+  const _pendingTs = typeof window !== "undefined"
+    ? Number(localStorage.getItem("castores_invite_pending") || "0") : 0;
+  const _pendingFresh = _pendingTs > 0 && Date.now() - _pendingTs < 30 * 60 * 1000;
+  const hasInviteCode = !!(
+    _urlParams?.has("code") ||
+    (_urlParams?.has("_t") && !!_storedCode) ||
+    (_pendingFresh && !!_storedCode)
+  );
 
   // Capture invite code from URL (or localStorage fallback for iOS PWA)
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
     const urlCode = params.get("code");
-    // Use localStorage fallback only when arriving from server redirect (has _t)
-    const storedCode = params.has("_t") ? localStorage.getItem("castores_invite_code") : null;
+    // Trust localStorage in two cases: (a) we came back from the server-side
+    // redirect that left a "_t" cache-buster on the URL, or (b) someone marked
+    // the invite as pending recently (covers the iOS PWA scope hijack).
+    const fallbackOK = params.has("_t") || _pendingFresh;
+    const storedCode = fallbackOK ? localStorage.getItem("castores_invite_code") : null;
     const code = urlCode?.toUpperCase() ?? storedCode?.toUpperCase() ?? null;
     if (code) {
       localStorage.setItem("castores_invite_code", code);
+      // Refresh the pending marker so a hop through Login (e.g. PWA scope
+      // intercept) doesn't reset its TTL just because we re-entered.
+      localStorage.setItem("castores_invite_pending", String(Date.now()));
       setInviteCode(code);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Once Clerk loads, decide what to do

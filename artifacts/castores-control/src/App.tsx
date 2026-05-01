@@ -262,7 +262,10 @@ function SignUpPage() {
     if (typeof window === "undefined") return { status: "idle" };
     const code = _urlCodeRaw ?? _storedCode ?? null;
     if (!code) return { status: "idle" };
-    if (isOtpRecovery) return { status: "dismissed" };
+    // OTP recovery (legacy path) — we don't have the role until validate runs;
+    // load the splash silently so the rest of the SignUpPage renders without
+    // it instead of leaving the form with no role attached on submit.
+    if (isOtpRecovery) return { status: "loading", code };
     return { status: "loading", code };
   });
   // Synchronous double-tap guard: setBusy schedules a state update but on a fast

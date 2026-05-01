@@ -143,8 +143,16 @@ function InvitationsTab() {
   };
 
   const shareWhatsApp = (inv: any) => {
+    // Use /api/invite/:code (server-side redirect) instead of /sign-up?code=XXX
+    // directly. iOS PWA hijacks any navigation to a URL whose origin matches a
+    // registered PWA's scope and reroutes it to start_url, throwing the
+    // invitee onto the BIENVENIDO screen with no way to know they had an
+    // invitation in flight. The /api/invite endpoint replies with an HTML
+    // page that runs a JS location.replace() AFTER seeding the invite code
+    // into localStorage — the PWA can't intercept that response, so the
+    // invitee always lands on /sign-up?code=… with the splash ready to go.
     const msg = encodeURIComponent(
-      `🏗️ *Castores Control* — Tienes una invitación\n\nRol: *${ROLE_LABELS[inv.role] ?? inv.role}*${inv.label ? `\nPara: ${inv.label}` : ""}\n\n🔑 Tu código de acceso:\n*${inv.code}*\n\n1️⃣ Abre: https://castores.info/sign-up?code=${inv.code}\n2️⃣ Completa tus datos\n3️⃣ Confirma tu registro\n\nEl código es de un solo uso — no lo compartas.`
+      `🏗️ *Castores Control* — Tienes una invitación\n\nRol: *${ROLE_LABELS[inv.role] ?? inv.role}*${inv.label ? `\nPara: ${inv.label}` : ""}\n\n🔑 Tu código de acceso:\n*${inv.code}*\n\n1️⃣ Abre: https://castores.info/api/invite/${inv.code}\n2️⃣ Completa tus datos\n3️⃣ Confirma tu registro\n\nEl código es de un solo uso — no lo compartas.`
     );
     window.open(`https://wa.me/?text=${msg}`, "_blank");
   };
