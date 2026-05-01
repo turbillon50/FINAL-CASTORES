@@ -256,7 +256,12 @@ export default function Login() {
                     await signOut().catch(() => {});
                   }
                   clearDemoUser();
-                  ["castores_signup_step","castores_signup_email","castores_invite_code","castores_real_user","castores_signup_pending"]
+                  // NOTE: do NOT drop castores_invite_code here. If the user
+                  // arrived through an invitation link we want the code to
+                  // survive across the hard nav so /complete-profile picks it
+                  // up automatically. Other castores_* keys are abandonment
+                  // state from older signup attempts and are safe to wipe.
+                  ["castores_signup_step","castores_signup_email","castores_real_user","castores_signup_pending"]
                     .forEach(k => { try { localStorage.removeItem(k); } catch { /* ignore */ } });
                   // Hard navigate so Clerk's signOut fully propagates before
                   // SignUpPage runs its isSignedIn checks.
@@ -277,7 +282,7 @@ export default function Login() {
             </motion.button>
           </div>
 
-          {/* Separador con info — dos rutas de acceso */}
+          {/* Separador con info — acceso por invitación */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -286,24 +291,11 @@ export default function Login() {
             style={{ background: "rgba(200,149,42,0.06)", border: "1px solid rgba(200,149,42,0.15)" }}
           >
             <p className="text-xs font-semibold mb-2" style={{ color: "#C8952A" }}>
-              🔑 ¿Cómo entrar al sistema?
+              🔑 ¿Tienes una clave de invitación?
             </p>
-            <ol className="text-[11px] leading-relaxed space-y-1.5 list-none" style={{ color: "rgba(26,22,18,0.55)" }}>
-              <li>
-                <span className="font-bold" style={{ color: "#1a1612" }}>1.</span>{" "}
-                Toca <span className="font-semibold">Solicitar acceso al sistema</span> y registra tu correo.
-              </li>
-              <li>
-                <span className="font-bold" style={{ color: "#1a1612" }}>2.</span>{" "}
-                Cuando te pida la clave, ingresa una de estas:
-              </li>
-              <li className="pl-4">
-                · <span className="font-mono font-semibold">CASTORES</span> — para administrador general
-              </li>
-              <li className="pl-4">
-                · La clave que te compartió tu administrador — para tu rol asignado
-              </li>
-            </ol>
+            <p className="text-[11px] leading-relaxed" style={{ color: "rgba(26,22,18,0.55)" }}>
+              Si un administrador te compartió una clave por WhatsApp o mensaje directo, toca <span className="font-semibold">Solicitar acceso al sistema</span> y úsala en el formulario para obtener acceso inmediato.
+            </p>
           </motion.div>
 
           {/* PWA install */}

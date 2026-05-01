@@ -1,5 +1,6 @@
 import { Switch, Route, Router as WouterRouter, useLocation, Redirect } from "wouter";
 import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
+import { motion } from "framer-motion";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/lib/auth";
@@ -156,6 +157,33 @@ function PwaInstallBanner({ defaultIOS }: { defaultIOS: boolean }) {
   );
 }
 
+type SignUpSplashState =
+  | { status: "idle" }                  // no invite, jump straight to form
+  | { status: "loading"; code: string } // fetching invitation metadata
+  | { status: "ready"; code: string; role: string; label: string | null; invitedBy: string | null }
+  | { status: "invalid"; code: string; reason: string }
+  | { status: "dismissed" };            // user clicked Continuar in splash
+
+const ROLE_LABEL: Record<string, string> = {
+  admin: "Administrador",
+  supervisor: "Supervisor de Obra",
+  client: "Cliente / Contratante",
+  worker: "Trabajador / Operario",
+  proveedor: "Proveedor",
+};
+
+const ROLE_ICON: Record<string, string> = {
+  admin: "🛡️", supervisor: "👷", client: "🏢", worker: "🔧", proveedor: "🚛",
+};
+
+const ROLE_INTRO: Record<string, string> = {
+  admin: "Tendrás acceso completo al sistema: gestión de obras, materiales, equipos, reportes e invitaciones.",
+  supervisor: "Vas a llevar la bitácora de obra, registrar avances, solicitar materiales y generar reportes.",
+  client: "Vas a poder ver el avance de tus obras, acceder a documentos y reportes en tiempo real.",
+  worker: "Vas a poder reportar tu trabajo en obra, registrar incidencias y consultar materiales.",
+  proveedor: "Vas a recibir solicitudes de material y vas a poder gestionar tus pedidos.",
+};
+
 function SignUpPage() {
   const { isLoaded, isSignedIn } = useUser();
   const { isLoaded: signUpLoaded, signUp, setActive } = useSignUp();
@@ -222,7 +250,18 @@ function SignUpPage() {
   const [error, setError] = useState<string | null>(null);
   const [emailTaken, setEmailTaken] = useState(false);
   const [resendOk, setResendOk] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
   const [busy, setBusy] = useState(false);
+  // Invitation splash state. Decides whether to show the dynamic role-aware
+  // welcome screen before the registration form. Driven by ?code= in the URL
+  // or castores_invite_code in localStorage. Skipped if user is mid-OTP.
+  const [splash, setSplash] = useState<SignUpSplashState>(() => {
+    if (typeof window === "undefined") return { status: "idle" };
+    const code = _urlCodeRaw ?? _storedCode ?? null;
+    if (!code) return { status: "idle" };
+    if (isOtpRecovery) return { status: "dismissed" };
+    return { status: "loading", code };
+  });
   // Synchronous double-tap guard: setBusy schedules a state update but on a fast
   // double-tap (especially iOS PWA) both handlers fire before React re-renders
   // and both see busy=false. A ref is read/written synchronously, so the second
@@ -254,11 +293,55 @@ function SignUpPage() {
     const inFlightSignup = signUp?.status === "missing_requirements" || signUp?.status === "complete";
     if (isSignedIn && !inFlightSignup) {
       setPurgingSession(true);
-      ["castores_signup_step","castores_signup_email","castores_invite_code","castores_real_user","castores_signup_pending"]
+      // CRITICAL: NEVER drop castores_invite_code here. If the user landed on
+      // /sign-up?code=XXXX, that code lives both in the URL and (after the
+      // mount effect below) in localStorage. complete-profile relies on the
+      // localStorage copy after the OTP hard-nav (the URL ?code= is gone by
+      // then). Wiping the invite code at this stage was sending invited users
+      // to the no_code screen — the same screen that previously leaked the
+      // master phrase.
+      ["castores_signup_step","castores_signup_email","castores_real_user","castores_signup_pending"]
         .forEach(k => { try { localStorage.removeItem(k); } catch { /* ignore */ } });
       signOut().catch(() => {}).finally(() => setPurgingSession(false));
     }
   }, [isLoaded, signUpLoaded, isSignedIn, signUp?.status, signOut]);
+
+  // Fetch invitation metadata for the splash. Runs once on mount when there
+  // is a code waiting (?code= in URL or castores_invite_code in localStorage)
+  // and the user is NOT mid-OTP recovery. Skipped for the master phrase since
+  // that path is intentionally invisible to the public UI.
+  useEffect(() => {
+    if (splash.status !== "loading") return;
+    const ac = new AbortController();
+    fetch(apiUrl("/api/invitations/validate"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code: splash.code }),
+      signal: ac.signal,
+    })
+      .then((r) => r.json().catch(() => null))
+      .then((data: { valid?: boolean; role?: string; label?: string | null; invitedBy?: string | null; isMasterKey?: boolean; reason?: string } | null) => {
+        if (ac.signal.aborted) return;
+        if (!data || !data.valid || data.isMasterKey || !data.role) {
+          setSplash({ status: "invalid", code: splash.code, reason: data?.reason ?? "Esta invitación no es válida o ya fue utilizada." });
+          return;
+        }
+        setSplash({
+          status: "ready",
+          code: splash.code,
+          role: data.role,
+          label: data.label ?? null,
+          invitedBy: data.invitedBy ?? null,
+        });
+      })
+      .catch(() => {
+        if (ac.signal.aborted) return;
+        // Network error — let the user proceed to the form anyway. The code
+        // will be re-validated by complete-profile after OTP.
+        setSplash({ status: "dismissed" });
+      });
+    return () => ac.abort();
+  }, [splash]);
 
   // If Clerk's signUp session survived an iOS restart, jump to OTP step.
   // Skip this when a fresh invite link is open — we never want to restore
@@ -324,7 +407,6 @@ function SignUpPage() {
         setEmailTaken(true);
         setError("Este correo ya está registrado.");
       } else if (msg.toLowerCase().includes("password") || msg.toLowerCase().includes("contraseña")) {
-        setShowPassword(true);
         setError(msg || "La contraseña no cumple los requisitos. Usa al menos 8 caracteres.");
       } else {
         setError(msg);
@@ -412,7 +494,15 @@ function SignUpPage() {
     }
   };
 
+  // Tick the resend cooldown down to zero so the button auto-enables.
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const id = window.setTimeout(() => setResendCooldown(c => Math.max(0, c - 1)), 1000);
+    return () => window.clearTimeout(id);
+  }, [resendCooldown]);
+
   const handleResend = async () => {
+    if (resendCooldown > 0) return; // ratelimit guard
     setError(null);
     setResendOk(false);
     if (!signUp) {
@@ -424,6 +514,10 @@ function SignUpPage() {
     try {
       await signUp.prepareVerification({ strategy: "email_code" });
       setResendOk(true);
+      // Start a 60-second cooldown so the user can't spam Clerk's email
+      // provider into rate-limiting their address. Each tick removes one
+      // second from the countdown, then the timer clears itself.
+      setResendCooldown(60);
     } catch (err) {
       setError(translateClerkError(parseClerkError(err).msg));
     }
@@ -526,8 +620,14 @@ function SignUpPage() {
           </form>
 
           <div className="mt-4 flex flex-col gap-2 text-center">
-            <button onClick={handleResend} className="text-sm text-amber-700 hover:text-amber-900 font-medium">
-              ¿No llegó el código? Reenviar
+            <button
+              onClick={handleResend}
+              disabled={resendCooldown > 0}
+              className="text-sm text-amber-700 hover:text-amber-900 font-medium disabled:text-gray-400 disabled:hover:text-gray-400 disabled:cursor-not-allowed"
+            >
+              {resendCooldown > 0
+                ? `Espera ${resendCooldown}s antes de reenviar`
+                : "¿No llegó el código? Reenviar"}
             </button>
             <button
               onClick={() => {
@@ -553,6 +653,158 @@ function SignUpPage() {
             </button>
           </div>
         </div>
+      </div>
+    );
+  }
+
+  // ── Invitation splash (role-aware) ────────────────────────────────────────
+  // Shown to users arriving via ?code=XXXX (or with a stored code) before any
+  // form. Clarifies who invited them, what role they'll have, and what they'll
+  // be able to do. Hides after the user clicks "Continuar con mi registro".
+  if (splash.status === "loading") {
+    return (
+      <div className="min-h-screen flex items-center justify-center"
+        style={{ background: "linear-gradient(135deg, #1a1612 0%, #2d2419 60%, #1a1612 100%)" }}>
+        <div className="animate-spin rounded-full h-10 w-10 border-4"
+          style={{ borderColor: "rgba(200,149,42,0.2)", borderTopColor: "#C8952A" }} />
+      </div>
+    );
+  }
+  if (splash.status === "ready") {
+    const roleLabel = ROLE_LABEL[splash.role] ?? splash.role;
+    const roleIcon = ROLE_ICON[splash.role] ?? "👤";
+    const roleIntro = ROLE_INTRO[splash.role] ?? "Vas a poder usar el sistema según tu rol asignado.";
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center px-5 py-10"
+        style={{ background: "linear-gradient(135deg, #1a1612 0%, #2d2419 60%, #1a1612 100%)" }}>
+        <motion.div
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+          className="w-full max-w-sm"
+        >
+          {/* Logo */}
+          <div className="flex items-center justify-center gap-2.5 mb-8">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center overflow-hidden"
+              style={{ background: "rgba(200,149,42,0.12)", border: "1px solid rgba(200,149,42,0.25)" }}>
+              <img src={`${basePath}/castores-logo.jpeg`} alt="CASTORES" className="h-8 w-auto object-contain" />
+            </div>
+            <span className="font-black text-white uppercase tracking-widest text-lg"
+              style={{ fontFamily: "'Bebas Neue', sans-serif" }}>Castores Control</span>
+          </div>
+
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.15 }}
+            className="text-[10px] uppercase tracking-[0.3em] font-medium mb-3 text-center"
+            style={{ color: "rgba(255,255,255,0.45)" }}
+          >
+            🏗️ Has sido invitado
+          </motion.p>
+
+          <motion.h1
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.25, duration: 0.5 }}
+            className="text-white text-[clamp(2.2rem,7vw,3rem)] leading-[0.95] font-black uppercase tracking-wide text-center mb-4"
+            style={{ fontFamily: "'Bebas Neue', sans-serif", textShadow: "0 2px 20px rgba(0,0,0,0.4)" }}
+          >
+            Bienvenido a<br />Castores
+          </motion.h1>
+
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.4, duration: 0.4 }}
+            className="rounded-2xl p-4 mb-5"
+            style={{ background: "rgba(200,149,42,0.10)", border: "1.5px solid rgba(200,149,42,0.35)" }}
+          >
+            <div className="flex items-center gap-3">
+              <span className="text-3xl">{roleIcon}</span>
+              <div className="flex-1">
+                <p className="text-[10px] uppercase tracking-widest font-semibold mb-0.5"
+                  style={{ color: "#C8952A" }}>
+                  Rol asignado
+                </p>
+                <p className="text-white font-bold text-base">{roleLabel}</p>
+              </div>
+            </div>
+            {splash.invitedBy && (
+              <p className="text-[11px] mt-3 pt-3 border-t" style={{ color: "rgba(255,255,255,0.5)", borderColor: "rgba(255,255,255,0.08)" }}>
+                Te invitó: <span className="font-semibold text-white/80">{splash.invitedBy}</span>
+                {splash.label ? <> · <span style={{ color: "rgba(255,255,255,0.4)" }}>{splash.label}</span></> : null}
+              </p>
+            )}
+          </motion.div>
+
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.55 }}
+            className="text-sm leading-relaxed text-center mb-6"
+            style={{ color: "rgba(255,255,255,0.65)" }}
+          >
+            {roleIntro}
+          </motion.p>
+
+          <motion.button
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.7 }}
+            whileHover={{ y: -1 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => setSplash({ status: "dismissed" })}
+            className="w-full py-3.5 rounded-2xl text-sm font-bold"
+            style={{
+              background: "linear-gradient(135deg, #C8952A, #E8A830)",
+              color: "white",
+              boxShadow: "0 4px 20px rgba(200,149,42,0.35)",
+            }}
+          >
+            Continuar con mi registro →
+          </motion.button>
+
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.85 }}
+            className="text-[10px] mt-5 text-center"
+            style={{ color: "rgba(255,255,255,0.3)" }}
+          >
+            Tu invitación es de un solo uso y queda vinculada a tu correo.
+          </motion.p>
+        </motion.div>
+      </div>
+    );
+  }
+  if (splash.status === "invalid") {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center px-5"
+        style={{ background: "linear-gradient(135deg, #1a1612 0%, #2d2419 60%, #1a1612 100%)" }}>
+        <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }}
+          className="w-full max-w-sm text-center">
+          <div className="text-5xl mb-6">❌</div>
+          <h1 className="text-white font-black text-2xl mb-3"
+            style={{ fontFamily: "'Bebas Neue', sans-serif", letterSpacing: "0.04em" }}>
+            Invitación inválida
+          </h1>
+          <p className="text-sm mb-6 leading-relaxed" style={{ color: "rgba(255,255,255,0.55)" }}>
+            La clave <span className="font-mono text-amber-400 font-bold">{splash.code}</span> no es válida o ya fue utilizada.
+          </p>
+          <p className="text-xs mb-6" style={{ color: "rgba(255,255,255,0.35)" }}>
+            Pídele a tu administrador que te genere una nueva clave o que revise el link de invitación.
+          </p>
+          <button
+            onClick={() => {
+              try { localStorage.removeItem("castores_invite_code"); } catch { /* ignore */ }
+              window.location.assign(basePath ? `${basePath}/` : "/");
+            }}
+            className="w-full py-3.5 rounded-2xl text-sm font-bold"
+            style={{ background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.7)", border: "1px solid rgba(255,255,255,0.12)" }}>
+            ← Volver al inicio
+          </button>
+        </motion.div>
       </div>
     );
   }
@@ -602,7 +854,19 @@ function SignUpPage() {
             <input type="text" value={firstName} onChange={e => setFirstName(e.target.value)} placeholder="Nombre" required className={inputCls} />
             <input type="text" value={lastName} onChange={e => setLastName(e.target.value)} placeholder="Apellido" required className={inputCls} />
           </div>
-          <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Correo electrónico" required autoComplete="email" className={inputCls} />
+          <input
+            type="email"
+            value={email}
+            onChange={e => setEmail(e.target.value.trim())}
+            placeholder="Correo electrónico"
+            required
+            autoComplete="email"
+            autoCorrect="off"
+            autoCapitalize="off"
+            spellCheck={false}
+            inputMode="email"
+            className={inputCls}
+          />
           <div>
             <input
               type="password"
