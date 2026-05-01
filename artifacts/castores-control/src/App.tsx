@@ -398,19 +398,11 @@ function SignUpPage() {
     setBusy(true);
     setError(null);
 
-    // CRITICAL: nuke any lingering Clerk signUp resource before creating the
-    // new one. Clerk's client caches the most recent signUp; calling
-    // create() with a different email is supposed to replace it but in
-    // practice (especially with verified-but-uncompleted users from earlier
-    // attempts) it has been keeping the OLD email and sending the OTP there.
-    // signOut() guarantees a clean slate for both sessions and signUps.
-    try {
-      await signOut().catch(() => {});
-    } catch { /* ignore */ }
-
-    // Write localStorage AFTER the signOut (signOut clears Clerk cookies but
-    // not our app's localStorage; we want the recovery state pointing at the
-    // address we're about to use, not at whatever a previous attempt left).
+    // The stale-session teardown effect on mount already cleared any leftover
+    // Clerk session before this form was even rendered. Calling signOut() a
+    // second time here was racing against signUp.create() and the email
+    // dispatch — Clerk would accept the create but never fire the OTP email,
+    // leaving the user stuck on the verification screen.
     localStorage.setItem("castores_signup_step", "otp");
     localStorage.setItem("castores_signup_email", submitEmail);
 
