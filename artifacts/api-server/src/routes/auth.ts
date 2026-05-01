@@ -147,40 +147,16 @@ router.post("/auth/admin-access", async (req, res): Promise<void> => {
   }
 });
 
-// Demo login — no password for demo roles, admin uses "castores2024"
-router.post("/auth/login", async (req, res): Promise<void> => {
-  const { email, password } = req.body as { email?: string; password?: string };
-
-  if (!email) {
-    res.status(400).json({ error: "Email requerido" });
-    return;
-  }
-
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.email, email));
-
-  if (!user) {
-    res.status(401).json({ error: "Usuario no encontrado" });
-    return;
-  }
-
-  if (!user.isActive) {
-    res.status(401).json({ error: "Usuario inactivo" });
-    return;
-  }
-
-  // Admin requires password
-  if (user.role === "admin" && password !== "castores2024") {
-    res.status(401).json({ error: "Contraseña incorrecta" });
-    return;
-  }
-
-  req.session.userId = user.id;
-
-  const { passwordHash: _, ...safeUser } = user;
-  res.json({
-    user: safeUser,
-    token: `demo-token-${user.id}`,
-  });
+// Legacy demo login endpoint REMOVED.
+// Previous behaviour: accepted plain-text "castores2024" as the admin password
+// and trusted any non-admin email without a password at all. That short-circuit
+// was OK during the in-app demo phase but became a credential-theft vector
+// once production users existed: anyone who learned the demo string could
+// promote themselves to admin via a single POST. The real sign-in path is now
+// /api/auth/invite-login which delegates password verification to Clerk
+// Backend API and returns a one-shot Clerk sign_in_token.
+router.post("/auth/login", (_req, res): void => {
+  res.status(410).json({ error: "Este endpoint ya no se usa. Inicia sesión desde /sign-in." });
 });
 
 /**
@@ -662,8 +638,20 @@ router.post("/auth/clerk-register", async (req, res): Promise<void> => {
   res.status(201).json(safeUser);
 });
 
-/* ─── Test endpoint — send a test email to verify configuration ─── */
+/* ─── Test endpoint — send a test email to verify configuration ───
+ * Admin-only. Anyone could previously hit this endpoint to spam any email
+ * address with a "welcome" message via our SES/Resend account. Now requires a
+ * Clerk JWT belonging to an admin user before the email leaves. */
 router.post("/auth/test-email", async (req, res): Promise<void> => {
+  let clerkUserId: string | null = null;
+  try { clerkUserId = getAuth(req).userId ?? null; } catch { /* ignore */ }
+  if (!clerkUserId) { res.status(401).json({ error: "No autenticado" }); return; }
+  const [actor] = await db.select().from(usersTable).where(eq(usersTable.clerkId, clerkUserId));
+  if (!actor || actor.role !== "admin" || !actor.isActive) {
+    res.status(403).json({ error: "Solo administradores pueden enviar correos de prueba" });
+    return;
+  }
+
   const { to } = req.body as { to?: string };
   if (!to) { res.status(400).json({ error: "Falta campo 'to'" }); return; }
 
