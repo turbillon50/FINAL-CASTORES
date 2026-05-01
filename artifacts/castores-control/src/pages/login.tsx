@@ -219,11 +219,13 @@ export default function Login() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.32 }}
+              whileHover={{ y: -2 }}
+              whileTap={{ scale: 0.98 }}
               onClick={() => {
                 clearDemoUser();
                 setLocation("/sign-in");
               }}
-              className="w-full flex items-center justify-center gap-2.5 py-3.5 px-5 rounded-2xl text-sm font-bold transition-all hover:-translate-y-0.5 active:scale-[0.98]"
+              className="w-full flex items-center justify-center gap-2.5 py-3.5 px-5 rounded-2xl text-sm font-bold"
               style={{
                 background: "linear-gradient(135deg, #C8952A, #E8A830)",
                 color: "white",
@@ -240,11 +242,13 @@ export default function Login() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.4 }}
+              whileHover={{ y: -2 }}
+              whileTap={{ scale: 0.98 }}
               onClick={() => {
                 clearDemoUser();
                 setLocation("/sign-up");
               }}
-              className="w-full flex items-center justify-center gap-2.5 py-3.5 px-5 rounded-2xl text-sm font-bold transition-all hover:-translate-y-0.5 active:scale-[0.98]"
+              className="w-full flex items-center justify-center gap-2.5 py-3.5 px-5 rounded-2xl text-sm font-bold"
               style={{
                 background: "white",
                 color: "#1a1612",

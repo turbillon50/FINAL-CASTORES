@@ -569,7 +569,7 @@ function AuthSync() {
   return null;
 }
 
-type ApprovalStatus = "loading" | "not_registered" | "pending" | "rejected" | "approved";
+type ApprovalStatus = "loading" | "not_registered" | "pending" | "rejected" | "approved" | "error";
 
 /**
  * Checks DB approval status for Clerk-authenticated users before rendering
@@ -581,6 +581,7 @@ function ApprovalGate({ children }: { children: React.ReactNode }) {
   const { setRealUser } = useAuth();
   const [, setLocation] = useLocation();
   const [status, setStatus] = useState<ApprovalStatus>("loading");
+  const [retryTick, setRetryTick] = useState(0);
 
   // Stable primitives only — avoids re-running the effect on every render.
   // getToken is kept in a ref so it stays out of the dep array (Clerk recreates
@@ -596,12 +597,13 @@ function ApprovalGate({ children }: { children: React.ReactNode }) {
     if (!isLoaded) return;
 
     if (!isSignedIn) {
-      // Fail-closed: stay in loading so ProtectedRoute can redirect to "/"
       setStatus("loading");
       return;
     }
 
-    // Clerk user — check DB registration & approval
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10_000);
+
     (async () => {
       try {
         const token = await getTokenRef.current();
@@ -610,25 +612,15 @@ function ApprovalGate({ children }: { children: React.ReactNode }) {
           email: clerkUserEmail ?? "",
         });
         const res = await fetch(`${apiUrl(`/api/auth/clerk-me`)}?${params}`, {
+          signal: controller.signal,
           headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         });
 
-        if (res.status === 404) {
-          setStatus("not_registered");
-          return;
-        }
-
-        if (!res.ok) {
-          // Fail-closed: keep loading and let the user retry/refresh.
-          // Previously this fell open, which let pending/rejected users in
-          // whenever the backend hiccuped.
-          setStatus("loading");
-          return;
-        }
+        if (res.status === 404) { setStatus("not_registered"); return; }
+        if (!res.ok) { setStatus("error"); return; }
 
         const dbUser = await res.json();
 
-        // Persist real user identity so the app remembers name/role across sessions
         if (dbUser.approvalStatus === "approved") {
           setRealUserRef.current({
             id: dbUser.id,
@@ -644,12 +636,15 @@ function ApprovalGate({ children }: { children: React.ReactNode }) {
         if (dbUser.approvalStatus === "pending") setStatus("pending");
         else if (dbUser.approvalStatus === "rejected") setStatus("rejected");
         else setStatus("approved");
-      } catch {
-        // Fail-closed: keep loading so ProtectedRoute redirects to "/"
-        setStatus("loading");
+      } catch (e: any) {
+        if (!controller.signal.aborted) setStatus("error");
+      } finally {
+        clearTimeout(timeoutId);
       }
     })();
-  }, [isLoaded, isSignedIn, clerkUserId, clerkUserEmail]);
+
+    return () => { controller.abort(); clearTimeout(timeoutId); };
+  }, [isLoaded, isSignedIn, clerkUserId, clerkUserEmail, retryTick]);
 
   useEffect(() => {
     if (status === "not_registered") setLocation("/complete-profile");
@@ -661,6 +656,20 @@ function ApprovalGate({ children }: { children: React.ReactNode }) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#f8f4ef]">
         <div className="animate-spin rounded-full h-10 w-10 border-4 border-amber-500 border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (status === "error") {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#f8f4ef] gap-4 p-6 text-center">
+        <p className="text-sm text-gray-600">No se pudo verificar tu acceso. Revisa tu conexión e intenta de nuevo.</p>
+        <button
+          onClick={() => { setStatus("loading"); setRetryTick(t => t + 1); }}
+          className="px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-semibold text-sm transition"
+        >
+          Reintentar
+        </button>
       </div>
     );
   }

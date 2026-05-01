@@ -53,6 +53,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(async () => {
     localStorage.removeItem(REAL_USER_KEY);
+    localStorage.removeItem("castores_invite_code");
+    localStorage.removeItem("castores_signup_step");
+    localStorage.removeItem("castores_signup_email");
     sessionStorage.setItem("castores_signed_out", "1");
     setUserState(null);
     try {
