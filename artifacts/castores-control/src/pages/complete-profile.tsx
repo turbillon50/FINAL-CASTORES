@@ -292,10 +292,11 @@ export default function CompleteProfile() {
           <div className="text-5xl mb-6 text-center">🔒</div>
           <h1 className="text-white font-black text-2xl mb-3 text-center"
             style={{ fontFamily: "'Bebas Neue', sans-serif", letterSpacing: "0.04em" }}>
-            Acceso por Invitación
+            Ingresa tu clave
           </h1>
-          <p className="text-sm mb-6 leading-relaxed text-center" style={{ color: "rgba(255,255,255,0.5)" }}>
-            Este sistema es privado. Ingresa tu <strong className="text-amber-400">clave de invitación</strong> para continuar.
+          <p className="text-sm mb-6 leading-relaxed text-center" style={{ color: "rgba(255,255,255,0.55)" }}>
+            Usa <strong className="text-amber-400 font-mono">CASTORES</strong> si eres administrador general,
+            o tu <strong className="text-amber-400">clave de invitación</strong> si te la compartió un admin.
           </p>
 
           {/* Code input form */}
@@ -309,7 +310,7 @@ export default function CompleteProfile() {
             <input
               value={codeInput}
               onChange={(e) => setCodeInput(e.target.value.toUpperCase())}
-              placeholder="EJ: A1B2C3D4"
+              placeholder="CASTORES o A1B2C3D4"
               autoCapitalize="characters"
               autoCorrect="off"
               spellCheck={false}
@@ -333,12 +334,20 @@ export default function CompleteProfile() {
             </button>
           </form>
 
-          <div className="rounded-2xl p-4 mb-4 text-left"
+          <div className="rounded-2xl p-4 mb-4 text-left space-y-2"
             style={{ background: "rgba(200,149,42,0.08)", border: "1px solid rgba(200,149,42,0.2)" }}>
-            <p className="text-xs font-semibold mb-2 text-amber-400">¿Cómo obtener acceso?</p>
-            <p className="text-xs leading-relaxed" style={{ color: "rgba(255,255,255,0.5)" }}>
-              Pide a tu administrador que te genere una clave desde el panel de control. Te la compartirá por WhatsApp o mensaje directo.
-            </p>
+            <div>
+              <p className="text-xs font-semibold mb-1 text-amber-400">🛡️ Soy administrador general</p>
+              <p className="text-xs leading-relaxed" style={{ color: "rgba(255,255,255,0.55)" }}>
+                Escribe <span className="font-mono font-bold text-amber-300">CASTORES</span> en mayúsculas para activar tu acceso de administrador.
+              </p>
+            </div>
+            <div className="pt-2 border-t" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
+              <p className="text-xs font-semibold mb-1 text-amber-400">👥 Me invitó un administrador</p>
+              <p className="text-xs leading-relaxed" style={{ color: "rgba(255,255,255,0.55)" }}>
+                Pega aquí la clave que te compartió por WhatsApp o mensaje directo.
+              </p>
+            </div>
           </div>
 
           <button
