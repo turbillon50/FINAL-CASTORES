@@ -854,19 +854,38 @@ function SignUpPage() {
             <input type="text" value={firstName} onChange={e => setFirstName(e.target.value)} placeholder="Nombre" required className={inputCls} />
             <input type="text" value={lastName} onChange={e => setLastName(e.target.value)} placeholder="Apellido" required className={inputCls} />
           </div>
-          <input
-            type="email"
-            value={email}
-            onChange={e => setEmail(e.target.value.trim())}
-            placeholder="Correo electrónico"
-            required
-            autoComplete="email"
-            autoCorrect="off"
-            autoCapitalize="off"
-            spellCheck={false}
-            inputMode="email"
-            className={inputCls}
-          />
+          <div>
+            <input
+              type="email"
+              value={email}
+              onChange={e => setEmail(e.target.value.trim().toLowerCase())}
+              placeholder="Correo electrónico"
+              required
+              // CRITICAL: every browser's "email" autocomplete kept silently
+              // swapping the typed address for a previously-used one (e.g.
+              // turbillon50@gmail.com from earlier tests on the same device).
+              // Setting autoComplete=off plus password-manager opt-outs gives
+              // us deterministic submission of whatever the user actually
+              // types. The visible preview below ALWAYS shows the value
+              // about to be sent, so the user can spot a swap if it happens.
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck={false}
+              inputMode="email"
+              name="castores-signup-email-fresh"
+              data-form-type="other"
+              data-lpignore="true"
+              data-1p-ignore
+              className={inputCls}
+            />
+            {email && (
+              <p className="text-[11px] text-gray-500 mt-1.5 leading-snug">
+                Te enviaremos el código a <span className="font-semibold text-gray-800 break-all">{email}</span>.
+                Verifica que esté correcto antes de continuar.
+              </p>
+            )}
+          </div>
           <div>
             <input
               type="password"
