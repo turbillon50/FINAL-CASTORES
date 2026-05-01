@@ -317,6 +317,21 @@ function SignUpPage() {
         window.location.replace(basePath ? `${basePath}/complete-profile` : "/complete-profile");
         return;
       }
+      // OTP verified but Clerk still needs more fields (e.g. username/phone
+      // required by instance settings). Without surfacing this the user thinks
+      // the click did nothing while the abandoned signup is silently discarded.
+      const missing = (result as unknown as { missingFields?: string[]; unverifiedFields?: string[] }).missingFields ?? [];
+      const unverified = (result as unknown as { unverifiedFields?: string[] }).unverifiedFields ?? [];
+      // eslint-disable-next-line no-console
+      console.error("[signup] attemptVerification did not complete", { status: result.status, missing, unverified, result });
+      const detail = [
+        missing.length ? `Faltan: ${missing.join(", ")}` : null,
+        unverified.length ? `Sin verificar: ${unverified.join(", ")}` : null,
+      ].filter(Boolean).join(" · ");
+      setError(
+        `El código se verificó pero el registro quedó incompleto (status=${result.status})${detail ? ` — ${detail}` : ""}. ` +
+        `Captura de este error para diagnosticar; intenta "Reenviar" o cambia de correo.`,
+      );
       setBusy(false);
       verifyingRef.current = false;
     } catch (err) {
