@@ -159,7 +159,13 @@ function PwaInstallBanner({ defaultIOS }: { defaultIOS: boolean }) {
 function SignUpPage() {
   const { isLoaded, isSignedIn } = useUser();
   const { isLoaded: signUpLoaded, signUp, setActive } = useSignUp();
+  const { signOut } = useClerk();
   const [, setLocation] = useLocation();
+  // Tracks whether we're tearing down a leftover Clerk session before
+  // showing the form. Without this the form would briefly accept input
+  // while signOut is still propagating.
+  const [purgingSession, setPurgingSession] = useState(false);
+  const handledStaleSessionRef = useRef(false);
 
   // Recovery: user left to check email and app reloaded with same invite code.
   // Only recover if the URL code matches the stored code — a different code means
@@ -226,13 +232,33 @@ function SignUpPage() {
   // the user cannot sign in again later via /sign-in (which uses email+password).
   const PASSWORD_MIN = 8;
 
-  // Redirect once Clerk session is active (sign-up completed)
+  // CRITICAL: when SignUpPage mounts with a Clerk session already active and
+  // there is NO in-progress signUp flow (signUp.status would be
+  // "missing_requirements" mid-OTP), the user arrived here while logged in
+  // as somebody else (e.g. admin still cached). The previous code would
+  // immediately redirect them to /complete-profile, which silently logged them
+  // back in as the existing user — making "register a new account" impossible.
+  //
+  // Instead: tear down the stale session in-place. After signOut completes the
+  // form mounts cleanly so the new email + password creates a real new Clerk
+  // user. The handledStaleSessionRef guard ensures we never sign the user out
+  // AFTER a successful registration (when isSignedIn flips to true legitimately).
   useEffect(() => {
-    if (!isLoaded || !isSignedIn) return;
-    localStorage.removeItem("castores_signup_step");
-    localStorage.removeItem("castores_signup_email");
-    setLocation("/complete-profile");
-  }, [isLoaded, isSignedIn, setLocation]);
+    if (!isLoaded || !signUpLoaded) return;
+    if (handledStaleSessionRef.current) return;
+    handledStaleSessionRef.current = true;
+    // Don't tear down a session that belongs to an in-flight signup:
+    //   - "missing_requirements" → user is mid-OTP, restore the OTP screen
+    //   - "complete"             → signup just succeeded, hard nav to
+    //                              /complete-profile is queued, don't undo it
+    const inFlightSignup = signUp?.status === "missing_requirements" || signUp?.status === "complete";
+    if (isSignedIn && !inFlightSignup) {
+      setPurgingSession(true);
+      ["castores_signup_step","castores_signup_email","castores_invite_code","castores_real_user","castores_signup_pending"]
+        .forEach(k => { try { localStorage.removeItem(k); } catch { /* ignore */ } });
+      signOut().catch(() => {}).finally(() => setPurgingSession(false));
+    }
+  }, [isLoaded, signUpLoaded, isSignedIn, signUp?.status, signOut]);
 
   // If Clerk's signUp session survived an iOS restart, jump to OTP step.
   // Skip this when a fresh invite link is open — we never want to restore
@@ -375,7 +401,30 @@ function SignUpPage() {
   const inputCls = "w-full px-4 py-3 rounded-xl border border-gray-200 bg-white focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-100 text-gray-900 placeholder-gray-400 transition text-sm";
   const btnPrimary = "w-full py-3 rounded-xl font-semibold text-white bg-amber-600 hover:bg-amber-700 transition disabled:opacity-50 text-sm";
 
-  if (!isLoaded || isSignedIn) {
+  // Show spinner while:
+  //   - Clerk is initializing
+  //   - We're tearing down a stale session
+  //   - User just successfully signed up (isSignedIn=true while the hard
+  //     nav to /complete-profile is in flight)
+  // The stale-session teardown effect above guarantees that, once Clerk has
+  // loaded and we mounted with someone else's session, signOut runs and
+  // isSignedIn becomes false — so the form renders.
+  if (!isLoaded || !signUpLoaded || purgingSession || (isSignedIn && handledStaleSessionRef.current === false)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#f8f4ef]">
+        <div className="flex flex-col items-center gap-3">
+          <div className="animate-spin rounded-full h-10 w-10 border-4 border-amber-500 border-t-transparent" />
+          {purgingSession && (
+            <p className="text-xs text-gray-500">Preparando registro nuevo...</p>
+          )}
+        </div>
+      </div>
+    );
+  }
+  // After successful registration isSignedIn becomes true while the hard
+  // navigation runs. Show the spinner (no purging text) so the form does
+  // not flash.
+  if (isSignedIn) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#f8f4ef]">
         <div className="animate-spin rounded-full h-10 w-10 border-4 border-amber-500 border-t-transparent" />

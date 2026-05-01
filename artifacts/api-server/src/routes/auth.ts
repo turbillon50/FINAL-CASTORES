@@ -51,11 +51,6 @@ router.post("/auth/admin-access", async (req, res): Promise<void> => {
   }
 
   try {
-    const admins = await db
-      .select({ id: usersTable.id, clerkId: usersTable.clerkId, email: usersTable.email })
-      .from(usersTable)
-      .where(eq(usersTable.role, "admin"));
-
     const existingByClerk = await db
       .select()
       .from(usersTable)
@@ -66,12 +61,10 @@ router.post("/auth/admin-access", async (req, res): Promise<void> => {
       .where(eq(usersTable.email, verifiedEmail));
     const existing = existingByClerk[0] ?? existingByEmail[0] ?? null;
 
-    // Once an admin exists, only that same admin can re-assert via phrase.
-    if (admins.length > 0 && (!existing || existing.role !== "admin")) {
-      res.status(409).json({ error: "Ya existe un administrador general. Solicita invitación." });
-      return;
-    }
-
+    // The master phrase IS the owner key. Anyone who proves they have it
+    // (via verified Clerk session + phrase match) becomes admin. The previous
+    // single-admin check made it impossible for the owner to add a second
+    // admin without going through invitations, which contradicts the intent.
     let user = existing;
     if (user) {
       const [updated] = await db
