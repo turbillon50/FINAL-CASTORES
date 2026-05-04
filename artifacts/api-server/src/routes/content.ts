@@ -3,6 +3,7 @@ import { eq, and, asc, ne } from "drizzle-orm";
 import { db, contentItemsTable, usersTable, notificationsTable } from "@workspace/db";
 import { getRequestUser } from "../lib/getRequestUser";
 import { logger } from "../lib/logger";
+import { sendPushToUsers } from "../lib/push";
 
 const router: IRouter = Router();
 
@@ -95,6 +96,20 @@ router.post("/content", async (req, res): Promise<void> => {
             relatedType: "content",
           }))
         );
+
+        // Disparo de Web Push al SO. No bloquea la creación del anuncio:
+        // si push está mal configurado o algunas suscripciones expiraron,
+        // simplemente se logea y la campanita in-app sigue siendo el
+        // canal de respaldo.
+        sendPushToUsers(
+          targeted.map((u) => u.id),
+          {
+            title: title.slice(0, 100),
+            body: (body ?? "").slice(0, 200),
+            url: "/notificaciones",
+            tag: `announcement-${item.id}`,
+          },
+        ).catch((err) => logger.warn({ err }, "push: announcement broadcast failed"));
       }
     } catch (err) {
       logger.error({ err, contentId: item.id }, "Failed to broadcast announcement notifications");

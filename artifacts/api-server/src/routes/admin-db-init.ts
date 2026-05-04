@@ -187,7 +187,21 @@ CREATE TABLE IF NOT EXISTS "work_logs" (
   "submitted_at" timestamptz,
   "created_at" timestamptz NOT NULL DEFAULT NOW(),
   "updated_at" timestamptz NOT NULL DEFAULT NOW()
-);`;
+);
+
+CREATE TABLE IF NOT EXISTS "push_subscriptions" (
+  "id" serial PRIMARY KEY,
+  "user_id" integer NOT NULL,
+  "endpoint" text NOT NULL,
+  "p256dh" text NOT NULL,
+  "auth" text NOT NULL,
+  "user_agent" text,
+  "created_at" timestamptz NOT NULL DEFAULT NOW(),
+  "last_used_at" timestamptz
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS "push_subscriptions_endpoint_unique"
+  ON "push_subscriptions" ("endpoint");`;
 
 // Seed: matriz de permisos por defecto para los 5 roles. Idempotente.
 const SEED_ROLE_PERMISSIONS_SQL = `

@@ -30,7 +30,7 @@
     -->
     <script>
       (function () {
-        var APP_VERSION = 'v5';
+        var APP_VERSION = 'v6';
         var KEY = 'castores_app_version';
 
         try {
@@ -47,6 +47,20 @@
               }).catch(function () {});
             }
             localStorage.setItem(KEY, APP_VERSION);
+          }
+        } catch (e) {}
+
+        // Registrar el service worker. Necesario para que Web Push funcione:
+        // pushManager.subscribe() solo está disponible en el ServiceWorker
+        // registration. La estrategia de cache es network-first (no rompe
+        // hot-reload ni atrapa HTML viejo), así que mantenerlo activo es
+        // seguro. Registramos en window.load para no competir con la carga
+        // inicial del bundle.
+        try {
+          if ('serviceWorker' in navigator && location.protocol === 'https:') {
+            window.addEventListener('load', function () {
+              navigator.serviceWorker.register('/sw.js').catch(function () {});
+            });
           }
         } catch (e) {}
 

@@ -3,7 +3,7 @@
 // On activate: delete ALL caches, ALL stored data, and force-reload all open clients.
 // On fetch: ALWAYS try network first. NEVER cache HTML. Cache static assets only as offline fallback.
 
-const SW_VERSION = 'v5';
+const SW_VERSION = 'v6';
 const ASSET_CACHE = `castores-assets-${SW_VERSION}`;
 
 self.addEventListener('install', () => {
@@ -65,4 +65,47 @@ self.addEventListener('fetch', (event) => {
       })
       .catch(() => caches.match(req).then((cached) => cached || Response.error()))
   );
+});
+
+// ───── Web Push ──────────────────────────────────────────────────────────────
+// El backend envía un JSON {title, body, url, tag, icon}. Si el payload no
+// es JSON válido caemos a un texto genérico para no perder la notificación.
+self.addEventListener('push', (event) => {
+  let data = {};
+  try { data = event.data ? event.data.json() : {}; }
+  catch { data = { title: 'Castores', body: event.data ? event.data.text() : '' }; }
+
+  const title = data.title || 'Castores Control';
+  const options = {
+    body: data.body || '',
+    icon: data.icon || '/icon-192.png',
+    badge: '/icon-192.png',
+    tag: data.tag || undefined,
+    data: { url: data.url || '/notificaciones' },
+    requireInteraction: false,
+  };
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+// Click en la notificación: enfocar una pestaña abierta o abrir una nueva
+// directo en la URL que el backend mandó.
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const targetUrl = (event.notification.data && event.notification.data.url) || '/notificaciones';
+  event.waitUntil((async () => {
+    const allClients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const client of allClients) {
+      try {
+        const url = new URL(client.url);
+        if (url.origin === self.location.origin) {
+          await client.focus();
+          if ('navigate' in client) {
+            try { await client.navigate(targetUrl); } catch {}
+          }
+          return;
+        }
+      } catch {}
+    }
+    if (self.clients.openWindow) await self.clients.openWindow(targetUrl);
+  })());
 });

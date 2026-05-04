@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { motion } from "framer-motion";
 import { useAuth } from "@/lib/auth";
@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { MainLayout } from "@/components/layout/main-layout";
 import { getAuthToken } from "@workspace/api-client-react";
 import { apiUrl } from "@/lib/api-url";
+import { PushToggle } from "@/components/push-toggle";
 
 export default function Cuenta() {
   const { user, logout } = useAuth();
@@ -76,6 +77,9 @@ export default function Cuenta() {
             </div>
           )}
         </section>
+
+        {/* Notificaciones push */}
+        <PushToggle />
 
         {/* Legal & ayuda */}
         <section className="bg-card border border-border rounded-2xl divide-y divide-border overflow-hidden">
