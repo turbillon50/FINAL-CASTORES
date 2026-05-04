@@ -1525,7 +1525,7 @@ components:
           type: string
         type:
           type: string
-          enum: [daily, weekly, monthly, materials, cost, progress]
+          enum: [avance, bitacora, materiales]
         dateFrom:
           type: ["string", "null"]
         dateTo:
@@ -1554,7 +1554,7 @@ components:
           type: string
         type:
           type: string
-          enum: [daily, weekly, monthly, materials, cost, progress]
+          enum: [avance, bitacora, materiales]
         dateFrom:
           type: ["string", "null"]
         dateTo:
