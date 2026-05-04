@@ -2,8 +2,9 @@ import { Router, type IRouter } from "express";
 import { eq, or } from "drizzle-orm";
 import { db, usersTable, invitationCodesTable, USER_ROLES, activityLogTable } from "@workspace/db";
 import { getAuth } from "@clerk/express";
+import { createHmac, timingSafeEqual } from "node:crypto";
 import { logger } from "../lib/logger";
-import { sendNewRegistrationEmail, sendWelcomeEmail } from "../lib/email";
+import { sendNewRegistrationEmail, sendWelcomeEmail, sendPasswordResetEmail } from "../lib/email";
 import { and } from "drizzle-orm";
 
 const ADMIN_MASTER_KEY = (process.env["ADMIN_ACCESS_PHRASE"] || process.env["ADMIN_MASTER_KEY"] || "").trim().toUpperCase();
@@ -842,6 +843,169 @@ router.get("/auth/me-permissions", async (req, res): Promise<void> => {
     approvalStatus: user.approvalStatus,
     permissions,
   });
+});
+
+/* ─── Password reset flow ────────────────────────────────────────────────
+ *
+ * No depende de Clerk's hosted UI. El flujo es:
+ *   1) /auth/forgot-password recibe el email, busca al usuario, firma un
+ *      token HMAC con SESSION_SECRET (TTL 30 min) y manda email con link
+ *      a /reset-password?token=…
+ *   2) /auth/reset-password recibe {token, password}, verifica firma +
+ *      expiración, llama a Clerk Backend API para actualizar la contraseña
+ *      del Clerk user correspondiente, y queda listo para iniciar sesión.
+ *
+ * Diseño defensivo:
+ *   - Respuesta indistinguible para emails que existen y los que no, para
+ *     no convertir el endpoint en oráculo de cuentas registradas.
+ *   - Token incluye userId + email + expiresAt y se firma con HMAC-SHA256.
+ *     timingSafeEqual al verificar para evitar timing attacks.
+ *   - Sin tabla extra: el token es el state — si caduca o el HMAC no
+ *     valida, se rechaza.
+ */
+const RESET_TTL_MIN = 30;
+
+function getResetSecret(): string {
+  return (
+    process.env["SESSION_SECRET"] ||
+    process.env["CLERK_SECRET_KEY"] ||
+    "castores-reset-fallback-only-for-dev"
+  );
+}
+
+function signResetToken(payload: { userId: number; email: string; exp: number }): string {
+  const body = Buffer.from(JSON.stringify(payload)).toString("base64url");
+  const sig = createHmac("sha256", getResetSecret()).update(body).digest("base64url");
+  return `${body}.${sig}`;
+}
+
+function verifyResetToken(
+  token: string,
+): { userId: number; email: string } | { error: string } {
+  const [body, sig] = token.split(".");
+  if (!body || !sig) return { error: "Token mal formado" };
+
+  const expectedSig = createHmac("sha256", getResetSecret()).update(body).digest("base64url");
+  const a = Buffer.from(sig);
+  const b = Buffer.from(expectedSig);
+  if (a.length !== b.length || !timingSafeEqual(a, b)) {
+    return { error: "Token inválido" };
+  }
+
+  let parsed: { userId: number; email: string; exp: number };
+  try {
+    parsed = JSON.parse(Buffer.from(body, "base64url").toString("utf8"));
+  } catch {
+    return { error: "Token mal formado" };
+  }
+  if (typeof parsed.exp !== "number" || Date.now() > parsed.exp) {
+    return { error: "Token caducado. Solicita un nuevo enlace." };
+  }
+  return { userId: parsed.userId, email: parsed.email };
+}
+
+router.post("/auth/forgot-password", async (req, res): Promise<void> => {
+  const { email: rawEmail } = req.body as { email?: string };
+  if (!rawEmail) {
+    res.status(400).json({ error: "Correo requerido" });
+    return;
+  }
+  const email = rawEmail.trim().toLowerCase();
+
+  // Respuesta uniforme para no leakear si el correo existe en nuestra DB.
+  const uniformOk = () =>
+    res.json({
+      ok: true,
+      message:
+        "Si la cuenta existe, te enviamos un correo con instrucciones para restablecer tu contraseña.",
+    });
+
+  let user;
+  try {
+    [user] = await db.select().from(usersTable).where(eq(usersTable.email, email));
+  } catch (err) {
+    logger.error({ err }, "forgot-password: lookup failed");
+    uniformOk();
+    return;
+  }
+
+  if (!user || !user.isActive) {
+    uniformOk();
+    return;
+  }
+
+  const exp = Date.now() + RESET_TTL_MIN * 60 * 1000;
+  const token = signResetToken({ userId: user.id, email, exp });
+  const resetUrl = `https://castores.info/reset-password?token=${encodeURIComponent(token)}`;
+
+  try {
+    await sendPasswordResetEmail({
+      to: email,
+      name: user.name || "Usuario",
+      resetUrl,
+      expiresInMinutes: RESET_TTL_MIN,
+    });
+  } catch (err) {
+    logger.error({ err, email }, "forgot-password: email send failed");
+    // Aún así respondemos OK uniformemente; el usuario puede reintentar.
+  }
+
+  uniformOk();
+});
+
+router.post("/auth/reset-password", async (req, res): Promise<void> => {
+  const { token, password } = req.body as { token?: string; password?: string };
+  if (!token || !password) {
+    res.status(400).json({ error: "Token y nueva contraseña requeridos" });
+    return;
+  }
+  if (password.length < 8) {
+    res.status(400).json({ error: "La contraseña debe tener al menos 8 caracteres" });
+    return;
+  }
+
+  const verified = verifyResetToken(token);
+  if ("error" in verified) {
+    res.status(400).json({ error: verified.error });
+    return;
+  }
+
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, verified.userId));
+  if (!user || !user.isActive) {
+    res.status(400).json({ error: "Cuenta no encontrada o inactiva" });
+    return;
+  }
+  if (user.email.toLowerCase() !== verified.email.toLowerCase()) {
+    res.status(400).json({ error: "Token no coincide con la cuenta" });
+    return;
+  }
+  if (!user.clerkId) {
+    res.status(400).json({ error: "Cuenta sin proveedor de identidad. Contacta al administrador." });
+    return;
+  }
+
+  try {
+    await clerkApi(`/users/${user.clerkId}`, {
+      method: "PATCH",
+      body: JSON.stringify({
+        password,
+        skip_password_checks: false,
+        sign_out_of_other_sessions: true,
+      }),
+    });
+  } catch (err: unknown) {
+    const e = err as { status?: number; body?: any; message?: string };
+    if (e.status === 422 || e.status === 400) {
+      const longMsg = (e.body as any)?.errors?.[0]?.long_message;
+      res.status(400).json({ error: longMsg || "La contraseña no cumple los requisitos. Usa al menos 8 caracteres y combina letras y números." });
+      return;
+    }
+    logger.error({ err }, "reset-password: Clerk update failed");
+    res.status(503).json({ error: "No pudimos cambiar la contraseña ahora. Intenta de nuevo en unos minutos." });
+    return;
+  }
+
+  res.json({ ok: true, message: "Contraseña actualizada. Inicia sesión con la nueva." });
 });
 
 export default router;

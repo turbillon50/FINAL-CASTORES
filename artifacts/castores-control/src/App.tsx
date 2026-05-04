@@ -174,6 +174,13 @@ function SignInPage() {
           <button type="submit" disabled={busy} className="w-full py-3 rounded-xl font-semibold text-white bg-amber-600 hover:bg-amber-700 transition disabled:opacity-50 text-sm mt-1">
             {busy ? "Entrando..." : "Iniciar sesión →"}
           </button>
+          <button
+            type="button"
+            onClick={() => setLocation("/forgot-password")}
+            className="block w-full text-center text-xs text-gray-500 hover:text-amber-700 mt-2"
+          >
+            ¿Olvidaste tu contraseña?
+          </button>
         </form>
         <p className="text-center text-sm text-gray-500 mt-4">
           ¿Aún no tienes cuenta?{" "}
@@ -181,6 +188,192 @@ function SignInPage() {
             Volver al inicio
           </button>
         </p>
+      </div>
+    </div>
+  );
+}
+
+function ForgotPasswordPage() {
+  const [, setLocation] = useLocation();
+  const [email, setEmail] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const inputCls = "w-full px-4 py-3 rounded-xl border border-gray-200 bg-white focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-100 text-gray-900 placeholder-gray-400 transition text-sm";
+
+  const onSubmit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (busy) return;
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail) { setError("Ingresa tu correo."); return; }
+    setBusy(true); setError(null);
+    try {
+      const res = await fetch(apiUrl("/api/auth/forgot-password"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: cleanEmail }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError((data && data.error) || "No pudimos procesar tu solicitud.");
+        setBusy(false);
+        return;
+      }
+      setDone(true);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Error de red";
+      setError(`No pudimos procesar tu solicitud: ${msg}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-[#f8f4ef] px-4">
+      <div className="w-full max-w-sm">
+        <div className="text-center mb-6">
+          <img src={`${basePath}/castores-logo.jpeg`} alt="Castores" className="w-16 h-16 rounded-2xl object-cover shadow mx-auto mb-3" />
+          <h1 className="text-2xl font-bold text-gray-900">Restablecer contraseña</h1>
+          <p className="text-sm text-gray-500 mt-1">Te enviamos un correo con instrucciones.</p>
+        </div>
+        {done ? (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4 text-center">
+            <p className="text-sm text-gray-700">
+              Si tu correo está registrado, en unos minutos recibirás un enlace para crear una contraseña nueva. El enlace caduca en 30 minutos.
+            </p>
+            <button
+              onClick={() => setLocation("/sign-in")}
+              className="w-full py-3 rounded-xl font-semibold text-white bg-amber-600 hover:bg-amber-700 transition text-sm"
+            >
+              Volver a iniciar sesión
+            </button>
+          </div>
+        ) : (
+          <form onSubmit={onSubmit} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-3">
+            <input
+              type="email"
+              value={email}
+              onChange={e => setEmail(e.target.value.trim().toLowerCase())}
+              placeholder="Correo electrónico"
+              required
+              autoComplete="email"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck={false}
+              inputMode="email"
+              className={inputCls}
+            />
+            {error && <p className="text-sm text-red-600 text-center">{error}</p>}
+            <button type="submit" disabled={busy} className="w-full py-3 rounded-xl font-semibold text-white bg-amber-600 hover:bg-amber-700 transition disabled:opacity-50 text-sm mt-1">
+              {busy ? "Enviando..." : "Enviar enlace"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setLocation("/sign-in")}
+              className="block w-full text-center text-xs text-gray-500 hover:text-amber-700"
+            >
+              Volver al inicio de sesión
+            </button>
+          </form>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ResetPasswordPage() {
+  const [, setLocation] = useLocation();
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const inputCls = "w-full px-4 py-3 rounded-xl border border-gray-200 bg-white focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-100 text-gray-900 placeholder-gray-400 transition text-sm";
+
+  const token = (() => {
+    if (typeof window === "undefined") return "";
+    return new URLSearchParams(window.location.search).get("token") ?? "";
+  })();
+
+  const onSubmit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (busy) return;
+    if (!token) { setError("Falta el token. Solicita un enlace nuevo."); return; }
+    if (password.length < 8) { setError("La contraseña debe tener al menos 8 caracteres."); return; }
+    if (password !== confirm) { setError("Las contraseñas no coinciden."); return; }
+
+    setBusy(true); setError(null);
+    try {
+      const res = await fetch(apiUrl("/api/auth/reset-password"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, password }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError((data && data.error) || "No pudimos cambiar la contraseña.");
+        setBusy(false);
+        return;
+      }
+      setDone(true);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Error de red";
+      setError(`No pudimos cambiar la contraseña: ${msg}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-[#f8f4ef] px-4">
+      <div className="w-full max-w-sm">
+        <div className="text-center mb-6">
+          <img src={`${basePath}/castores-logo.jpeg`} alt="Castores" className="w-16 h-16 rounded-2xl object-cover shadow mx-auto mb-3" />
+          <h1 className="text-2xl font-bold text-gray-900">Nueva contraseña</h1>
+          <p className="text-sm text-gray-500 mt-1">Elige una contraseña que recuerdes (mín. 8 caracteres).</p>
+        </div>
+        {done ? (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4 text-center">
+            <p className="text-sm text-gray-700">Listo. Tu contraseña fue actualizada.</p>
+            <button
+              onClick={() => setLocation("/sign-in")}
+              className="w-full py-3 rounded-xl font-semibold text-white bg-amber-600 hover:bg-amber-700 transition text-sm"
+            >
+              Iniciar sesión →
+            </button>
+          </div>
+        ) : (
+          <form onSubmit={onSubmit} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-3">
+            <input
+              type="password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              placeholder="Nueva contraseña"
+              autoComplete="new-password"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck={false}
+              required
+              className={inputCls}
+            />
+            <input
+              type="password"
+              value={confirm}
+              onChange={e => setConfirm(e.target.value)}
+              placeholder="Confirmar contraseña"
+              autoComplete="new-password"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck={false}
+              required
+              className={inputCls}
+            />
+            {error && <p className="text-sm text-red-600 text-center">{error}</p>}
+            <button type="submit" disabled={busy} className="w-full py-3 rounded-xl font-semibold text-white bg-amber-600 hover:bg-amber-700 transition disabled:opacity-50 text-sm mt-1">
+              {busy ? "Guardando..." : "Guardar contraseña"}
+            </button>
+          </form>
+        )}
       </div>
     </div>
   );
@@ -1354,6 +1547,8 @@ function Router() {
       <Route path="/explorar" component={Explorar} />
       <Route path="/sign-in/*?" component={SignInPage} />
       <Route path="/sign-up/*?" component={SignUpPage} />
+      <Route path="/forgot-password" component={ForgotPasswordPage} />
+      <Route path="/reset-password" component={ResetPasswordPage} />
       <Route path="/admin-access" component={AdminAccessPage} />
 
       {/* Post-signup flow */}
