@@ -1,7 +1,8 @@
 import { Router, type IRouter } from "express";
-import { eq, and, asc } from "drizzle-orm";
-import { db, contentItemsTable } from "@workspace/db";
+import { eq, and, asc, ne } from "drizzle-orm";
+import { db, contentItemsTable, usersTable, notificationsTable } from "@workspace/db";
 import { getRequestUser } from "../lib/getRequestUser";
+import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
 
@@ -62,6 +63,43 @@ router.post("/content", async (req, res): Promise<void> => {
     createdBy: user.id,
     isActive: true,
   }).returning();
+
+  // Broadcast announcements as in-app notifications to every relevant user
+  // so they actually appear in the bell/Notificaciones screen on every
+  // device. Before this, /content insert only filled the dashboard banner
+  // list; nothing landed in notificationsTable, so users on other phones
+  // never saw the alert. Failure here is logged but does not fail the
+  // request — the announcement record itself is the source of truth.
+  if (type === "announcement") {
+    try {
+      const recipients = await db
+        .select({ id: usersTable.id, role: usersTable.role })
+        .from(usersTable)
+        .where(and(
+          eq(usersTable.isActive, true),
+          ne(usersTable.id, user.id),
+        ));
+
+      const targeted = targetRole
+        ? recipients.filter((u) => u.role === targetRole)
+        : recipients;
+
+      if (targeted.length > 0) {
+        await db.insert(notificationsTable).values(
+          targeted.map((u) => ({
+            userId: u.id,
+            title: title.slice(0, 200),
+            message: (body ?? "").slice(0, 1000) || title.slice(0, 200),
+            type: category ? `announcement:${category}` : "announcement",
+            relatedId: item.id,
+            relatedType: "content",
+          }))
+        );
+      }
+    } catch (err) {
+      logger.error({ err, contentId: item.id }, "Failed to broadcast announcement notifications");
+    }
+  }
 
   res.status(201).json(item);
 });
