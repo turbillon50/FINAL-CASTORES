@@ -76,9 +76,23 @@ router.post("/logs", async (req, res): Promise<void> => {
     res.status(403).json({ error: "No tienes permiso para crear entradas en la bitácora" });
     return;
   }
+  // Las firmas se reciben en el mismo body para que la creación + firma sea
+  // atómica (un solo round-trip, sin que el catch del frontend pueda tragar
+  // un 403 silencioso al firmar como cliente con rol supervisor). El author
+  // ya pasó bitacoraCreate, lo cual cubre el caso de campo: el supervisor
+  // recoge la firma del cliente físicamente presente en su mismo dispositivo.
+  // El endpoint /logs/:id/signatures sigue existiendo para firmas a
+  // posteriori y mantiene su check de rol.
+  const { supervisorSignature, clientSignature, ...rest } = parsed.data;
   const [log] = await db
     .insert(workLogsTable)
-    .values({ ...parsed.data, supervisorId: actor.id, photos: parsed.data.photos ?? [] })
+    .values({
+      ...rest,
+      supervisorId: actor.id,
+      photos: rest.photos ?? [],
+      ...(supervisorSignature ? { supervisorSignature } : {}),
+      ...(clientSignature ? { clientSignature } : {}),
+    })
     .returning();
 
   res.status(201).json(await enrichLog(log));

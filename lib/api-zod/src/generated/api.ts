@@ -325,6 +325,8 @@ export const CreateLogBody = zod.object({
   workersInvolved: zod.string().nullish(),
   materialsUsed: zod.string().nullish(),
   photos: zod.array(zod.string()).optional(),
+  supervisorSignature: zod.string().nullish(),
+  clientSignature: zod.string().nullish(),
 });
 
 /**
