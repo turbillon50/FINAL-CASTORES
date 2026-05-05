@@ -2,9 +2,11 @@ import { Router, type IRouter } from "express";
 import { eq } from "drizzle-orm";
 import { db, usersTable } from "@workspace/db";
 import { getAuth, clerkClient } from "@clerk/express";
-import { sendApprovalEmail, sendRejectionEmail } from "../lib/email";
+import { createHmac } from "node:crypto";
+import { sendApprovalEmail, sendRejectionEmail, sendPasswordResetEmail } from "../lib/email";
 import { getRequestUserStrict } from "./../lib/getRequestUser";
 import { hasPermission } from "../lib/permissions";
+import { logAdminOverride } from "../lib/adminOverride";
 import { formatZodError } from "../lib/zodError";
 import {
   CreateUserBody,
@@ -295,13 +297,48 @@ router.delete("/users/:id", async (req, res): Promise<void> => {
     return;
   }
 
-  // Fetch clerkId before deleting so we can remove from Clerk too
-  const [target] = await db.select({ clerkId: usersTable.clerkId })
-    .from(usersTable).where(eq(usersTable.id, params.data.id));
+  // Fetch clerkId + name + email before mutating so podemos hacer
+  // anonimización de fallback (más abajo) y borrar de Clerk.
+  const [target] = await db.select({
+    clerkId: usersTable.clerkId,
+    name: usersTable.name,
+    email: usersTable.email,
+  }).from(usersTable).where(eq(usersTable.id, params.data.id));
 
-  await db.delete(usersTable).where(eq(usersTable.id, params.data.id));
+  if (!target) {
+    res.sendStatus(204);
+    return;
+  }
 
-  if (target?.clerkId) {
+  // Borrado: intentamos hard-delete primero. Si hay FK constraint
+  // (bitácoras, materiales, etc. apuntando al usuario) anonimizamos
+  // para liberar el email y deshabilitar la cuenta sin perder histórico.
+  // Antes este path fallaba silencioso y dejaba al usuario "borrado en
+  // UI pero presente en DB", lo que rompía cualquier intento de re-registro.
+  let didHardDelete = false;
+  let didAnonymize = false;
+  try {
+    await db.delete(usersTable).where(eq(usersTable.id, params.data.id));
+    didHardDelete = true;
+  } catch (err: any) {
+    if (err?.code === "23503") {
+      const ts = Date.now();
+      const anonEmail = `deleted_${params.data.id}_${ts}@deleted.local`;
+      await db.update(usersTable).set({
+        email: anonEmail,
+        clerkId: null,
+        isActive: false,
+        approvalStatus: "rejected",
+        name: `[Eliminado] ${target.name ?? "Usuario"}`,
+        updatedAt: new Date(),
+      }).where(eq(usersTable.id, params.data.id));
+      didAnonymize = true;
+    } else {
+      throw err;
+    }
+  }
+
+  if (target.clerkId) {
     try {
       await clerkClient.users.deleteUser(target.clerkId);
     } catch (e) {
@@ -309,7 +346,60 @@ router.delete("/users/:id", async (req, res): Promise<void> => {
     }
   }
 
-  res.sendStatus(204);
+  res.json({ ok: true, hardDeleted: didHardDelete, anonymized: didAnonymize });
+});
+
+/**
+ * POST /users/:id/send-password-reset — admin envía un correo de reset
+ * a cualquier usuario. Pensado para destrabar a alguien sin tener que
+ * compartirle una contraseña temporal por WhatsApp. Reusa el mismo
+ * token HMAC firmado de /auth/forgot-password (TTL 30 min).
+ */
+router.post("/users/:id/send-password-reset", async (req, res): Promise<void> => {
+  const actor = await getRequestUserStrict(req);
+  if (!actor) { res.status(401).json({ error: "No autenticado" }); return; }
+  if (actor.role !== "admin") {
+    res.status(403).json({ error: "Solo administradores pueden enviar reset de contraseña" });
+    return;
+  }
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) { res.status(400).json({ error: "ID inválido" }); return; }
+
+  const [target] = await db.select().from(usersTable).where(eq(usersTable.id, id));
+  if (!target) { res.status(404).json({ error: "Usuario no encontrado" }); return; }
+  if (!target.isActive) { res.status(400).json({ error: "El usuario está inactivo" }); return; }
+
+  const RESET_TTL_MIN = 30;
+  const exp = Date.now() + RESET_TTL_MIN * 60 * 1000;
+  const secret =
+    process.env["SESSION_SECRET"] ||
+    process.env["CLERK_SECRET_KEY"] ||
+    "castores-reset-fallback-only-for-dev";
+  const payload = { userId: target.id, email: target.email.toLowerCase(), exp };
+  const body = Buffer.from(JSON.stringify(payload)).toString("base64url");
+  const sig = createHmac("sha256", secret).update(body).digest("base64url");
+  const token = `${body}.${sig}`;
+  const resetUrl = `https://castores.info/reset-password?token=${encodeURIComponent(token)}`;
+
+  try {
+    await sendPasswordResetEmail({
+      to: target.email,
+      name: target.name || "Usuario",
+      resetUrl,
+      expiresInMinutes: RESET_TTL_MIN,
+    });
+  } catch (err) {
+    res.status(503).json({ error: "No pudimos enviar el correo. Intenta de nuevo en un minuto." });
+    return;
+  }
+
+  await logAdminOverride({
+    actorId: actor.id,
+    action: "user.password_reset_sent",
+    description: `Admin ${actor.name} envió correo de reset a ${target.name} <${target.email}>`,
+  });
+
+  res.json({ ok: true, message: `Enlace de recuperación enviado a ${target.email}` });
 });
 
 export default router;

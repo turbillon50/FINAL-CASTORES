@@ -4,7 +4,7 @@ import { db, documentsTable, projectsTable, usersTable } from "@workspace/db";
 import { getRequestUser } from "../lib/getRequestUser";
 import { resolveAuthedUser } from "../lib/authContext";
 import { hasPermission } from "../lib/permissions";
-import { getAccessibleProjectIds } from "../lib/projectAccess";
+import { getAccessibleProjectIds, canAccessProject } from "../lib/projectAccess";
 import { formatZodError } from "../lib/zodError";
 import {
   CreateDocumentBody,
@@ -70,6 +70,13 @@ router.post("/documents", async (req, res): Promise<void> => {
 });
 
 router.get("/documents/:id", async (req, res): Promise<void> => {
+  const user = await getRequestUser(req);
+  if (!user) { res.status(401).json({ error: "No autenticado" }); return; }
+  if (!await hasPermission(user.role, "documentsLegalView")) {
+    res.status(403).json({ error: "No tienes permiso para ver documentos" });
+    return;
+  }
+
   const params = GetDocumentParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: formatZodError(params.error) });
@@ -79,6 +86,12 @@ router.get("/documents/:id", async (req, res): Promise<void> => {
   const [doc] = await db.select().from(documentsTable).where(eq(documentsTable.id, params.data.id));
   if (!doc) {
     res.status(404).json({ error: "Documento no encontrado" });
+    return;
+  }
+  // Documents may be associated with a specific project (via projectId) or
+  // be global to the org. Project-scoped documents must respect access.
+  if (doc.projectId != null && !(await canAccessProject(user, doc.projectId))) {
+    res.status(403).json({ error: "Acceso denegado" });
     return;
   }
 

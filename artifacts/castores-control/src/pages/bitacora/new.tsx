@@ -2,7 +2,7 @@ import { MainLayout } from "@/components/layout/main-layout";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useCreateLog, useSignLog, useListProjects } from "@workspace/api-client-react";
+import { useCreateLog, useListProjects } from "@workspace/api-client-react";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -45,7 +45,6 @@ export default function NewBitacoraEntry() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const createLog = useCreateLog();
-  const signLog = useSignLog();
   const { data: projects = [] } = useListProjects();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [photoFiles, setPhotoFiles] = useState<File[]>([]);
@@ -87,23 +86,20 @@ export default function NewBitacoraEntry() {
 
       const photoDataUrls = photoPreviews;
 
+      // Mandamos las firmas en el mismo POST de creación: la versión vieja
+      // hacía 2 llamadas extra a /logs/:id/signatures con role-gate, y si el
+      // supervisor recogía la firma del cliente físicamente presente la
+      // segunda llamada caía en 403, el catch tragaba el error y la bitácora
+      // quedaba creada sin firmas — el usuario veía "no quedan guardadas las
+      // firmas". Ahora se persisten atómicamente en el insert.
       const log = await createLog.mutateAsync({
-        data: { ...rest, photos: photoDataUrls },
+        data: {
+          ...rest,
+          photos: photoDataUrls,
+          ...(supervisorSignatureData ? { supervisorSignature: supervisorSignatureData } : {}),
+          ...(clientSignatureData ? { clientSignature: clientSignatureData } : {}),
+        },
       });
-
-      if (supervisorSignatureData) {
-        await signLog.mutateAsync({
-          id: log.id,
-          data: { signatureType: "supervisor", signatureData: supervisorSignatureData },
-        });
-      }
-
-      if (clientSignatureData) {
-        await signLog.mutateAsync({
-          id: log.id,
-          data: { signatureType: "client", signatureData: clientSignatureData },
-        });
-      }
 
       toast({ title: "Entrada Guardada", description: "La bitácora fue registrada correctamente." });
       setLocation(`/bitacora/${log.id}`);

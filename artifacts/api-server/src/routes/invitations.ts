@@ -35,14 +35,20 @@ router.get("/invite/:code", (req, res): void => {
 });
 
 // POST /invitations/validate — public, no auth required
+//
+// Also used by the InvitationSplash component (frontend) to render a friendly
+// pre-form welcome with role + inviter name. Response shape:
+//   { valid, role, label, isMasterKey?, invitedBy?, reason? }
 router.post("/invitations/validate", async (req, res): Promise<void> => {
   const { code } = req.body as { code?: string };
   if (!code) { res.status(400).json({ valid: false }); return; }
   const normalizedCode = code.trim().toUpperCase();
 
-  // Special master admin key
+  // Special master admin key — keep the response minimal so the front-end
+  // never needs to display this to the user (the master phrase is intentionally
+  // not surfaced in the public UI).
   if (isMasterAdminKey(normalizedCode)) {
-    res.json({ valid: true, role: "admin", label: "Administrador Master", isMasterKey: true });
+    res.json({ valid: true, role: "admin", label: null, isMasterKey: true });
     return;
   }
 
@@ -66,7 +72,21 @@ router.post("/invitations/validate", async (req, res): Promise<void> => {
       return;
     }
 
-    res.json({ valid: true, role: inv.role, label: inv.label ?? null });
+    // Include inviter name when available so the splash can show "Te invitó: …"
+    let invitedBy: string | null = null;
+    if (inv.createdBy != null) {
+      const [creator] = await db.select({ name: usersTable.name })
+        .from(usersTable)
+        .where(eq(usersTable.id, inv.createdBy));
+      invitedBy = creator?.name ?? null;
+    }
+
+    res.json({
+      valid: true,
+      role: inv.role,
+      label: inv.label ?? null,
+      invitedBy,
+    });
   } catch (err: unknown) {
     const e = err as { code?: string; message?: string };
     req.log?.error?.({ err, code: e?.code, message: e?.message }, "invitations/validate db error");

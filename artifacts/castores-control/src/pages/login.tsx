@@ -22,26 +22,45 @@ export default function Login() {
     : false;
 
   // Detect invite code from URL query param.
-  // Also fall back to localStorage when the server-side /api/invite/:code handler
-  // set the code there and then redirected here — in that case the URL includes a
-  // cache-buster "_t" param even if iOS dropped "?code=" when launching the PWA.
+  // Detect an invitation pending. We check three signals in order:
+  //   1) ?code=XYZ in the URL — direct link
+  //   2) ?_t=… in the URL + localStorage — server-side /api/invite redirect
+  //   3) localStorage castores_invite_code + recent castores_invite_pending
+  //      timestamp (≤30min) — covers the iOS PWA case where the manifest's
+  //      start_url ("/") wins over the actual ?code= URL when the invitee
+  //      taps the WhatsApp link with the PWA installed.
   const _urlParams = typeof window !== "undefined"
     ? new URLSearchParams(window.location.search) : null;
-  const hasInviteCode = !!(_urlParams?.has("code") ||
-    (_urlParams?.has("_t") && !!localStorage.getItem("castores_invite_code")));
+  const _storedCode = typeof window !== "undefined"
+    ? localStorage.getItem("castores_invite_code") : null;
+  const _pendingTs = typeof window !== "undefined"
+    ? Number(localStorage.getItem("castores_invite_pending") || "0") : 0;
+  const _pendingFresh = _pendingTs > 0 && Date.now() - _pendingTs < 30 * 60 * 1000;
+  const hasInviteCode = !!(
+    _urlParams?.has("code") ||
+    (_urlParams?.has("_t") && !!_storedCode) ||
+    (_pendingFresh && !!_storedCode)
+  );
 
   // Capture invite code from URL (or localStorage fallback for iOS PWA)
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
     const urlCode = params.get("code");
-    // Use localStorage fallback only when arriving from server redirect (has _t)
-    const storedCode = params.has("_t") ? localStorage.getItem("castores_invite_code") : null;
+    // Trust localStorage in two cases: (a) we came back from the server-side
+    // redirect that left a "_t" cache-buster on the URL, or (b) someone marked
+    // the invite as pending recently (covers the iOS PWA scope hijack).
+    const fallbackOK = params.has("_t") || _pendingFresh;
+    const storedCode = fallbackOK ? localStorage.getItem("castores_invite_code") : null;
     const code = urlCode?.toUpperCase() ?? storedCode?.toUpperCase() ?? null;
     if (code) {
       localStorage.setItem("castores_invite_code", code);
+      // Refresh the pending marker so a hop through Login (e.g. PWA scope
+      // intercept) doesn't reset its TTL just because we re-entered.
+      localStorage.setItem("castores_invite_pending", String(Date.now()));
       setInviteCode(code);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Once Clerk loads, decide what to do
@@ -244,11 +263,33 @@ export default function Login() {
               transition={{ delay: 0.4 }}
               whileHover={{ y: -2 }}
               whileTap={{ scale: 0.98 }}
-              onClick={() => {
-                clearDemoUser();
-                setLocation("/sign-up");
+              disabled={signingOut}
+              onClick={async () => {
+                setSigningOut(true);
+                try {
+                  // Force a clean slate so a previous user's Clerk session
+                  // (e.g. an admin already logged in on this device) is not
+                  // silently reused — that's how new sign-ups were ending up
+                  // as the existing admin instead of creating a fresh account.
+                  if (isSignedIn) {
+                    await signOut().catch(() => {});
+                  }
+                  clearDemoUser();
+                  // NOTE: do NOT drop castores_invite_code here. If the user
+                  // arrived through an invitation link we want the code to
+                  // survive across the hard nav so /complete-profile picks it
+                  // up automatically. Other castores_* keys are abandonment
+                  // state from older signup attempts and are safe to wipe.
+                  ["castores_signup_step","castores_signup_email","castores_real_user","castores_signup_pending"]
+                    .forEach(k => { try { localStorage.removeItem(k); } catch { /* ignore */ } });
+                  // Hard navigate so Clerk's signOut fully propagates before
+                  // SignUpPage runs its isSignedIn checks.
+                  window.location.assign(`${import.meta.env.BASE_URL}sign-up`);
+                } finally {
+                  setSigningOut(false);
+                }
               }}
-              className="w-full flex items-center justify-center gap-2.5 py-3.5 px-5 rounded-2xl text-sm font-bold"
+              className="w-full flex items-center justify-center gap-2.5 py-3.5 px-5 rounded-2xl text-sm font-bold disabled:opacity-60"
               style={{
                 background: "white",
                 color: "#1a1612",
@@ -256,11 +297,11 @@ export default function Login() {
                 boxShadow: "0 1px 8px rgba(0,0,0,0.06)",
               }}
             >
-              Solicitar acceso al sistema →
+              {signingOut ? "Preparando..." : "Solicitar acceso al sistema →"}
             </motion.button>
           </div>
 
-          {/* Separador con info — dos rutas de acceso */}
+          {/* Separador con info — acceso por invitación */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -269,24 +310,11 @@ export default function Login() {
             style={{ background: "rgba(200,149,42,0.06)", border: "1px solid rgba(200,149,42,0.15)" }}
           >
             <p className="text-xs font-semibold mb-2" style={{ color: "#C8952A" }}>
-              🔑 ¿Cómo entrar al sistema?
+              🔑 ¿Tienes una clave de invitación?
             </p>
-            <ol className="text-[11px] leading-relaxed space-y-1.5 list-none" style={{ color: "rgba(26,22,18,0.55)" }}>
-              <li>
-                <span className="font-bold" style={{ color: "#1a1612" }}>1.</span>{" "}
-                Toca <span className="font-semibold">Solicitar acceso al sistema</span> y registra tu correo.
-              </li>
-              <li>
-                <span className="font-bold" style={{ color: "#1a1612" }}>2.</span>{" "}
-                Cuando te pida la clave, ingresa una de estas:
-              </li>
-              <li className="pl-4">
-                · <span className="font-mono font-semibold">CASTORES</span> — para administrador general
-              </li>
-              <li className="pl-4">
-                · La clave que te compartió tu administrador — para tu rol asignado
-              </li>
-            </ol>
+            <p className="text-[11px] leading-relaxed" style={{ color: "rgba(26,22,18,0.55)" }}>
+              Si un administrador te compartió una clave por WhatsApp o mensaje directo, toca <span className="font-semibold">Solicitar acceso al sistema</span> y úsala en el formulario para obtener acceso inmediato.
+            </p>
           </motion.div>
 
           {/* PWA install */}

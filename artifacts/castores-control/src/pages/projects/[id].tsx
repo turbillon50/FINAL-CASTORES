@@ -162,11 +162,26 @@ const STATUS_LABELS: Record<string, string> = {
   cancelled: "Cancelada",
 };
 
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label className="block">
+      <span className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">{label}</span>
+      {children}
+    </label>
+  );
+}
+
 export default function ProjectDetail() {
   const { id } = useParams();
   const projectId = Number(id);
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const [editOpen, setEditOpen] = useState(false);
+  const [editForm, setEditForm] = useState<any>({});
+  const [editSaving, setEditSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const { data: project, isLoading: projectLoading } = useGetProject(projectId, {
     query: { queryKey: ["get-project", projectId], enabled: !!projectId }
@@ -189,6 +204,70 @@ export default function ProjectDetail() {
     return new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" }).format(amount);
   };
 
+  const openEdit = () => {
+    setEditForm({
+      name: project.name ?? "",
+      description: project.description ?? "",
+      location: project.location ?? "",
+      latitude: project.latitude ?? "",
+      longitude: project.longitude ?? "",
+      startDate: project.startDate ?? "",
+      endDate: project.endDate ?? "",
+      budget: project.budget ?? "",
+      progressPercent: project.progressPercent ?? 0,
+      status: project.status ?? "active",
+    });
+    setEditOpen(true);
+  };
+
+  const submitEdit = async () => {
+    setEditSaving(true);
+    try {
+      const payload: Record<string, unknown> = {};
+      const f = editForm;
+      if (f.name !== project.name) payload.name = f.name;
+      if (f.description !== (project.description ?? "")) payload.description = f.description || null;
+      if (f.location !== (project.location ?? "")) payload.location = f.location || null;
+      if (String(f.latitude) !== String(project.latitude ?? "")) payload.latitude = f.latitude === "" ? null : Number(f.latitude);
+      if (String(f.longitude) !== String(project.longitude ?? "")) payload.longitude = f.longitude === "" ? null : Number(f.longitude);
+      if (f.startDate !== (project.startDate ?? "")) payload.startDate = f.startDate || null;
+      if (f.endDate !== (project.endDate ?? "")) payload.endDate = f.endDate || null;
+      if (String(f.budget) !== String(project.budget ?? "")) payload.budget = f.budget === "" ? null : Number(f.budget);
+      if (Number(f.progressPercent) !== (project.progressPercent ?? 0)) payload.progressPercent = Number(f.progressPercent);
+      if (f.status !== project.status) payload.status = f.status;
+
+      const res = await teamFetch(`/projects/${projectId}`, { method: "PATCH", body: JSON.stringify(payload) });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "No se pudo actualizar la obra");
+      }
+      toast({ title: "Obra actualizada", description: "Los cambios fueron guardados." });
+      setEditOpen(false);
+      qc.invalidateQueries({ queryKey: ["get-project", projectId] });
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!confirm(`¿Eliminar la obra "${project.name}"?\n\nEsto borra TODAS sus bitácoras, materiales, documentos y reportes. Esta acción queda registrada en la auditoría y no se puede deshacer.`)) return;
+    setDeleting(true);
+    try {
+      const res = await teamFetch(`/projects/${projectId}`, { method: "DELETE" });
+      if (!res.ok && res.status !== 204) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "No se pudo eliminar");
+      }
+      toast({ title: "Obra eliminada" });
+      window.location.href = "/projects";
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+      setDeleting(false);
+    }
+  };
+
   return (
     <MainLayout>
       {/* Hero Banner */}
@@ -202,7 +281,7 @@ export default function ProjectDetail() {
 
         <div className="absolute inset-x-0 bottom-0 p-6 md:p-10 flex flex-col md:flex-row md:items-end justify-between gap-6 z-10 max-w-7xl mx-auto">
           <div>
-            <div className="flex items-center gap-3 mb-3">
+            <div className="flex items-center gap-3 mb-3 flex-wrap">
               <Badge variant="outline" className="bg-background/50 backdrop-blur-md border-primary text-primary font-bold tracking-wider uppercase">
                 {STATUS_LABELS[project.status] ?? project.status}
               </Badge>
@@ -210,6 +289,16 @@ export default function ProjectDetail() {
                 <div className="flex items-center text-white/80 text-sm gap-1 bg-black/40 backdrop-blur-md px-2 py-1 rounded-md">
                   <Icons.Location className="w-4 h-4" />
                   <span>{project.location}</span>
+                </div>
+              )}
+              {isAdmin && (
+                <div className="flex items-center gap-2 ml-auto md:ml-0">
+                  <Button onClick={openEdit} size="sm" variant="outline" className="bg-background/70 backdrop-blur-md gap-1.5">
+                    <Icons.Edit className="w-3.5 h-3.5" /> Editar obra
+                  </Button>
+                  <Button onClick={handleDelete} disabled={deleting} size="sm" variant="outline" className="bg-background/70 backdrop-blur-md gap-1.5 border-red-300 text-red-700 hover:bg-red-50">
+                    <Icons.Delete className="w-3.5 h-3.5" /> {deleting ? "..." : "Eliminar"}
+                  </Button>
                 </div>
               )}
             </div>
@@ -386,6 +475,68 @@ export default function ProjectDetail() {
           )}
         </div>
       </Tabs>
+
+      {/* Modal de Editar Obra (admin) */}
+      {editOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }} onClick={() => !editSaving && setEditOpen(false)}>
+          <div className="bg-background border border-border rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="p-6 border-b border-border">
+              <h3 className="font-display text-2xl">Editar obra</h3>
+              <p className="text-sm text-muted-foreground mt-1">Cambia cualquier campo. Los cambios se guardan al confirmar.</p>
+            </div>
+            <div className="p-6 space-y-4">
+              <Field label="Nombre">
+                <input className="edit-input" value={editForm.name ?? ""} onChange={e => setEditForm({ ...editForm, name: e.target.value })} />
+              </Field>
+              <Field label="Descripción">
+                <textarea className="edit-input min-h-[70px]" value={editForm.description ?? ""} onChange={e => setEditForm({ ...editForm, description: e.target.value })} />
+              </Field>
+              <Field label="Ubicación (texto)">
+                <input className="edit-input" placeholder="Ej. Av. Reforma 123, CDMX" value={editForm.location ?? ""} onChange={e => setEditForm({ ...editForm, location: e.target.value })} />
+              </Field>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Latitud">
+                  <input className="edit-input" inputMode="decimal" placeholder="19.4326" value={editForm.latitude ?? ""} onChange={e => setEditForm({ ...editForm, latitude: e.target.value })} />
+                </Field>
+                <Field label="Longitud">
+                  <input className="edit-input" inputMode="decimal" placeholder="-99.1332" value={editForm.longitude ?? ""} onChange={e => setEditForm({ ...editForm, longitude: e.target.value })} />
+                </Field>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Inicio">
+                  <input type="date" className="edit-input" value={editForm.startDate ?? ""} onChange={e => setEditForm({ ...editForm, startDate: e.target.value })} />
+                </Field>
+                <Field label="Entrega">
+                  <input type="date" className="edit-input" value={editForm.endDate ?? ""} onChange={e => setEditForm({ ...editForm, endDate: e.target.value })} />
+                </Field>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Presupuesto (MXN)">
+                  <input className="edit-input" inputMode="numeric" value={editForm.budget ?? ""} onChange={e => setEditForm({ ...editForm, budget: e.target.value })} />
+                </Field>
+                <Field label="Avance (%)">
+                  <input className="edit-input" type="number" min={0} max={100} value={editForm.progressPercent ?? 0} onChange={e => setEditForm({ ...editForm, progressPercent: e.target.value })} />
+                </Field>
+              </div>
+              <Field label="Estado">
+                <select className="edit-input" value={editForm.status ?? "active"} onChange={e => setEditForm({ ...editForm, status: e.target.value })}>
+                  <option value="active">Activa</option>
+                  <option value="paused">Pausada</option>
+                  <option value="completed">Completada</option>
+                  <option value="cancelled">Cancelada</option>
+                </select>
+              </Field>
+            </div>
+            <div className="p-6 border-t border-border flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setEditOpen(false)} disabled={editSaving}>Cancelar</Button>
+              <Button onClick={submitEdit} disabled={editSaving} className="bg-primary text-primary-foreground hover:bg-primary/90">
+                {editSaving ? "Guardando..." : "Guardar cambios"}
+              </Button>
+            </div>
+          </div>
+          <style>{`.edit-input { width: 100%; padding: 0.6rem 0.85rem; border-radius: 0.6rem; border: 1px solid hsl(var(--border)); background: hsl(var(--background)); font-size: 0.875rem; outline: none; transition: border-color 0.15s; } .edit-input:focus { border-color: hsl(var(--primary)); box-shadow: 0 0 0 3px hsl(var(--primary) / 0.1); }`}</style>
+        </div>
+      )}
     </MainLayout>
   );
 }

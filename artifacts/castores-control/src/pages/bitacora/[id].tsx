@@ -1,6 +1,6 @@
 import { MainLayout } from "@/components/layout/main-layout";
-import { useGetLog, useSubmitLog, useSignLog } from "@workspace/api-client-react";
-import { useParams, Link } from "wouter";
+import { useGetLog, useSubmitLog, useSignLog, getAuthToken } from "@workspace/api-client-react";
+import { useParams, Link, useLocation } from "wouter";
 import { Icons } from "@/lib/icons";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,12 +9,18 @@ import { es } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
 import { SignaturePad } from "@/components/ui/signature-pad";
 import { useState } from "react";
+import { useAuth } from "@/lib/auth";
+import { apiUrl } from "@/lib/api-url";
 
 export default function BitacoraDetail() {
   const { id } = useParams();
   const logId = Number(id);
   const { toast } = useToast();
   const [clientSig, setClientSig] = useState("");
+  const { user } = useAuth();
+  const [, setLocation] = useLocation();
+  const isAdmin = user?.role === "admin";
+  const [deleting, setDeleting] = useState(false);
 
   const { data: log, isLoading, refetch } = useGetLog(logId, {
     query: { queryKey: ["get-log", logId], enabled: !!logId }
@@ -22,6 +28,25 @@ export default function BitacoraDetail() {
 
   const submitLog = useSubmitLog();
   const signLog = useSignLog();
+
+  const handleAdminDelete = async () => {
+    if (!confirm("¿Eliminar esta bitácora? Esta acción no se puede deshacer y queda registrada en la auditoría.")) return;
+    setDeleting(true);
+    try {
+      const token = await getAuthToken().catch(() => null);
+      const res = await fetch(apiUrl(`/api/logs/${logId}`), {
+        method: "DELETE",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error(await res.text());
+      toast({ title: "Bitácora eliminada", description: "El registro fue eliminado." });
+      setLocation("/bitacora");
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message || "No se pudo eliminar", variant: "destructive" });
+      setDeleting(false);
+    }
+  };
 
   if (isLoading) return <MainLayout><div className="p-8 text-muted-foreground">Cargando...</div></MainLayout>;
   if (!log) return <MainLayout><div className="p-8 text-muted-foreground">Registro no encontrado</div></MainLayout>;
@@ -60,13 +85,24 @@ export default function BitacoraDetail() {
             <h1 className="font-display text-4xl md:text-5xl tracking-wide">{log.activity}</h1>
           </div>
 
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="flex items-center gap-3 shrink-0 flex-wrap">
             <Badge className={`text-sm px-3 py-1 font-bold uppercase tracking-wider border-none ${log.isSubmitted ? 'bg-[#2ECC71] text-white' : 'bg-[#F39C12] text-white'}`}>
               {log.isSubmitted ? 'Enviado' : 'Borrador'}
             </Badge>
             <Button variant="outline" className="gap-2 print:hidden" onClick={() => window.print()}>
               <Icons.Download className="w-4 h-4" /> PDF
             </Button>
+            {isAdmin && (
+              <Button
+                variant="outline"
+                className="gap-2 print:hidden border-red-300 text-red-700 hover:bg-red-50"
+                onClick={handleAdminDelete}
+                disabled={deleting}
+                title="Solo el administrador puede eliminar"
+              >
+                <Icons.Delete className="w-4 h-4" /> {deleting ? "Eliminando..." : "Eliminar"}
+              </Button>
+            )}
           </div>
         </header>
 

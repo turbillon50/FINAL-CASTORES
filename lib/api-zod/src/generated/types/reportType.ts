@@ -9,10 +9,7 @@
 export type ReportType = (typeof ReportType)[keyof typeof ReportType];
 
 export const ReportType = {
-  daily: "daily",
-  weekly: "weekly",
-  monthly: "monthly",
-  materials: "materials",
-  cost: "cost",
-  progress: "progress",
+  avance: "avance",
+  bitacora: "bitacora",
+  materiales: "materiales",
 } as const;
