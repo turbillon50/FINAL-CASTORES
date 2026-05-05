@@ -257,4 +257,243 @@ router.post("/admin/db-init", async (req, res): Promise<void> => {
   }
 });
 
+/**
+ * POST /api/admin/diagnose-user
+ * Master-phrase-protected diagnóstico + repair de cuenta atorada.
+ *
+ * Body: {
+ *   phrase: "CASTORES",
+ *   email: "ventas@castoresmty.com",
+ *   action?: "diagnose" | "set-temp-password" | "send-reset" | "reactivate" | "relink-clerk",
+ *   newPassword?: string  // requerido solo cuando action="set-temp-password"
+ * }
+ *
+ * Devuelve el estado de la cuenta en nuestra DB y en Clerk, junto con el
+ * resultado de la acción de reparación si se pidió. Pensado para destrabar
+ * usuarios desde un cliente HTTP / curl sin tener que tocar la DB
+ * directamente ni el dashboard de Clerk.
+ */
+router.post("/admin/diagnose-user", async (req, res): Promise<void> => {
+  const { phrase, email: rawEmail, action = "diagnose", newPassword } = req.body as {
+    phrase?: string;
+    email?: string;
+    action?: string;
+    newPassword?: string;
+  };
+
+  if (!phrase || !isMasterAdminKey(phrase)) {
+    res.status(403).json({ error: "Frase inválida" });
+    return;
+  }
+  if (!rawEmail) {
+    res.status(400).json({ error: "Falta email" });
+    return;
+  }
+  const email = rawEmail.trim().toLowerCase();
+
+  const CLERK_SECRET = process.env["CLERK_SECRET_KEY"] ?? "";
+  if (!CLERK_SECRET) {
+    res.status(503).json({ error: "CLERK_SECRET_KEY no configurada en el servidor" });
+    return;
+  }
+
+  async function clerk(path: string, init: RequestInit = {}): Promise<{ ok: boolean; status: number; body: any }> {
+    const r = await fetch(`https://api.clerk.com/v1${path}`, {
+      ...init,
+      headers: {
+        ...(init.headers ?? {}),
+        Authorization: `Bearer ${CLERK_SECRET}`,
+        "Content-Type": "application/json",
+      },
+    });
+    const text = await r.text();
+    let body: any = null;
+    try { body = text ? JSON.parse(text) : null; } catch { body = text; }
+    return { ok: r.ok, status: r.status, body };
+  }
+
+  const { clerkId: explicitClerkId } = req.body as { clerkId?: string };
+
+  const client = await pool.connect();
+  try {
+    // 1) DB lookup
+    const dbResp = await client.query(
+      'SELECT id, name, email, role, is_active, approval_status, clerk_id, created_at FROM users WHERE LOWER(email) = $1 LIMIT 1',
+      [email]
+    );
+    const dbUser = dbResp.rows[0] ?? null;
+
+    // 2) Clerk lookup. Si vino clerkId explícito, lookup directo por ID;
+    // si no, buscar por email. También recuperamos por dbUser.clerk_id
+    // si difiere para detectar el caso "DB tiene un clerk_id que ya no
+    // existe / apunta a otro user".
+    const clerkList = await clerk(`/users?email_address[]=${encodeURIComponent(email)}&limit=1`);
+    const clerkArr = Array.isArray(clerkList.body) ? clerkList.body : (clerkList.body?.data ?? []);
+    const clerkUser = Array.isArray(clerkArr) && clerkArr.length > 0 ? clerkArr[0] : null;
+
+    // Sondeo extra: si la DB apunta a un clerk_id distinto, vamos a verlo
+    const dbLinkedClerk =
+      dbUser && dbUser.clerk_id && (!clerkUser || clerkUser.id !== dbUser.clerk_id)
+        ? await clerk(`/users/${dbUser.clerk_id}`)
+        : null;
+    const explicitClerk = explicitClerkId ? await clerk(`/users/${explicitClerkId}`) : null;
+
+    const diagnosis = {
+      input: { email },
+      db: dbUser
+        ? {
+            exists: true,
+            id: dbUser.id,
+            name: dbUser.name,
+            role: dbUser.role,
+            isActive: dbUser.is_active,
+            approvalStatus: dbUser.approval_status,
+            clerkId: dbUser.clerk_id,
+            createdAt: dbUser.created_at,
+          }
+        : { exists: false },
+      clerk: clerkUser
+        ? {
+            exists: true,
+            id: clerkUser.id,
+            primaryEmail: clerkUser.email_addresses?.find((e: any) => e.id === clerkUser.primary_email_address_id)?.email_address ?? null,
+            hasPassword: !!clerkUser.password_enabled,
+            banned: !!clerkUser.banned,
+            locked: !!clerkUser.locked,
+            createdAt: clerkUser.created_at,
+            lastSignInAt: clerkUser.last_sign_in_at,
+          }
+        : { exists: false },
+      dbLinkedClerk: dbLinkedClerk
+        ? dbLinkedClerk.ok
+          ? {
+              exists: true,
+              id: dbLinkedClerk.body.id,
+              primaryEmail: dbLinkedClerk.body.email_addresses?.find((e: any) => e.id === dbLinkedClerk.body.primary_email_address_id)?.email_address ?? null,
+              hasPassword: !!dbLinkedClerk.body.password_enabled,
+              banned: !!dbLinkedClerk.body.banned,
+              locked: !!dbLinkedClerk.body.locked,
+            }
+          : { exists: false, status: dbLinkedClerk.status }
+        : null,
+      explicitClerk: explicitClerk
+        ? explicitClerk.ok
+          ? {
+              exists: true,
+              id: explicitClerk.body.id,
+              primaryEmail: explicitClerk.body.email_addresses?.find((e: any) => e.id === explicitClerk.body.primary_email_address_id)?.email_address ?? null,
+              hasPassword: !!explicitClerk.body.password_enabled,
+              emails: (explicitClerk.body.email_addresses ?? []).map((e: any) => e.email_address),
+            }
+          : { exists: false, status: explicitClerk.status }
+        : null,
+      problems: [] as string[],
+    };
+
+    if (!dbUser && !clerkUser) diagnosis.problems.push("Usuario no existe en DB ni en Clerk");
+    if (dbUser && !clerkUser) diagnosis.problems.push("Existe en DB pero no en Clerk — no podrá iniciar sesión hasta crearse en Clerk");
+    if (!dbUser && clerkUser) diagnosis.problems.push("Existe en Clerk pero no en nuestra DB — login fallará en el step de validar usuario activo");
+    if (dbUser && clerkUser && (!dbUser.clerk_id || dbUser.clerk_id !== clerkUser.id)) {
+      diagnosis.problems.push(`clerk_id en DB (${dbUser.clerk_id ?? "null"}) no coincide con Clerk (${clerkUser.id})`);
+    }
+    if (dbUser && !dbUser.is_active) diagnosis.problems.push("Cuenta marcada inactiva en DB");
+    if (clerkUser && clerkUser.banned) diagnosis.problems.push("Cuenta baneada en Clerk");
+    if (clerkUser && clerkUser.locked) diagnosis.problems.push("Cuenta bloqueada en Clerk (probablemente por intentos fallidos)");
+    if (clerkUser && !clerkUser.password_enabled) diagnosis.problems.push("Clerk indica que el usuario no tiene contraseña configurada");
+
+    // 3) Acción de reparación opcional
+    const repair: Record<string, unknown> = {};
+
+    if (action === "diagnose") {
+      // nada más
+    } else if (action === "reactivate") {
+      if (!dbUser) {
+        repair.error = "No hay registro en DB para reactivar";
+      } else {
+        await client.query('UPDATE users SET is_active = true, approval_status = $1 WHERE id = $2', ["approved", dbUser.id]);
+        repair.dbReactivated = true;
+      }
+      if (clerkUser?.locked) {
+        const r = await clerk(`/users/${clerkUser.id}/unlock`, { method: "POST" });
+        repair.clerkUnlocked = r.ok;
+        if (!r.ok) repair.clerkUnlockError = r.body;
+      }
+    } else if (action === "relink-clerk") {
+      if (!dbUser || !clerkUser) {
+        repair.error = "Hace falta que el usuario exista en ambos lados para relinkearlo";
+      } else {
+        await client.query('UPDATE users SET clerk_id = $1 WHERE id = $2', [clerkUser.id, dbUser.id]);
+        repair.clerkIdLinked = clerkUser.id;
+      }
+    } else if (action === "set-temp-password") {
+      // Cuando el lookup por email devuelve un Clerk user distinto al que
+      // está linkeado en la DB (caso típico de email duplicado en otra
+      // cuenta), preferimos el clerk_id que vive en NUESTRA DB porque
+      // ese es el dueño canónico del registro local.
+      const targetClerkId = explicitClerkId
+        ?? (dbUser?.clerk_id && dbLinkedClerk?.ok ? dbUser.clerk_id : clerkUser?.id);
+      if (!targetClerkId) {
+        repair.error = "No hay un Clerk user al que setearle contraseña";
+      } else if (!newPassword || newPassword.length < 8) {
+        repair.error = "newPassword es requerido (mínimo 8 caracteres)";
+      } else {
+        const r = await clerk(`/users/${targetClerkId}`, {
+          method: "PATCH",
+          body: JSON.stringify({
+            password: newPassword,
+            skip_password_checks: false,
+            sign_out_of_other_sessions: true,
+          }),
+        });
+        repair.clerkPasswordReset = r.ok;
+        repair.targetClerkId = targetClerkId;
+        if (!r.ok) repair.clerkPasswordResetError = r.body;
+      }
+    } else if (action === "remove-secondary-email") {
+      // Body: { phrase, email: emailDelDueñoQueQueremosLiberar, clerkId: cuentaDeDondeQuitarEmail }
+      const stripFromClerkId = explicitClerkId;
+      if (!stripFromClerkId) {
+        repair.error = "Falta clerkId (la cuenta de la que quitar el email)";
+      } else {
+        const owner = await clerk(`/users/${stripFromClerkId}`);
+        if (!owner.ok) {
+          repair.error = `No se encontró el Clerk user ${stripFromClerkId}`;
+        } else {
+          const matchingEmail = (owner.body.email_addresses ?? []).find(
+            (e: any) => (e.email_address ?? "").toLowerCase() === email
+          );
+          if (!matchingEmail) {
+            repair.error = `${email} no está asociado a ${stripFromClerkId}`;
+          } else if (matchingEmail.id === owner.body.primary_email_address_id) {
+            repair.error = `${email} es el email PRIMARIO de ${stripFromClerkId}; no lo quito automáticamente`;
+          } else {
+            const del = await clerk(`/email_addresses/${matchingEmail.id}`, { method: "DELETE" });
+            repair.removedEmailId = matchingEmail.id;
+            repair.removedFromClerkId = stripFromClerkId;
+            repair.removedOk = del.ok;
+            if (!del.ok) repair.removedError = del.body;
+          }
+        }
+      }
+    } else if (action === "send-reset") {
+      // Reusa el flujo /auth/forgot-password externamente — aquí solo
+      // confirmamos que la cuenta existe y está apta para que llegue.
+      if (!dbUser || !dbUser.is_active) {
+        repair.error = "El usuario no está activo en DB; el correo de reset no se enviaría";
+      } else {
+        repair.note = "Llama a POST /api/auth/forgot-password con este email para que llegue el correo.";
+      }
+    } else {
+      repair.error = `Acción no reconocida: ${action}`;
+    }
+
+    res.json({ ok: true, diagnosis, action, repair });
+  } catch (err: unknown) {
+    const e = err as { message?: string };
+    res.status(500).json({ error: e.message ?? "diagnose-user failed" });
+  } finally {
+    client.release();
+  }
+});
+
 export default router;

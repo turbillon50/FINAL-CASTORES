@@ -190,11 +190,37 @@ router.post("/auth/invite-login", async (req, res): Promise<void> => {
   const email = rawEmail.trim().toLowerCase();
 
   // 1) Find the Clerk user by email.
+  //
+  // Defensa contra emails duplicados entre cuentas: Clerk indexa históricamente
+  // emails que estuvieron asociados a un user (incluso después de borrarse).
+  // Pedimos hasta 5 matches y nos quedamos con el user cuyo PRIMARY email
+  // coincide con el que se está logeando. Si nadie tiene ese email como
+  // primario, caemos al primer resultado (comportamiento anterior).
+  //
+  // Adicionalmente, cruzamos contra nuestra DB: si el email matchea un
+  // registro local con clerk_id, ése es el dueño canónico.
   let clerkUserId: string | null = null;
   try {
-    const list = await clerkApi(`/users?email_address[]=${encodeURIComponent(email)}&limit=1`);
+    const list = await clerkApi(`/users?email_address[]=${encodeURIComponent(email)}&limit=5`);
     const arr = Array.isArray(list) ? list : (list?.data ?? []);
-    if (Array.isArray(arr) && arr.length > 0) clerkUserId = arr[0].id;
+    if (Array.isArray(arr) && arr.length > 0) {
+      const findPrimaryMatch = (u: any): boolean => {
+        const primary = (u.email_addresses ?? []).find((e: any) => e.id === u.primary_email_address_id);
+        return primary && (primary.email_address ?? "").toLowerCase() === email;
+      };
+      const primaryMatch = arr.find(findPrimaryMatch);
+      clerkUserId = primaryMatch?.id ?? arr[0].id;
+    }
+
+    // Cross-check con nuestra DB: si nuestro registro local tiene un clerk_id,
+    // siempre prevalece — aunque Clerk devuelva otro user por colisión de
+    // emails antiguos.
+    try {
+      const [localUser] = await db.select().from(usersTable).where(eq(usersTable.email, email));
+      if (localUser?.clerkId) clerkUserId = localUser.clerkId;
+    } catch {
+      // si la DB falla seguimos con el resultado de Clerk
+    }
   } catch (err: unknown) {
     logger.error({ err }, "invite-login: lookup by email failed");
   }
