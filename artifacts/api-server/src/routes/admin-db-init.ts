@@ -483,6 +483,66 @@ router.post("/admin/diagnose-user", async (req, res): Promise<void> => {
       } else {
         repair.note = "Llama a POST /api/auth/forgot-password con este email para que llegue el correo.";
       }
+    } else if (action === "free-up-email") {
+      // Limpia TODO lo que esté reteniendo este email para que un sign-up
+      // nuevo funcione: borra (o anonimiza si hay FK constraint) la fila
+      // local, borra el Clerk user si su primary email coincide, y quita
+      // el email de cualquier otra cuenta Clerk donde aparezca como
+      // secundario. Es el "after action review" automático cuando el
+      // admin borró un usuario y la app sigue diciendo "ya está
+      // registrado".
+      const steps: any = {};
+
+      // 1) DB: hard delete; si FK falla, anonimiza
+      if (dbUser) {
+        try {
+          await client.query('DELETE FROM users WHERE id = $1', [dbUser.id]);
+          steps.dbHardDeleted = true;
+        } catch (e: any) {
+          if (e.code === "23503") {
+            // FK constraint: anonimizar para liberar email + romper login
+            const ts = Date.now();
+            const anon = `deleted_${dbUser.id}_${ts}@deleted.local`;
+            await client.query(
+              "UPDATE users SET email = $1, is_active = false, approval_status = 'rejected', clerk_id = NULL, name = $2 WHERE id = $3",
+              [anon, `[Eliminado] ${dbUser.name ?? "Usuario"}`, dbUser.id]
+            );
+            steps.dbAnonymized = true;
+            steps.dbAnonymizedReason = "FK constraint impedía hard-delete; se anonimizó para preservar bitácoras/materiales históricos";
+          } else {
+            steps.dbDeleteError = e.message ?? String(e);
+          }
+        }
+      } else {
+        steps.dbNoOp = "No había fila local con ese email";
+      }
+
+      // 2) Clerk: borrar todos los users que tengan este email como PRIMARY,
+      //    y quitar el email de los que lo tengan como secundario.
+      const list = await clerk(`/users?email_address[]=${encodeURIComponent(email)}&limit=20`);
+      const arr = Array.isArray(list.body) ? list.body : (list.body?.data ?? []);
+      const clerkResults: any[] = [];
+      if (Array.isArray(arr)) {
+        for (const u of arr) {
+          const primary = (u.email_addresses ?? []).find((e: any) => e.id === u.primary_email_address_id);
+          const isPrimary = primary && (primary.email_address ?? "").toLowerCase() === email;
+          const secondary = (u.email_addresses ?? []).find(
+            (e: any) => (e.email_address ?? "").toLowerCase() === email && e.id !== u.primary_email_address_id
+          );
+
+          if (isPrimary) {
+            const del = await clerk(`/users/${u.id}`, { method: "DELETE" });
+            clerkResults.push({ clerkId: u.id, action: "deleted_user_primary", ok: del.ok });
+          } else if (secondary) {
+            const del = await clerk(`/email_addresses/${secondary.id}`, { method: "DELETE" });
+            clerkResults.push({ clerkId: u.id, action: "removed_secondary_email", emailId: secondary.id, ok: del.ok });
+          }
+        }
+      }
+      steps.clerkResults = clerkResults;
+
+      repair.steps = steps;
+      repair.summary = "Email liberado; ya se puede usar para registrar una cuenta nueva.";
     } else {
       repair.error = `Acción no reconocida: ${action}`;
     }

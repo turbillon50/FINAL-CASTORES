@@ -297,13 +297,48 @@ router.delete("/users/:id", async (req, res): Promise<void> => {
     return;
   }
 
-  // Fetch clerkId before deleting so we can remove from Clerk too
-  const [target] = await db.select({ clerkId: usersTable.clerkId })
-    .from(usersTable).where(eq(usersTable.id, params.data.id));
+  // Fetch clerkId + name + email before mutating so podemos hacer
+  // anonimización de fallback (más abajo) y borrar de Clerk.
+  const [target] = await db.select({
+    clerkId: usersTable.clerkId,
+    name: usersTable.name,
+    email: usersTable.email,
+  }).from(usersTable).where(eq(usersTable.id, params.data.id));
 
-  await db.delete(usersTable).where(eq(usersTable.id, params.data.id));
+  if (!target) {
+    res.sendStatus(204);
+    return;
+  }
 
-  if (target?.clerkId) {
+  // Borrado: intentamos hard-delete primero. Si hay FK constraint
+  // (bitácoras, materiales, etc. apuntando al usuario) anonimizamos
+  // para liberar el email y deshabilitar la cuenta sin perder histórico.
+  // Antes este path fallaba silencioso y dejaba al usuario "borrado en
+  // UI pero presente en DB", lo que rompía cualquier intento de re-registro.
+  let didHardDelete = false;
+  let didAnonymize = false;
+  try {
+    await db.delete(usersTable).where(eq(usersTable.id, params.data.id));
+    didHardDelete = true;
+  } catch (err: any) {
+    if (err?.code === "23503") {
+      const ts = Date.now();
+      const anonEmail = `deleted_${params.data.id}_${ts}@deleted.local`;
+      await db.update(usersTable).set({
+        email: anonEmail,
+        clerkId: null,
+        isActive: false,
+        approvalStatus: "rejected",
+        name: `[Eliminado] ${target.name ?? "Usuario"}`,
+        updatedAt: new Date(),
+      }).where(eq(usersTable.id, params.data.id));
+      didAnonymize = true;
+    } else {
+      throw err;
+    }
+  }
+
+  if (target.clerkId) {
     try {
       await clerkClient.users.deleteUser(target.clerkId);
     } catch (e) {
@@ -311,7 +346,7 @@ router.delete("/users/:id", async (req, res): Promise<void> => {
     }
   }
 
-  res.sendStatus(204);
+  res.json({ ok: true, hardDeleted: didHardDelete, anonymized: didAnonymize });
 });
 
 /**
