@@ -6,32 +6,49 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { ClerkProvider, SignIn, useUser, useClerk, useAuth as useClerkAuth } from "@clerk/react";
 import { useSignUp } from "@clerk/react/legacy";
-import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, lazy, Suspense, type FormEvent } from "react";
 import { setBaseUrl, setDemoMode, setAuthTokenGetter, setClerkUserInfo } from "@workspace/api-client-react";
 import { apiUrl } from "@/lib/api-url";
 import NotFound from "@/pages/not-found";
 import Login from "@/pages/login";
-import Dashboard from "@/pages/dashboard";
-import Projects from "@/pages/projects/index";
-import ProjectDetail from "@/pages/projects/[id]";
-import Bitacora from "@/pages/bitacora/index";
-import NewBitacoraEntry from "@/pages/bitacora/new";
-import BitacoraDetail from "@/pages/bitacora/[id]";
-import Materiales from "@/pages/materiales";
-import Documentos from "@/pages/documentos";
-import Reportes from "@/pages/reportes";
-import Usuarios from "@/pages/usuarios";
-import Notificaciones from "@/pages/notificaciones";
-import Explorar from "@/pages/explorar";
 import CompleteProfile from "@/pages/complete-profile";
 import PendingApproval from "@/pages/pending-approval";
 import CuentaRechazada from "@/pages/cuenta-rechazada";
-import AdminPanel from "@/pages/admin";
-import Cuenta from "@/pages/cuenta";
-import FAQ from "@/pages/faq";
-import Terminos from "@/pages/legal-terminos";
-import Privacidad from "@/pages/legal-privacidad";
 import AdminAccessPage from "@/pages/admin-access";
+
+// Code-splitting: las páginas detrás de auth se bajan bajo demanda.
+// La primera carga del SPA solo trae el bundle del login + onboarding;
+// el dashboard, bitácora, reportes, etc. llegan en chunks separados al
+// momento de navegarlos. Esto reduce ~400kb de la primera descarga, lo
+// que se nota mucho en redes 4G de obra.
+const Dashboard = lazy(() => import("@/pages/dashboard"));
+const Projects = lazy(() => import("@/pages/projects/index"));
+const ProjectDetail = lazy(() => import("@/pages/projects/[id]"));
+const Bitacora = lazy(() => import("@/pages/bitacora/index"));
+const NewBitacoraEntry = lazy(() => import("@/pages/bitacora/new"));
+const BitacoraDetail = lazy(() => import("@/pages/bitacora/[id]"));
+const Materiales = lazy(() => import("@/pages/materiales"));
+const Documentos = lazy(() => import("@/pages/documentos"));
+const Reportes = lazy(() => import("@/pages/reportes"));
+const Usuarios = lazy(() => import("@/pages/usuarios"));
+const Notificaciones = lazy(() => import("@/pages/notificaciones"));
+const Explorar = lazy(() => import("@/pages/explorar"));
+const AdminPanel = lazy(() => import("@/pages/admin"));
+const Cuenta = lazy(() => import("@/pages/cuenta"));
+const FAQ = lazy(() => import("@/pages/faq"));
+const Terminos = lazy(() => import("@/pages/legal-terminos"));
+const Privacidad = lazy(() => import("@/pages/legal-privacidad"));
+
+function RouteFallback() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-[#f8f4ef]">
+      <div className="flex flex-col items-center gap-3">
+        <div className="w-10 h-10 rounded-full border-2 border-amber-200 border-t-amber-600 animate-spin" />
+        <p className="text-xs text-gray-500 tracking-wider">CARGANDO…</p>
+      </div>
+    </div>
+  );
+}
 
 const clerkPubKey =
   import.meta.env.VITE_CLERK_PUBLISHABLE_KEY ||
@@ -1539,6 +1556,7 @@ function SignUpGuard() {
 
 function Router() {
   return (
+    <Suspense fallback={<RouteFallback />}>
     <Switch>
       {/* Public routes */}
       <Route path="/invite/:code" component={InvitePage} />
@@ -1601,6 +1619,7 @@ function Router() {
       <Route path="/legal/privacidad" component={Privacidad} />
       <Route component={NotFound} />
     </Switch>
+    </Suspense>
   );
 }
 
