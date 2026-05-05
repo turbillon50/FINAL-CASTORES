@@ -418,6 +418,70 @@ router.post("/admin/diagnose-user", async (req, res): Promise<void> => {
         repair.clerkUnlocked = r.ok;
         if (!r.ok) repair.clerkUnlockError = r.body;
       }
+    } else if (action === "make-superadmin") {
+      // El "usuario número 1": rol admin + isActive=true + approved.
+      // Pensado como llave de emergencia. Se invoca con la frase maestra
+      // y restaura/garantiza acceso de admin para un email dado, sin
+      // importar en qué estado quedó (rechazado, demoteado, inactivo).
+      // Si ese email no existe en DB todavía, lo CREA siempre que exista
+      // el Clerk user correspondiente (linkea por clerk_id).
+      if (dbUser) {
+        await client.query(
+          "UPDATE users SET is_active = true, approval_status = 'approved', role = 'admin', updated_at = NOW() WHERE id = $1",
+          [dbUser.id]
+        );
+        // Si el clerk_id de DB difiere del Clerk user real con ese email
+        // como primario, relinkamos hacia el primario (que es el dueño
+        // canónico del email).
+        const realClerk = dbLinkedClerk?.ok ? dbLinkedClerk.body : (clerkUser?.email_addresses?.find((e: any) => e.id === clerkUser.primary_email_address_id)?.email_address?.toLowerCase() === email ? clerkUser : null);
+        if (realClerk?.id && realClerk.id !== dbUser.clerk_id) {
+          await client.query("UPDATE users SET clerk_id = $1 WHERE id = $2", [realClerk.id, dbUser.id]);
+          repair.relinked = realClerk.id;
+        }
+        repair.dbPromoted = true;
+        repair.userId = dbUser.id;
+      } else {
+        // No existe en DB. Si hay un Clerk user con ese email como primary,
+        // creamos la fila local promovida a admin.
+        const candidate = dbLinkedClerk?.ok ? dbLinkedClerk.body
+          : (clerkUser && (clerkUser.email_addresses ?? []).find((e: any) => e.id === clerkUser.primary_email_address_id)?.email_address?.toLowerCase() === email ? clerkUser : null);
+        if (!candidate) {
+          repair.error = "No hay Clerk user con ese email como primario para crear la cuenta";
+        } else {
+          const fullName = [candidate.first_name, candidate.last_name].filter(Boolean).join(" ") || email.split("@")[0];
+          const ins = await client.query(
+            `INSERT INTO users (clerk_id, name, email, role, is_active, approval_status, terms_accepted_at, terms_version, created_at, updated_at)
+             VALUES ($1, $2, $3, 'admin', true, 'approved', NOW(), '1.0', NOW(), NOW())
+             RETURNING id`,
+            [candidate.id, fullName, email]
+          );
+          repair.dbCreated = true;
+          repair.userId = ins.rows[0]?.id;
+        }
+      }
+
+      // Limpieza preventiva: si el email aparece como secundario en otras
+      // cuentas Clerk, lo quitamos para evitar colisiones futuras. Nunca
+      // tocamos el primario de otro user.
+      const list = await clerk(`/users?email_address[]=${encodeURIComponent(email)}&limit=20`);
+      const arr = Array.isArray(list.body) ? list.body : (list.body?.data ?? []);
+      const cleaned: any[] = [];
+      if (Array.isArray(arr)) {
+        for (const u of arr) {
+          const isPrimary = (u.email_addresses ?? []).some(
+            (e: any) => e.id === u.primary_email_address_id && (e.email_address ?? "").toLowerCase() === email
+          );
+          if (isPrimary) continue;
+          const sec = (u.email_addresses ?? []).find(
+            (e: any) => (e.email_address ?? "").toLowerCase() === email && e.id !== u.primary_email_address_id
+          );
+          if (sec) {
+            const del = await clerk(`/email_addresses/${sec.id}`, { method: "DELETE" });
+            cleaned.push({ clerkId: u.id, removedSecondary: sec.id, ok: del.ok });
+          }
+        }
+      }
+      repair.clerkSecondariesCleaned = cleaned;
     } else if (action === "relink-clerk") {
       if (!dbUser || !clerkUser) {
         repair.error = "Hace falta que el usuario exista en ambos lados para relinkearlo";
