@@ -2,9 +2,11 @@ import { Router, type IRouter } from "express";
 import { eq } from "drizzle-orm";
 import { db, usersTable } from "@workspace/db";
 import { getAuth, clerkClient } from "@clerk/express";
-import { sendApprovalEmail, sendRejectionEmail } from "../lib/email";
+import { createHmac } from "node:crypto";
+import { sendApprovalEmail, sendRejectionEmail, sendPasswordResetEmail } from "../lib/email";
 import { getRequestUserStrict } from "./../lib/getRequestUser";
 import { hasPermission } from "../lib/permissions";
+import { logAdminOverride } from "../lib/adminOverride";
 import { formatZodError } from "../lib/zodError";
 import {
   CreateUserBody,
@@ -310,6 +312,59 @@ router.delete("/users/:id", async (req, res): Promise<void> => {
   }
 
   res.sendStatus(204);
+});
+
+/**
+ * POST /users/:id/send-password-reset — admin envía un correo de reset
+ * a cualquier usuario. Pensado para destrabar a alguien sin tener que
+ * compartirle una contraseña temporal por WhatsApp. Reusa el mismo
+ * token HMAC firmado de /auth/forgot-password (TTL 30 min).
+ */
+router.post("/users/:id/send-password-reset", async (req, res): Promise<void> => {
+  const actor = await getRequestUserStrict(req);
+  if (!actor) { res.status(401).json({ error: "No autenticado" }); return; }
+  if (actor.role !== "admin") {
+    res.status(403).json({ error: "Solo administradores pueden enviar reset de contraseña" });
+    return;
+  }
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) { res.status(400).json({ error: "ID inválido" }); return; }
+
+  const [target] = await db.select().from(usersTable).where(eq(usersTable.id, id));
+  if (!target) { res.status(404).json({ error: "Usuario no encontrado" }); return; }
+  if (!target.isActive) { res.status(400).json({ error: "El usuario está inactivo" }); return; }
+
+  const RESET_TTL_MIN = 30;
+  const exp = Date.now() + RESET_TTL_MIN * 60 * 1000;
+  const secret =
+    process.env["SESSION_SECRET"] ||
+    process.env["CLERK_SECRET_KEY"] ||
+    "castores-reset-fallback-only-for-dev";
+  const payload = { userId: target.id, email: target.email.toLowerCase(), exp };
+  const body = Buffer.from(JSON.stringify(payload)).toString("base64url");
+  const sig = createHmac("sha256", secret).update(body).digest("base64url");
+  const token = `${body}.${sig}`;
+  const resetUrl = `https://castores.info/reset-password?token=${encodeURIComponent(token)}`;
+
+  try {
+    await sendPasswordResetEmail({
+      to: target.email,
+      name: target.name || "Usuario",
+      resetUrl,
+      expiresInMinutes: RESET_TTL_MIN,
+    });
+  } catch (err) {
+    res.status(503).json({ error: "No pudimos enviar el correo. Intenta de nuevo en un minuto." });
+    return;
+  }
+
+  await logAdminOverride({
+    actorId: actor.id,
+    action: "user.password_reset_sent",
+    description: `Admin ${actor.name} envió correo de reset a ${target.name} <${target.email}>`,
+  });
+
+  res.json({ ok: true, message: `Enlace de recuperación enviado a ${target.email}` });
 });
 
 export default router;

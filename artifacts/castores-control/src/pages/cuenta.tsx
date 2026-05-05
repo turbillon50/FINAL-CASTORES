@@ -96,6 +96,9 @@ export default function Cuenta() {
           </a>
         </section>
 
+        {/* Seguridad */}
+        <SeguridadSection email={user.email} userName={user.name || "Usuario"} />
+
         {/* Sesión */}
         <section className="bg-card border border-border rounded-2xl p-6 space-y-3">
           <h3 className="font-bebas text-xl tracking-wide">SESIÓN</h3>
@@ -190,5 +193,82 @@ function LinkRow({ href, icon, label, desc }: { href: string; icon: string; labe
         <span className="text-muted-foreground">→</span>
       </div>
     </Link>
+  );
+}
+
+function SeguridadSection({ email, userName }: { email: string; userName: string }) {
+  const { toast } = useToast();
+  const [sending, setSending] = useState(false);
+  const [sentAt, setSentAt] = useState<number | null>(null);
+
+  const handleChangePassword = async () => {
+    setSending(true);
+    try {
+      const res = await fetch(apiUrl("/api/auth/forgot-password"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "No se pudo enviar el correo");
+      }
+      setSentAt(Date.now());
+      toast({
+        title: "Correo enviado",
+        description: `Te enviamos un enlace a ${email}. Caduca en 30 min.`,
+      });
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <section className="bg-card border border-border rounded-2xl p-6 space-y-4">
+      <div className="flex items-start gap-3">
+        <span className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center text-lg">🔒</span>
+        <div className="flex-1 min-w-0">
+          <h3 className="font-bebas text-xl tracking-wide">SEGURIDAD</h3>
+          <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+            Tu contraseña se guarda <strong>encriptada</strong> con el mismo estándar que usan los bancos
+            (Clerk + bcrypt). Nadie en Castores Control la ve en texto plano — ni siquiera el administrador.
+          </p>
+        </div>
+      </div>
+
+      <ul className="text-xs text-muted-foreground space-y-1.5 pl-1">
+        <li className="flex items-center gap-2">
+          <span className="text-emerald-600">✓</span>
+          Si olvidas tu contraseña, recupérala desde <strong>cualquier dispositivo</strong> con tu correo.
+        </li>
+        <li className="flex items-center gap-2">
+          <span className="text-emerald-600">✓</span>
+          Cambiarla cierra automáticamente tus sesiones en otros dispositivos.
+        </li>
+        <li className="flex items-center gap-2">
+          <span className="text-emerald-600">✓</span>
+          Conexión 100% por HTTPS, datos cifrados en tránsito y reposo.
+        </li>
+      </ul>
+
+      <div className="pt-2 border-t border-border">
+        <button
+          onClick={handleChangePassword}
+          disabled={sending || (sentAt !== null && Date.now() - sentAt < 60000)}
+          className="w-full sm:w-auto px-5 py-2.5 rounded-xl border border-border bg-background hover:bg-accent transition font-medium text-sm disabled:opacity-50"
+        >
+          {sending
+            ? "Enviando..."
+            : sentAt !== null && Date.now() - sentAt < 60000
+              ? "Correo enviado ✓"
+              : "Cambiar mi contraseña"}
+        </button>
+        <p className="text-[11px] text-muted-foreground mt-2">
+          Te enviaremos un enlace a <strong>{email}</strong> para que elijas una nueva.
+        </p>
+      </div>
+    </section>
   );
 }

@@ -187,7 +187,18 @@ function SignInPage() {
             required
             className={inputCls}
           />
-          {error && <p className="text-sm text-red-600 text-center">{error}</p>}
+          {error && (
+            <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 space-y-1.5">
+              <p className="text-sm text-red-700 text-center font-medium">{error}</p>
+              <button
+                type="button"
+                onClick={() => setLocation("/forgot-password")}
+                className="block w-full text-center text-xs font-semibold text-amber-700 hover:text-amber-900 underline"
+              >
+                Recupera tu contraseña en 30 segundos →
+              </button>
+            </div>
+          )}
           <button type="submit" disabled={busy} className="w-full py-3 rounded-xl font-semibold text-white bg-amber-600 hover:bg-amber-700 transition disabled:opacity-50 text-sm mt-1">
             {busy ? "Entrando..." : "Iniciar sesión →"}
           </button>
@@ -198,6 +209,9 @@ function SignInPage() {
           >
             ¿Olvidaste tu contraseña?
           </button>
+          <p className="text-[10px] text-gray-400 text-center pt-2 border-t border-gray-100 mt-3 leading-relaxed">
+            🔒 Tu contraseña se guarda encriptada. Si la pierdes, siempre puedes recuperarla con tu correo.
+          </p>
         </form>
         <p className="text-center text-sm text-gray-500 mt-4">
           ¿Aún no tienes cuenta?{" "}
