@@ -229,6 +229,8 @@ export const UpdateProjectBody = zod.object({
   clientId: zod.number().nullish(),
   supervisorId: zod.number().nullish(),
   location: zod.string().nullish(),
+  latitude: zod.number().nullish(),
+  longitude: zod.number().nullish(),
   startDate: zod.string().nullish(),
   endDate: zod.string().nullish(),
   budget: zod.number().nullish(),

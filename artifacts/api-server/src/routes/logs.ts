@@ -5,6 +5,7 @@ import { getRequestUser } from "../lib/getRequestUser";
 import { resolveAuthedUser } from "../lib/authContext";
 import { getAccessibleProjectIds, canAccessProject } from "../lib/projectAccess";
 import { hasPermission } from "../lib/permissions";
+import { isAdmin, logAdminOverride } from "../lib/adminOverride";
 import { formatZodError } from "../lib/zodError";
 import {
   CreateLogBody,
@@ -148,7 +149,11 @@ router.patch("/logs/:id", async (req, res): Promise<void> => {
     res.status(403).json({ error: "Acceso denegado" });
     return;
   }
-  if (existing.isSubmitted) {
+  // Admin override: el dueño del habitáculo puede editar registros ya
+  // enviados (cambiar fotos, observaciones, ubicación, etc.). Resto de
+  // roles siguen bloqueados después del envío. Cada edición post-envío
+  // queda registrada en activity_log.
+  if (existing.isSubmitted && !isAdmin(user)) {
     res.status(403).json({ error: "No se puede editar una bitácora ya enviada" });
     return;
   }
@@ -165,7 +170,50 @@ router.patch("/logs/:id", async (req, res): Promise<void> => {
   }
 
   const [log] = await db.update(workLogsTable).set(data).where(eq(workLogsTable.id, params.data.id)).returning();
+
+  // Si admin editó después del envío, queda registro auditable.
+  if (existing.isSubmitted && isAdmin(user)) {
+    await logAdminOverride({
+      actorId: user.id,
+      action: "log.edit_after_submit",
+      description: `Admin ${user.name} editó la bitácora #${existing.id} ya enviada`,
+      projectId: existing.projectId ?? null,
+    });
+  }
+
   res.json(await enrichLog(log));
+});
+
+// DELETE /logs/:id — solo admin. Hard-delete; queda traza en activity_log.
+// Pensado como "tachar / arrancar la hoja del cuaderno": solo el dueño del
+// habitáculo (admin) puede hacerlo, y siempre queda registrado quién y cuándo.
+router.delete("/logs/:id", async (req, res): Promise<void> => {
+  const user = await getRequestUser(req);
+  if (!user) { res.status(401).json({ error: "No autenticado" }); return; }
+  if (!isAdmin(user)) {
+    res.status(403).json({ error: "Solo el administrador puede eliminar bitácoras" });
+    return;
+  }
+
+  const params = GetLogParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: formatZodError(params.error) });
+    return;
+  }
+
+  const [existing] = await db.select().from(workLogsTable).where(eq(workLogsTable.id, params.data.id));
+  if (!existing) { res.status(404).json({ error: "Bitácora no encontrada" }); return; }
+
+  await db.delete(workLogsTable).where(eq(workLogsTable.id, params.data.id));
+
+  await logAdminOverride({
+    actorId: user.id,
+    action: "log.delete",
+    description: `Admin ${user.name} eliminó la bitácora #${existing.id} (${existing.activity?.slice(0, 80) ?? "sin actividad"})`,
+    projectId: existing.projectId ?? null,
+  });
+
+  res.json({ ok: true });
 });
 
 router.post("/logs/:id/submit", async (req, res): Promise<void> => {

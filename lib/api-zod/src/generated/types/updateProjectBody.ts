@@ -18,6 +18,10 @@ export interface UpdateProjectBody {
   /** @nullable */
   location?: string | null;
   /** @nullable */
+  latitude?: number | null;
+  /** @nullable */
+  longitude?: number | null;
+  /** @nullable */
   startDate?: string | null;
   /** @nullable */
   endDate?: string | null;
