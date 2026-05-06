@@ -371,6 +371,9 @@ export const UpdateLogBody = zod.object({
   workersInvolved: zod.string().nullish(),
   materialsUsed: zod.string().nullish(),
   photos: zod.array(zod.string()).optional(),
+  logDate: zod.string().nullish(),
+  supervisorSignature: zod.string().nullish(),
+  clientSignature: zod.string().nullish(),
 });
 
 export const UpdateLogResponse = zod.object({
