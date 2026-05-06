@@ -184,6 +184,7 @@ export const CreateProjectBody = zod.object({
   startDate: zod.string().nullish(),
   endDate: zod.string().nullish(),
   budget: zod.number().nullish(),
+  coverImageUrl: zod.string().nullish(),
   status: zod.enum(["active", "paused", "completed", "cancelled"]).optional(),
 });
 
@@ -234,6 +235,7 @@ export const UpdateProjectBody = zod.object({
   startDate: zod.string().nullish(),
   endDate: zod.string().nullish(),
   budget: zod.number().nullish(),
+  coverImageUrl: zod.string().nullish(),
   progressPercent: zod.number().nullish(),
   status: zod.string().nullish(),
 });

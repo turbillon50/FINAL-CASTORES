@@ -27,5 +27,7 @@ export interface CreateProjectBody {
   endDate?: string | null;
   /** @nullable */
   budget?: number | null;
+  /** @nullable */
+  coverImageUrl?: string | null;
   status?: CreateProjectBodyStatus;
 }

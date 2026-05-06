@@ -28,6 +28,8 @@ export interface UpdateProjectBody {
   /** @nullable */
   budget?: number | null;
   /** @nullable */
+  coverImageUrl?: string | null;
+  /** @nullable */
   progressPercent?: number | null;
   /** @nullable */
   status?: string | null;

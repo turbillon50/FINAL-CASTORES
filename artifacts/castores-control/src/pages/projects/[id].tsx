@@ -171,6 +171,89 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
+function ProjectCalendarCard({ project }: { project: any }) {
+  const fmt = (d?: string | null) => {
+    if (!d) return null;
+    try {
+      return new Date(d).toLocaleDateString("es-MX", { day: "2-digit", month: "long", year: "numeric" });
+    } catch { return d; }
+  };
+  const start = project.startDate;
+  const end = project.endDate;
+
+  // Días entre hoy y la fecha de entrega; negativo = ya se pasó.
+  let daysLeft: number | null = null;
+  if (end) {
+    const e = new Date(end);
+    const now = new Date();
+    daysLeft = Math.round((e.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+  }
+
+  // Duración total y % transcurrido en tiempo (no en avance).
+  let elapsedPct: number | null = null;
+  if (start && end) {
+    const s = new Date(start).getTime();
+    const e = new Date(end).getTime();
+    const now = Date.now();
+    if (e > s) {
+      elapsedPct = Math.max(0, Math.min(100, Math.round(((now - s) / (e - s)) * 100)));
+    }
+  }
+
+  return (
+    <div className="bg-card border border-card-border rounded-2xl p-5 mt-4 mb-6">
+      <div className="flex items-center justify-between gap-3 mb-4">
+        <div className="flex items-center gap-2">
+          <span className="text-xl">🗓️</span>
+          <h3 className="font-display text-lg">Calendario y plazo</h3>
+        </div>
+        {daysLeft != null && (
+          <span className={"text-xs font-bold px-2.5 py-1 rounded-full " + (daysLeft < 0 ? "bg-red-100 text-red-700" : daysLeft < 14 ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-emerald-700")}>
+            {daysLeft < 0 ? `Vencida hace ${Math.abs(daysLeft)} días` : daysLeft === 0 ? "Vence hoy" : `Faltan ${daysLeft} días`}
+          </span>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+        <div>
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-1">Fecha de inicio</p>
+          <p className="font-medium">{fmt(start) ?? <span className="text-muted-foreground italic">No definida</span>}</p>
+        </div>
+        <div>
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-1">Fecha de entrega</p>
+          <p className="font-medium">{fmt(end) ?? <span className="text-muted-foreground italic">No definida</span>}</p>
+        </div>
+        <div>
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-1">Tiempo transcurrido</p>
+          <p className="font-medium">
+            {elapsedPct != null
+              ? <span>{elapsedPct}% del plazo</span>
+              : <span className="text-muted-foreground italic">Sin fechas completas</span>}
+          </p>
+        </div>
+      </div>
+
+      {elapsedPct != null && (
+        <div className="mt-4 space-y-1.5">
+          <div className="flex items-center justify-between text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">
+            <span>Avance en tiempo</span>
+            <span>Avance reportado</span>
+          </div>
+          <div className="relative h-2 rounded-full bg-foreground/10 overflow-hidden">
+            <div className="absolute left-0 top-0 h-full bg-amber-500/60" style={{ width: `${elapsedPct}%` }} />
+            <div className="absolute left-0 top-0 h-full border-r-2 border-emerald-500" style={{ width: `${project.progressPercent ?? 0}%` }} />
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            {(project.progressPercent ?? 0) >= elapsedPct
+              ? "✓ El avance reportado va al día con el calendario."
+              : `⚠️ Vas ${elapsedPct - (project.progressPercent ?? 0)} puntos atrás del calendario.`}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ProjectDetail() {
   const { id } = useParams();
   const projectId = Number(id);
@@ -229,9 +312,18 @@ export default function ProjectDetail() {
       budget: project.budget ?? "",
       progressPercent: project.progressPercent ?? 0,
       status: project.status ?? "active",
+      coverImageUrl: project.coverImageUrl ?? "",
     });
     setEditOpen(true);
   };
+
+  const fileToDataUrl = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(r.result as string);
+      r.onerror = reject;
+      r.readAsDataURL(file);
+    });
 
   const submitEdit = async () => {
     setEditSaving(true);
@@ -248,6 +340,7 @@ export default function ProjectDetail() {
       if (String(f.budget) !== String(project.budget ?? "")) payload.budget = f.budget === "" ? null : Number(f.budget);
       if (Number(f.progressPercent) !== (project.progressPercent ?? 0)) payload.progressPercent = Number(f.progressPercent);
       if (f.status !== project.status) payload.status = f.status;
+      if ((f.coverImageUrl ?? "") !== (project.coverImageUrl ?? "")) payload.coverImageUrl = f.coverImageUrl || null;
 
       const res = await teamFetch(`/projects/${projectId}`, { method: "PATCH", body: JSON.stringify(payload) });
       if (!res.ok) {
@@ -331,6 +424,9 @@ export default function ProjectDetail() {
           </div>
         </div>
       </div>
+
+      {/* Calendario / Plazo de la obra */}
+      <ProjectCalendarCard project={project} />
 
       <Tabs defaultValue="overview" className="w-full">
         <TabsList className="bg-sidebar border-b border-card-border rounded-none p-0 h-auto justify-start overflow-x-auto w-full hide-scrollbar">
@@ -498,6 +594,31 @@ export default function ProjectDetail() {
               <p className="text-sm text-muted-foreground mt-1">Cambia cualquier campo. Los cambios se guardan al confirmar.</p>
             </div>
             <div className="p-6 space-y-4">
+              <Field label="Foto de portada">
+                {editForm.coverImageUrl ? (
+                  <div className="relative">
+                    <img src={editForm.coverImageUrl} alt="Portada" className="w-full h-40 object-cover rounded-lg border border-border" />
+                    <button type="button"
+                      onClick={() => setEditForm({ ...editForm, coverImageUrl: "" })}
+                      className="absolute top-2 right-2 px-2 py-1 rounded-md text-xs font-bold bg-white/90 backdrop-blur shadow text-red-600">
+                      Quitar foto
+                    </button>
+                  </div>
+                ) : (
+                  <label className="block">
+                    <span className="block px-4 py-6 rounded-lg border-2 border-dashed border-border text-center text-sm text-muted-foreground hover:bg-accent cursor-pointer transition-colors">
+                      📷 Cambiar foto de portada
+                    </span>
+                    <input type="file" accept="image/*" className="hidden" onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      const dataUrl = await fileToDataUrl(file);
+                      setEditForm({ ...editForm, coverImageUrl: dataUrl });
+                    }} />
+                  </label>
+                )}
+              </Field>
+
               <Field label="Nombre">
                 <input className="edit-input" value={editForm.name ?? ""} onChange={e => setEditForm({ ...editForm, name: e.target.value })} />
               </Field>

@@ -52,8 +52,17 @@ export default function Projects() {
     name: "", description: "", location: "", budget: "",
     startDate: "", endDate: "", supervisorId: "", clientId: "",
     status: "active" as const,
+    coverImageUrl: "",
   });
   const [submitting, setSubmitting] = useState(false);
+
+  const fileToDataUrl = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(r.result as string);
+      r.onerror = reject;
+      r.readAsDataURL(file);
+    });
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -74,11 +83,12 @@ export default function Projects() {
           supervisorId: form.supervisorId ? Number(form.supervisorId) : null,
           clientId: form.clientId ? Number(form.clientId) : null,
           status: form.status,
+          coverImageUrl: form.coverImageUrl || null,
         },
       });
       toast({ title: "Obra Creada", description: `"${form.name}" fue registrada exitosamente.` });
       setShowForm(false);
-      setForm({ name: "", description: "", location: "", budget: "", startDate: "", endDate: "", supervisorId: "", clientId: "", status: "active" });
+      setForm({ name: "", description: "", location: "", budget: "", startDate: "", endDate: "", supervisorId: "", clientId: "", status: "active", coverImageUrl: "" });
       refetch();
     } catch {
       toast({ variant: "destructive", title: "Error", description: "No se pudo crear la obra." });
@@ -184,6 +194,33 @@ export default function Projects() {
                 </div>
 
                 <form onSubmit={handleCreate} className="space-y-4">
+                  <div>
+                    <label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold block mb-1.5">Foto de portada</label>
+                    {form.coverImageUrl ? (
+                      <div className="relative">
+                        <img src={form.coverImageUrl} alt="Portada" className="w-full h-40 object-cover rounded-xl border border-black/10" />
+                        <button type="button"
+                          onClick={() => setForm(f => ({ ...f, coverImageUrl: "" }))}
+                          className="absolute top-2 right-2 px-2 py-1 rounded-md text-xs font-bold bg-white/90 backdrop-blur shadow text-red-600">
+                          Quitar foto
+                        </button>
+                      </div>
+                    ) : (
+                      <label className="block">
+                        <span className="block px-4 py-6 rounded-xl border-2 border-dashed border-black/15 text-center text-sm text-muted-foreground hover:bg-black/5 cursor-pointer transition-colors">
+                          📷 Subir foto de la obra
+                          <span className="block text-[10px] mt-1 text-muted-foreground/70">Aparecerá en la tarjeta y en el detalle</span>
+                        </span>
+                        <input type="file" accept="image/*" className="hidden" onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          const dataUrl = await fileToDataUrl(file);
+                          setForm(f => ({ ...f, coverImageUrl: dataUrl }));
+                        }} />
+                      </label>
+                    )}
+                  </div>
+
                   <div>
                     <label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold block mb-1.5">Nombre de la Obra *</label>
                     <Input placeholder="Ej. Torre Residencial Polanco" value={form.name}
