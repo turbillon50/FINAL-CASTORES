@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { usePermissions } from "@/hooks/use-permissions";
 import { apiUrl } from "@/lib/api-url";
 import { PhotoUploadButtons } from "@/components/ui/photo-upload-buttons";
+import { compressImageFile } from "@/lib/compress-image";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -60,7 +61,13 @@ export default function Projects() {
   const [initialDocs, setInitialDocs] = useState<{ name: string; type: string; size: number; dataUrl: string }[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
-  const fileToDataUrl = (file: File): Promise<string> =>
+  // Compresión client-side: las fotos del iPhone vienen de 3-5 MB cada una;
+  // sin esto, 6 imágenes saturan el límite de 4.5 MB de Vercel y la
+  // creación entera se cae con "No se pudo crear la obra". Para imágenes
+  // bajamos a JPEG calidad 0.78 con lado máximo 1920px (~250 KB).
+  const fileToDataUrl = (file: File): Promise<string> => compressImageFile(file);
+
+  const rawFileToDataUrl = (file: File): Promise<string> =>
     new Promise((resolve, reject) => {
       const r = new FileReader();
       r.onload = () => resolve(r.result as string);
@@ -124,8 +131,15 @@ export default function Projects() {
       setForm({ name: "", description: "", location: "", budget: "", startDate: "", endDate: "", supervisorId: "", clientId: "", status: "active", coverImageUrl: "", galleryImages: [] });
       setInitialDocs([]);
       refetch();
-    } catch {
-      toast({ variant: "destructive", title: "Error", description: "No se pudo crear la obra." });
+    } catch (err: any) {
+      // Surfacing the real reason instead of un genérico "No se pudo".
+      // Si el server respondió con un error específico (zod, FK, etc.)
+      // lo mostramos. Si es una falla de red / payload, lo decimos claro.
+      const raw = err?.message ?? "";
+      const desc = /413|payload too large|request entity too large/i.test(raw)
+        ? "Las imágenes son demasiado grandes para subir en una sola obra. Quita algunas o intenta sin documentos."
+        : raw || "Error desconocido al guardar.";
+      toast({ variant: "destructive", title: "No se pudo crear la obra", description: desc });
     } finally {
       setSubmitting(false);
     }
