@@ -16,7 +16,8 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Icons } from "@/lib/icons";
-import { useRef, useState } from "react";
+import { useState } from "react";
+import { PhotoUploadButtons } from "@/components/ui/photo-upload-buttons";
 import { PageHero } from "@/components/ui/page-hero";
 
 const logSchema = z.object({
@@ -46,7 +47,6 @@ export default function NewBitacoraEntry() {
   const { toast } = useToast();
   const createLog = useCreateLog();
   const { data: projects = [] } = useListProjects();
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [photoFiles, setPhotoFiles] = useState<File[]>([]);
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -216,15 +216,6 @@ export default function NewBitacoraEntry() {
                   <h3 className="font-display text-xl text-foreground">Evidencia Fotográfica</h3>
                 </div>
 
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  multiple
-                  className="hidden"
-                  onChange={handlePhotoSelect}
-                />
-
                 {photoPreviews.length > 0 && (
                   <div className="grid grid-cols-3 gap-3 mb-4">
                     {photoPreviews.map((src, idx) => (
@@ -240,19 +231,15 @@ export default function NewBitacoraEntry() {
                   </div>
                 )}
 
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="w-full border-2 border-dashed border-black/[0.10] rounded-2xl p-8 text-center hover:border-primary/40 hover:bg-primary/[0.02] transition-all cursor-pointer group"
-                >
-                  <div className="w-12 h-12 bg-foreground/[0.04] rounded-full flex items-center justify-center mx-auto mb-3 group-hover:bg-primary/10 transition-colors">
-                    <Icons.Camera className="w-6 h-6 text-muted-foreground group-hover:text-primary transition-colors" />
-                  </div>
-                  <p className="font-medium text-foreground/60 text-sm mb-1">
-                    {photoPreviews.length > 0 ? "Agregar más fotos" : "Toca para agregar fotos"}
-                  </p>
-                  <p className="text-xs text-muted-foreground">JPG, PNG, WebP — máx. 6 fotos</p>
-                </button>
+                <PhotoUploadButtons
+                  onFilesSelected={(files) => {
+                    const dt = new DataTransfer();
+                    files.forEach((f) => dt.items.add(f));
+                    const fakeEvent = { target: { files: dt.files } } as unknown as React.ChangeEvent<HTMLInputElement>;
+                    handlePhotoSelect(fakeEvent);
+                  }}
+                  helperText={photoPreviews.length > 0 ? `${photoPreviews.length} de 6 fotos` : "Toma fotos en obra o súbelas desde tu galería · Máx. 6"}
+                />
               </div>
 
               {/* ─ Firmas ─ */}

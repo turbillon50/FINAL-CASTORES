@@ -1,5 +1,6 @@
 import { MainLayout } from "@/components/layout/main-layout";
 import { useGetProject, useGetProjectProgress, getAuthToken, getClerkUserInfo } from "@workspace/api-client-react";
+import { PhotoUploadButtons } from "@/components/ui/photo-upload-buttons";
 import { useParams } from "wouter";
 import { Icons } from "@/lib/icons";
 import { Badge } from "@/components/ui/badge";
@@ -439,11 +440,11 @@ export default function ProjectDetail() {
       const milesAfter = Array.isArray(f.milestones) ? f.milestones : [];
       if (JSON.stringify(milesBefore) !== JSON.stringify(milesAfter)) payload.milestones = milesAfter;
 
-      const res = await teamFetch(`/projects/${projectId}`, { method: "PATCH", body: JSON.stringify(payload) });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || "No se pudo actualizar la obra");
-      }
+      // teamFetch ya parsea el body y lanza en errores. No envolver en
+      // res.ok / res.json — eso era el bug que generaba el toast rojo
+      // "W.json is not a function" sobre una operación que en realidad
+      // se guardaba bien.
+      await teamFetch(`/projects/${projectId}`, { method: "PATCH", body: JSON.stringify(payload) });
       toast({ title: "Obra actualizada", description: "Los cambios fueron guardados." });
       setEditOpen(false);
       qc.invalidateQueries({ queryKey: ["get-project", projectId] });
@@ -458,11 +459,7 @@ export default function ProjectDetail() {
     if (!confirm(`¿Eliminar la obra "${project.name}"?\n\nEsto borra TODAS sus bitácoras, materiales, documentos y reportes. Esta acción queda registrada en la auditoría y no se puede deshacer.`)) return;
     setDeleting(true);
     try {
-      const res = await teamFetch(`/projects/${projectId}`, { method: "DELETE" });
-      if (!res.ok && res.status !== 204) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || "No se pudo eliminar");
-      }
+      await teamFetch(`/projects/${projectId}`, { method: "DELETE" });
       toast({ title: "Obra eliminada" });
       window.location.href = "/projects";
     } catch (e: any) {
@@ -708,17 +705,16 @@ export default function ProjectDetail() {
                     </button>
                   </div>
                 ) : (
-                  <label className="block">
-                    <span className="block px-4 py-6 rounded-lg border-2 border-dashed border-border text-center text-sm text-muted-foreground hover:bg-accent cursor-pointer transition-colors">
-                      📷 Cambiar foto de portada
-                    </span>
-                    <input type="file" accept="image/*" className="hidden" onChange={async (e) => {
-                      const file = e.target.files?.[0];
+                  <PhotoUploadButtons
+                    multiple={false}
+                    helperText="Esta foto sale en la tarjeta y en el banner"
+                    onFilesSelected={async (files) => {
+                      const file = files[0];
                       if (!file) return;
                       const dataUrl = await fileToDataUrl(file);
                       setEditForm({ ...editForm, coverImageUrl: dataUrl });
-                    }} />
-                  </label>
+                    }}
+                  />
                 )}
               </Field>
 
@@ -780,12 +776,15 @@ export default function ProjectDetail() {
                       ))}
                     </div>
                   )}
-                  <label className="block">
-                    <span className="block px-4 py-3 rounded-lg border-2 border-dashed border-border text-center text-sm text-muted-foreground hover:bg-accent cursor-pointer transition-colors">
-                      🖼️ Agregar imágenes a la galería
-                    </span>
-                    <input type="file" multiple accept="image/*" className="hidden" onChange={(e) => addGalleryFiles(e.target.files)} />
-                  </label>
+                  <PhotoUploadButtons
+                    variant="compact"
+                    helperText="Hasta 30 imágenes por obra"
+                    onFilesSelected={(files) => {
+                      const dt = new DataTransfer();
+                      files.forEach((f) => dt.items.add(f));
+                      addGalleryFiles(dt.files);
+                    }}
+                  />
                 </div>
               </Field>
 
