@@ -14,6 +14,7 @@ import notificationsRouter from "./notifications";
 import dashboardRouter from "./dashboard";
 import rolesRouter from "./roles";
 import adminDbInitRouter from "./admin-db-init";
+import pushRouter from "./push";
 
 const router: IRouter = Router();
 
@@ -39,5 +40,6 @@ router.use(documentsRouter);
 router.use(reportsRouter);
 router.use(notificationsRouter);
 router.use(dashboardRouter);
+router.use(pushRouter);
 
 export default router;

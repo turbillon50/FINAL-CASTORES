@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { usePermissions } from "@/hooks/use-permissions";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
 import {
@@ -17,6 +18,10 @@ import {
 } from "@/components/ui/select";
 
 export default function Materiales() {
+  const permissions = usePermissions();
+  const canRequest = permissions.has("materialsRequest");
+  const canApprove = permissions.has("materialsApprove");
+  const canSupply = permissions.has("materialsSupply");
   const { data: materials = [], refetch } = useListMaterials();
   const { data: stats, refetch: refetchStats } = useGetMaterialStats();
   const { data: projects = [] } = useListProjects();
@@ -109,13 +114,15 @@ export default function Materiales() {
           accentColor="#C8952A"
           badge="BODEGA Y SUMINISTROS"
         >
-          <Button
-            onClick={() => setShowForm(true)}
-            className="mt-1 rounded-xl text-xs font-bold px-4 py-2 h-auto"
-            style={{ background: "rgba(200,149,42,0.25)", border: "1px solid rgba(200,149,42,0.5)", color: "#fff" }}
-          >
-            <Icons.Plus className="w-3.5 h-3.5 mr-1.5" /> Solicitar Material
-          </Button>
+          {canRequest && (
+            <Button
+              onClick={() => setShowForm(true)}
+              className="mt-1 rounded-xl text-xs font-bold px-4 py-2 h-auto"
+              style={{ background: "rgba(200,149,42,0.25)", border: "1px solid rgba(200,149,42,0.5)", color: "#fff" }}
+            >
+              <Icons.Plus className="w-3.5 h-3.5 mr-1.5" /> Solicitar Material
+            </Button>
+          )}
         </PageHero>
 
         {/* Stats */}
@@ -145,7 +152,11 @@ export default function Materiales() {
           </div>
         )}
 
-        <MaterialKanban materials={materials} onApprove={handleApprove} onReject={handleReject} />
+        <MaterialKanban
+          materials={materials}
+          onApprove={canApprove ? handleApprove : undefined}
+          onReject={canApprove ? handleReject : undefined}
+        />
       </div>
 
       {/* ─── Modal Solicitar Material ─────────────────── */}

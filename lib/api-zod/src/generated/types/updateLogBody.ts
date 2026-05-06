@@ -16,4 +16,10 @@ export interface UpdateLogBody {
   /** @nullable */
   materialsUsed?: string | null;
   photos?: string[];
+  /** @nullable */
+  logDate?: string | null;
+  /** @nullable */
+  supervisorSignature?: string | null;
+  /** @nullable */
+  clientSignature?: string | null;
 }

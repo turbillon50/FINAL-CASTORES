@@ -32,6 +32,22 @@ export async function hasPermission(role: string, key: PermissionKey): Promise<b
   return permissions[key] === true;
 }
 
+/**
+ * Returns the full effective permission map for a role. Used by the public
+ * /api/auth/me-permissions endpoint so the frontend can render UI affordances
+ * (buttons, sidebar items, page guards) that match exactly what the backend
+ * will allow.
+ */
+export async function getEffectivePermissions(role: string): Promise<Record<string, boolean>> {
+  if (role === "admin") {
+    // Admin always sees everything regardless of the row in role_permissions.
+    return Object.fromEntries(
+      Object.keys(ROLE_DEFAULTS["admin"] ?? {}).map((k) => [k, true]),
+    );
+  }
+  return getRolePermissions(role);
+}
+
 /** Call after PUT /role-permissions or POST /role-permissions/reset to flush cache. */
 export function clearPermissionsCache(role?: string): void {
   if (role) cache.delete(role);

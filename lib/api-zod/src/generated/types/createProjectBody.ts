@@ -27,5 +27,15 @@ export interface CreateProjectBody {
   endDate?: string | null;
   /** @nullable */
   budget?: number | null;
+  /** @nullable */
+  coverImageUrl?: string | null;
+  galleryImages?: string[];
+  milestones?: Array<{
+    id: string;
+    name: string;
+    dueDate?: string | null;
+    completed?: boolean;
+    notes?: string | null;
+  }>;
   status?: CreateProjectBodyStatus;
 }

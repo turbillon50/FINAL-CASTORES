@@ -249,3 +249,33 @@ export async function sendMaterialRequestEmail(opts: {
     html,
   );
 }
+
+/* ─── Reset de contraseña → Usuario ─── */
+export async function sendPasswordResetEmail(opts: {
+  to: string;
+  name: string;
+  resetUrl: string;
+  expiresInMinutes: number;
+}) {
+  const html = baseTemplate(`
+    <h2 style="margin:0 0 8px;color:#1a1612;font-size:22px;font-weight:800;">Restablecer contraseña</h2>
+    <p style="margin:0 0 16px;color:#1a1612;font-size:15px;line-height:1.6;">
+      Hola <strong>${opts.name}</strong>, recibimos una solicitud para cambiar la contraseña de tu cuenta de Castores Control.
+    </p>
+    <p style="margin:0 0 24px;color:#777;font-size:14px;line-height:1.6;">
+      Da clic en el botón para elegir una contraseña nueva. El enlace expira en
+      <strong>${opts.expiresInMinutes} minutos</strong>.
+    </p>
+    ${btn(opts.resetUrl, "Elegir contraseña nueva →")}
+    <p style="margin:24px 0 0;color:#bbb;font-size:12px;line-height:1.6;">
+      ¿No fuiste tú? Puedes ignorar este mensaje y tu contraseña no cambiará.
+      Si tienes dudas, contacta al administrador de tu empresa.
+    </p>
+  `);
+
+  return sendEmail(
+    opts.to,
+    "Restablecer contraseña — Castores Control",
+    html,
+  );
+}

@@ -1,6 +1,14 @@
-import { pgTable, text, serial, timestamp, integer, real } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, integer, real, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
+
+export type ProjectMilestone = {
+  id: string;
+  name: string;
+  dueDate?: string | null;
+  completed?: boolean;
+  notes?: string | null;
+};
 
 export const projectsTable = pgTable("projects", {
   id: serial("id").primaryKey(),
@@ -18,6 +26,8 @@ export const projectsTable = pgTable("projects", {
   progressPercent: integer("progress_percent").notNull().default(0),
   status: text("status").notNull().default("active"),
   coverImageUrl: text("cover_image_url"),
+  galleryImages: text("gallery_images").array().default([]),
+  milestones: jsonb("milestones").$type<ProjectMilestone[]>().default([]),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });

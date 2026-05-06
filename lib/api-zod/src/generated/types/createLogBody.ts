@@ -17,4 +17,8 @@ export interface CreateLogBody {
   /** @nullable */
   materialsUsed?: string | null;
   photos?: string[];
+  /** @nullable */
+  supervisorSignature?: string | null;
+  /** @nullable */
+  clientSignature?: string | null;
 }

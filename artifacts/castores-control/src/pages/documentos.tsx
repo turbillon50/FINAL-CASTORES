@@ -8,6 +8,7 @@ import { PageHero } from "@/components/ui/page-hero";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { motion, AnimatePresence } from "framer-motion";
+import { usePermissions } from "@/hooks/use-permissions";
 import { useState, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -30,6 +31,8 @@ function isImageUrl(url?: string | null): boolean {
 }
 
 export default function Documentos() {
+  const permissions = usePermissions();
+  const canManage = permissions.has("documentsLegalManage");
   const { data: documents = [], isLoading, refetch } = useListDocuments();
   const { data: projects = [] } = useListProjects();
   const createDocument = useCreateDocument();
@@ -133,11 +136,13 @@ export default function Documentos() {
           accentColor="#3B82F6"
           badge="GESTIÓN DOCUMENTAL"
         >
+          {canManage && (
           <button onClick={() => setShowForm(true)}
             className="mt-1 text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-1.5"
             style={{ background: "rgba(59,130,246,0.25)", border: "1px solid rgba(59,130,246,0.5)", color: "#fff" }}>
             <Icons.Upload className="w-3.5 h-3.5 mr-1" /> Subir Archivo
           </button>
+          )}
         </PageHero>
 
         {isLoading ? (

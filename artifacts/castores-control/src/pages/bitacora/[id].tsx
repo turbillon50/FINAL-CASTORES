@@ -1,6 +1,6 @@
 import { MainLayout } from "@/components/layout/main-layout";
-import { useGetLog, useSubmitLog, useSignLog } from "@workspace/api-client-react";
-import { useParams, Link } from "wouter";
+import { useGetLog, useSubmitLog, useSignLog, getAuthToken } from "@workspace/api-client-react";
+import { useParams, Link, useLocation } from "wouter";
 import { Icons } from "@/lib/icons";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,12 +9,21 @@ import { es } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
 import { SignaturePad } from "@/components/ui/signature-pad";
 import { useState } from "react";
+import { useAuth } from "@/lib/auth";
+import { apiUrl } from "@/lib/api-url";
 
 export default function BitacoraDetail() {
   const { id } = useParams();
   const logId = Number(id);
   const { toast } = useToast();
   const [clientSig, setClientSig] = useState("");
+  const { user } = useAuth();
+  const [, setLocation] = useLocation();
+  const isAdmin = user?.role === "admin";
+  const [deleting, setDeleting] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editForm, setEditForm] = useState<any>({});
+  const [editSaving, setEditSaving] = useState(false);
 
   const { data: log, isLoading, refetch } = useGetLog(logId, {
     query: { queryKey: ["get-log", logId], enabled: !!logId }
@@ -22,6 +31,101 @@ export default function BitacoraDetail() {
 
   const submitLog = useSubmitLog();
   const signLog = useSignLog();
+
+  const openEdit = () => {
+    setEditForm({
+      activity: log?.activity ?? "",
+      observations: log?.observations ?? "",
+      workersInvolved: log?.workersInvolved ?? "",
+      materialsUsed: log?.materialsUsed ?? "",
+      logDate: log?.logDate ?? "",
+      photos: Array.isArray(log?.photos) ? [...log.photos] : [],
+      supervisorSignature: log?.supervisorSignature ?? "",
+      clientSignature: log?.clientSignature ?? "",
+    });
+    setEditOpen(true);
+  };
+
+  const fileToDataUrl = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(r.result as string);
+      r.onerror = reject;
+      r.readAsDataURL(file);
+    });
+
+  const onAddPhotos = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    const newPhotos = await Promise.all(Array.from(files).map(fileToDataUrl));
+    setEditForm((f: any) => ({ ...f, photos: [...(f.photos ?? []), ...newPhotos].slice(0, 12) }));
+  };
+
+  const removePhoto = (idx: number) =>
+    setEditForm((f: any) => ({ ...f, photos: (f.photos ?? []).filter((_: any, i: number) => i !== idx) }));
+
+  const submitEdit = async () => {
+    if (!log) return;
+    setEditSaving(true);
+    try {
+      const payload: Record<string, unknown> = {};
+      const f = editForm;
+      if ((f.activity ?? "") !== (log.activity ?? "")) payload.activity = f.activity;
+      if ((f.observations ?? "") !== (log.observations ?? "")) payload.observations = f.observations || null;
+      if ((f.workersInvolved ?? "") !== (log.workersInvolved ?? "")) payload.workersInvolved = f.workersInvolved || null;
+      if ((f.materialsUsed ?? "") !== (log.materialsUsed ?? "")) payload.materialsUsed = f.materialsUsed || null;
+      if ((f.logDate ?? "") !== (log.logDate ?? "")) payload.logDate = f.logDate || null;
+      if ((f.supervisorSignature ?? "") !== (log.supervisorSignature ?? "")) payload.supervisorSignature = f.supervisorSignature || null;
+      if ((f.clientSignature ?? "") !== (log.clientSignature ?? "")) payload.clientSignature = f.clientSignature || null;
+
+      const photosBefore = Array.isArray(log.photos) ? log.photos : [];
+      const photosAfter = Array.isArray(f.photos) ? f.photos : [];
+      const photosChanged =
+        photosBefore.length !== photosAfter.length ||
+        photosBefore.some((p, i) => p !== photosAfter[i]);
+      if (photosChanged) payload.photos = photosAfter;
+
+      const token = await getAuthToken().catch(() => null);
+      const res = await fetch(apiUrl(`/api/logs/${logId}`), {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        credentials: "include",
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const e = await res.json().catch(() => ({}));
+        throw new Error(e.error || "No se pudo guardar");
+      }
+      toast({ title: "Bitácora actualizada", description: "Los cambios fueron guardados." });
+      setEditOpen(false);
+      refetch();
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
+  const handleAdminDelete = async () => {
+    if (!confirm("¿Eliminar esta bitácora? Esta acción no se puede deshacer y queda registrada en la auditoría.")) return;
+    setDeleting(true);
+    try {
+      const token = await getAuthToken().catch(() => null);
+      const res = await fetch(apiUrl(`/api/logs/${logId}`), {
+        method: "DELETE",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error(await res.text());
+      toast({ title: "Bitácora eliminada", description: "El registro fue eliminado." });
+      setLocation("/bitacora");
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message || "No se pudo eliminar", variant: "destructive" });
+      setDeleting(false);
+    }
+  };
 
   if (isLoading) return <MainLayout><div className="p-8 text-muted-foreground">Cargando...</div></MainLayout>;
   if (!log) return <MainLayout><div className="p-8 text-muted-foreground">Registro no encontrado</div></MainLayout>;
@@ -60,13 +164,34 @@ export default function BitacoraDetail() {
             <h1 className="font-display text-4xl md:text-5xl tracking-wide">{log.activity}</h1>
           </div>
 
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="flex items-center gap-3 shrink-0 flex-wrap">
             <Badge className={`text-sm px-3 py-1 font-bold uppercase tracking-wider border-none ${log.isSubmitted ? 'bg-[#2ECC71] text-white' : 'bg-[#F39C12] text-white'}`}>
               {log.isSubmitted ? 'Enviado' : 'Borrador'}
             </Badge>
             <Button variant="outline" className="gap-2 print:hidden" onClick={() => window.print()}>
               <Icons.Download className="w-4 h-4" /> PDF
             </Button>
+            {isAdmin && (
+              <>
+                <Button
+                  variant="outline"
+                  className="gap-2 print:hidden"
+                  onClick={openEdit}
+                  title="Editar todos los campos (admin)"
+                >
+                  <Icons.Edit className="w-4 h-4" /> Editar
+                </Button>
+                <Button
+                  variant="outline"
+                  className="gap-2 print:hidden border-red-300 text-red-700 hover:bg-red-50"
+                  onClick={handleAdminDelete}
+                  disabled={deleting}
+                  title="Solo el administrador puede eliminar"
+                >
+                  <Icons.Delete className="w-4 h-4" /> {deleting ? "Eliminando..." : "Eliminar"}
+                </Button>
+              </>
+            )}
           </div>
         </header>
 
@@ -184,6 +309,118 @@ export default function BitacoraDetail() {
           </div>
         </div>
       </div>
+
+      {/* Modal Editar Bitácora (admin) */}
+      {editOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.65)", backdropFilter: "blur(4px)" }} onClick={() => !editSaving && setEditOpen(false)}>
+          <div className="bg-background border border-border rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="p-6 border-b border-border sticky top-0 bg-background/95 backdrop-blur-sm z-10">
+              <h3 className="font-display text-2xl">Editar bitácora</h3>
+              <p className="text-sm text-muted-foreground mt-1">
+                Como admin puedes cambiar cualquier campo, agregar/quitar fotos y ajustar firmas. {log.isSubmitted && "El registro ya fue enviado; los cambios quedan en auditoría."}
+              </p>
+            </div>
+
+            <div className="p-6 space-y-5">
+              <Field label="Fecha del registro">
+                <input type="date" className="bita-input" value={(editForm.logDate ?? "").slice(0, 10)} onChange={e => setEditForm({ ...editForm, logDate: e.target.value })} />
+              </Field>
+
+              <Field label="Actividad">
+                <input className="bita-input" value={editForm.activity ?? ""} onChange={e => setEditForm({ ...editForm, activity: e.target.value })} />
+              </Field>
+
+              <Field label="Observaciones">
+                <textarea className="bita-input min-h-[90px]" value={editForm.observations ?? ""} onChange={e => setEditForm({ ...editForm, observations: e.target.value })} />
+              </Field>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Field label="Trabajadores involucrados">
+                  <textarea className="bita-input min-h-[60px]" value={editForm.workersInvolved ?? ""} onChange={e => setEditForm({ ...editForm, workersInvolved: e.target.value })} />
+                </Field>
+                <Field label="Materiales usados">
+                  <textarea className="bita-input min-h-[60px]" value={editForm.materialsUsed ?? ""} onChange={e => setEditForm({ ...editForm, materialsUsed: e.target.value })} />
+                </Field>
+              </div>
+
+              <Field label="Evidencia fotográfica">
+                <div className="space-y-3">
+                  {Array.isArray(editForm.photos) && editForm.photos.length > 0 && (
+                    <div className="grid grid-cols-3 md:grid-cols-4 gap-2">
+                      {editForm.photos.map((p: string, i: number) => (
+                        <div key={i} className="relative group aspect-square rounded-lg overflow-hidden border border-card-border">
+                          <img src={p} alt={`Foto ${i + 1}`} className="w-full h-full object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => removePhoto(i)}
+                            className="absolute top-1 right-1 w-6 h-6 rounded-full bg-red-600 text-white flex items-center justify-center text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity"
+                            title="Quitar foto"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <label className="block">
+                    <span className="block px-4 py-3 rounded-xl border-2 border-dashed border-border text-center text-sm text-muted-foreground hover:bg-accent cursor-pointer transition-colors">
+                      📷 Agregar fotos
+                    </span>
+                    <input type="file" multiple accept="image/*" className="hidden" onChange={e => onAddPhotos(e.target.files)} />
+                  </label>
+                </div>
+              </Field>
+
+              <Field label="Firma del supervisor">
+                <div className="space-y-2">
+                  {editForm.supervisorSignature ? (
+                    <div className="flex items-center gap-3 p-3 rounded-lg bg-sidebar border border-card-border">
+                      <img src={editForm.supervisorSignature} alt="Firma supervisor" className="h-12 invert" />
+                      <button type="button" onClick={() => setEditForm({ ...editForm, supervisorSignature: "" })} className="text-xs text-red-600 hover:underline">
+                        Borrar firma
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground italic">Sin firma. Quien tenga rol supervisor o admin puede firmar después desde esta misma pantalla.</p>
+                  )}
+                </div>
+              </Field>
+
+              <Field label="Firma del cliente">
+                <div className="space-y-2">
+                  {editForm.clientSignature ? (
+                    <div className="flex items-center gap-3 p-3 rounded-lg bg-sidebar border border-card-border">
+                      <img src={editForm.clientSignature} alt="Firma cliente" className="h-12 invert" />
+                      <button type="button" onClick={() => setEditForm({ ...editForm, clientSignature: "" })} className="text-xs text-red-600 hover:underline">
+                        Borrar firma
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground italic">Sin firma del cliente.</p>
+                  )}
+                </div>
+              </Field>
+            </div>
+
+            <div className="p-6 border-t border-border flex justify-end gap-2 sticky bottom-0 bg-background/95 backdrop-blur-sm">
+              <Button variant="outline" onClick={() => setEditOpen(false)} disabled={editSaving}>Cancelar</Button>
+              <Button onClick={submitEdit} disabled={editSaving} className="bg-primary text-primary-foreground hover:bg-primary/90">
+                {editSaving ? "Guardando..." : "Guardar cambios"}
+              </Button>
+            </div>
+          </div>
+          <style>{`.bita-input { width: 100%; padding: 0.6rem 0.85rem; border-radius: 0.6rem; border: 1px solid hsl(var(--border)); background: hsl(var(--background)); font-size: 0.875rem; outline: none; transition: border-color 0.15s; } .bita-input:focus { border-color: hsl(var(--primary)); box-shadow: 0 0 0 3px hsl(var(--primary) / 0.1); }`}</style>
+        </div>
+      )}
     </MainLayout>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label className="block">
+      <span className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">{label}</span>
+      {children}
+    </label>
   );
 }

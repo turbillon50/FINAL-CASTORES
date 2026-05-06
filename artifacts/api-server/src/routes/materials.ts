@@ -4,7 +4,7 @@ import { db, materialsTable, projectsTable, usersTable } from "@workspace/db";
 import { getRequestUser } from "../lib/getRequestUser";
 import { resolveAuthedUser } from "../lib/authContext";
 import { hasPermission } from "../lib/permissions";
-import { getAccessibleProjectIds } from "../lib/projectAccess";
+import { getAccessibleProjectIds, canAccessProject } from "../lib/projectAccess";
 import { formatZodError } from "../lib/zodError";
 import {
   CreateMaterialBody,
@@ -84,7 +84,19 @@ router.post("/materials", async (req, res): Promise<void> => {
 });
 
 router.get("/materials/alerts", async (req, res): Promise<void> => {
-  const materials = await db.select().from(materialsTable);
+  const user = await getRequestUser(req);
+  if (!user) { res.status(401).json({ error: "No autenticado" }); return; }
+
+  // Filter alerts to projects the requester can actually see. Without this,
+  // any authenticated role (worker, proveedor, etc.) saw the full alerts feed
+  // for every project in the system.
+  const accessibleIds = await getAccessibleProjectIds(user);
+  let materials = await db.select().from(materialsTable);
+  if (accessibleIds !== null) {
+    if (accessibleIds.length === 0) { res.json([]); return; }
+    materials = materials.filter((m) => accessibleIds.includes(m.projectId));
+  }
+
   const projects = await db.select().from(projectsTable);
   const projectMap = new Map(projects.map((p) => [p.id, p.name]));
 
@@ -122,6 +134,9 @@ router.get("/materials/alerts", async (req, res): Promise<void> => {
 });
 
 router.get("/materials/:id", async (req, res): Promise<void> => {
+  const user = await getRequestUser(req);
+  if (!user) { res.status(401).json({ error: "No autenticado" }); return; }
+
   const params = GetMaterialParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: formatZodError(params.error) });
@@ -134,10 +149,19 @@ router.get("/materials/:id", async (req, res): Promise<void> => {
     return;
   }
 
+  // Project-scoped read: the user must have access to the material's project.
+  // Without this any authenticated user could read material details from any
+  // project just by knowing/guessing the id.
+  const allowed = await canAccessProject(user, material.projectId);
+  if (!allowed) { res.status(403).json({ error: "Acceso denegado" }); return; }
+
   res.json(await enrichMaterial(material));
 });
 
 router.patch("/materials/:id", async (req, res): Promise<void> => {
+  const user = await getRequestUser(req);
+  if (!user) { res.status(401).json({ error: "No autenticado" }); return; }
+
   const params = UpdateMaterialParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: formatZodError(params.error) });
@@ -158,6 +182,20 @@ router.patch("/materials/:id", async (req, res): Promise<void> => {
     .where(eq(materialsTable.id, params.data.id));
   if (!existing) {
     res.status(404).json({ error: "Material no encontrado" });
+    return;
+  }
+
+  // Project-scoped write: must have access to the material's project AND
+  // permission to change material data. Workers can register usage only
+  // (materialsRequest), suppliers can supply (materialsSupply), supervisors
+  // and admins can approve/edit (materialsApprove).
+  const allowed = await canAccessProject(user, existing.projectId);
+  if (!allowed) { res.status(403).json({ error: "Acceso denegado" }); return; }
+  const canApprove = await hasPermission(user.role, "materialsApprove");
+  const canSupply = await hasPermission(user.role, "materialsSupply");
+  const canRequest = await hasPermission(user.role, "materialsRequest");
+  if (!canApprove && !canSupply && !canRequest) {
+    res.status(403).json({ error: "No tienes permiso para modificar materiales" });
     return;
   }
 

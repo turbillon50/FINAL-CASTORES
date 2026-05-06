@@ -42,6 +42,10 @@ export function CinematicProjectCard({ project, index }: CinematicProjectCardPro
       transition={{ duration: 0.5, delay: index * 0.1 }}
       className="group relative overflow-hidden rounded-xl bg-card aspect-[16/9] sm:aspect-[4/3] lg:aspect-[16/9] shadow-lg ring-1 ring-white/5 cursor-pointer isolate"
       data-testid={`project-card-${project.id}`}
+      onClick={() => { window.location.href = `/projects/${project.id}`; }}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => { if (e.key === "Enter") window.location.href = `/projects/${project.id}`; }}
     >
       <img
         src={project.coverImageUrl || `/project-${(project.id % 5) + 1}.png`}
@@ -51,10 +55,17 @@ export function CinematicProjectCard({ project, index }: CinematicProjectCardPro
 
       <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent transition-opacity duration-500 group-hover:opacity-90" />
 
-      <div className="absolute top-4 right-4 z-10">
+      <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
         <Badge className={`${getStatusColor(project.status)} uppercase font-bold tracking-wider text-xs border-none`}>
           {STATUS_LABELS[project.status] ?? project.status}
         </Badge>
+      </div>
+
+      {/* Hint visible siempre (no solo en hover) para que se sepa que la card abre el detalle */}
+      <div className="absolute top-4 left-4 z-10">
+        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider bg-white/15 backdrop-blur-md text-white">
+          <Icons.Edit className="w-3 h-3" /> Tocar para editar
+        </span>
       </div>
 
       <div className="absolute inset-x-0 bottom-0 p-6 flex flex-col justify-end z-10 transition-transform duration-500 transform translate-y-0 group-hover:-translate-y-4">

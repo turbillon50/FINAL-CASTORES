@@ -7,8 +7,11 @@ import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
 import { PageHero } from "@/components/ui/page-hero";
+import { usePermissions } from "@/hooks/use-permissions";
 
 export default function Bitacora() {
+  const permissions = usePermissions();
+  const canCreate = permissions.has("bitacoraCreate");
   const { data: logs = [], isLoading } = useListLogs();
 
   const groupedLogs = logs.reduce((acc, log) => {
@@ -30,12 +33,14 @@ export default function Bitacora() {
           accentColor="#C8952A"
           badge="REGISTRO OFICIAL"
         >
-          <Link href="/bitacora/new">
-            <button className="mt-1 text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-1.5 transition-all"
-              style={{ background: "rgba(200,149,42,0.25)", border: "1px solid rgba(200,149,42,0.5)", color: "#fff" }}>
-              + Nueva Entrada
-            </button>
-          </Link>
+          {canCreate && (
+            <Link href="/bitacora/new">
+              <button className="mt-1 text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-1.5 transition-all"
+                style={{ background: "rgba(200,149,42,0.25)", border: "1px solid rgba(200,149,42,0.5)", color: "#fff" }}>
+                + Nueva Entrada
+              </button>
+            </Link>
+          )}
         </PageHero>
 
         {isLoading ? (

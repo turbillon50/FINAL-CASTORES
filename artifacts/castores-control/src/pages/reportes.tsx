@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { MainLayout } from "@/components/layout/main-layout";
 import { useAuth } from "@/lib/auth";
+import { usePermissions } from "@/hooks/use-permissions";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth as useClerkAuth } from "@clerk/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -322,6 +323,7 @@ function PrintView({ data, onClose }: { data: any; onClose: () => void }) {
 // ─── Main Reportes page ───────────────────────────────────────────────────────
 export default function Reportes() {
   const { user } = useAuth();
+  const permissions = usePermissions();
   const { toast } = useToast();
   const qc = useQueryClient();
   const authFetch = useAuthFetch();
@@ -350,7 +352,10 @@ export default function Reportes() {
     queryFn: () => authFetch("/projects"),
   });
 
-  const canCreate = user?.role === "admin" || user?.role === "supervisor";
+  // Use the same permission key the backend checks for write operations on
+  // bitácora/reports work — supervisors retain it by default and an admin
+  // can revoke it from /admin → Permisos to demote a specific role.
+  const canCreate = permissions.has("bitacoraCreate") || permissions.isRole("admin", "supervisor");
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();

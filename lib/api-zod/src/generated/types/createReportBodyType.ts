@@ -10,10 +10,7 @@ export type CreateReportBodyType =
   (typeof CreateReportBodyType)[keyof typeof CreateReportBodyType];
 
 export const CreateReportBodyType = {
-  daily: "daily",
-  weekly: "weekly",
-  monthly: "monthly",
-  materials: "materials",
-  cost: "cost",
-  progress: "progress",
+  avance: "avance",
+  bitacora: "bitacora",
+  materiales: "materiales",
 } as const;

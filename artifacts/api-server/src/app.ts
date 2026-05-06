@@ -72,7 +72,7 @@ p{color:rgba(255,255,255,0.55);font-weight:600;margin:0}
 <script>(function(){
   var code=${JSON.stringify(code)};
   var frontendBase=${JSON.stringify(frontendBase)};
-  try{localStorage.setItem("castores_invite_code",code);}catch(e){}
+  try{localStorage.setItem("castores_invite_code",code);localStorage.setItem("castores_invite_pending",String(Date.now()));}catch(e){}
   function go(){
     var url = (frontendBase ? frontendBase : "") + "/?code=" + code + "&_t=" + Date.now();
     location.replace(url);

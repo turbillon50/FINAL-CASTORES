@@ -1,9 +1,10 @@
 import { Router, type IRouter } from "express";
 import { eq, sql, and } from "drizzle-orm";
-import { db, projectsTable, usersTable, workLogsTable, materialsTable, projectAssignmentsTable } from "@workspace/db";
+import { db, projectsTable, usersTable, workLogsTable, materialsTable, projectAssignmentsTable, documentsTable, reportsTable } from "@workspace/db";
 import { getRequestUser, getRequestUserStrict } from "../lib/getRequestUser";
 import { getAccessibleProjectIds, canAccessProject } from "../lib/projectAccess";
 import { hasPermission } from "../lib/permissions";
+import { isAdmin, logAdminOverride } from "../lib/adminOverride";
 import { formatZodError } from "../lib/zodError";
 import {
   CreateProjectBody,
@@ -225,8 +226,12 @@ router.patch("/projects/:id", async (req, res): Promise<void> => {
 router.delete("/projects/:id", async (req, res): Promise<void> => {
   const user = await getRequestUserStrict(req);
   if (!user) { res.status(401).json({ error: "No autenticado" }); return; }
-  if (!await hasPermission(user.role, "projectsCreateEdit")) {
-    res.status(403).json({ error: "No tienes permiso para eliminar obras" });
+  // Eliminar obras es destructivo y arrastra bitácoras + materiales +
+  // documentos + reportes. Lo restringimos a admin (incluso si el rol
+  // tiene projectsCreateEdit, no puede borrar). El admin sí — y queda
+  // grabado en activity_log para que siempre se sepa qué desapareció.
+  if (!isAdmin(user)) {
+    res.status(403).json({ error: "Solo el administrador puede eliminar obras" });
     return;
   }
 
@@ -236,7 +241,33 @@ router.delete("/projects/:id", async (req, res): Promise<void> => {
     return;
   }
 
-  await db.delete(projectsTable).where(eq(projectsTable.id, params.data.id));
+  const projectId = params.data.id;
+
+  // Snapshot pre-borrado para que el audit log diga qué se llevó por
+  // delante (nombre + conteos).
+  const [existing] = await db.select().from(projectsTable).where(eq(projectsTable.id, projectId));
+  if (!existing) { res.status(404).json({ error: "Obra no encontrada" }); return; }
+
+  const logsCount = (await db.select({ id: workLogsTable.id }).from(workLogsTable).where(eq(workLogsTable.projectId, projectId))).length;
+  const materialsCount = (await db.select({ id: materialsTable.id }).from(materialsTable).where(eq(materialsTable.projectId, projectId))).length;
+  const docsCount = (await db.select({ id: documentsTable.id }).from(documentsTable).where(eq(documentsTable.projectId, projectId))).length;
+
+  // Cleanup explícito antes del DELETE del project para no dejar filas
+  // huérfanas con projectId apuntando a un id que ya no existe.
+  await db.delete(workLogsTable).where(eq(workLogsTable.projectId, projectId));
+  await db.delete(materialsTable).where(eq(materialsTable.projectId, projectId));
+  await db.delete(documentsTable).where(eq(documentsTable.projectId, projectId));
+  await db.delete(reportsTable).where(eq(reportsTable.projectId, projectId));
+  await db.delete(projectAssignmentsTable).where(eq(projectAssignmentsTable.projectId, projectId));
+  await db.delete(projectsTable).where(eq(projectsTable.id, projectId));
+
+  await logAdminOverride({
+    actorId: user.id,
+    action: "project.delete",
+    description: `Admin ${user.name} eliminó la obra "${existing.name}" (#${existing.id}) y su contenido: ${logsCount} bitácoras, ${materialsCount} materiales, ${docsCount} documentos`,
+    projectId,
+  });
+
   res.sendStatus(204);
 });
 
