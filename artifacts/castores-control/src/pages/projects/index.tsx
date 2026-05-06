@@ -11,6 +11,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
 import { usePermissions } from "@/hooks/use-permissions";
 import { apiUrl } from "@/lib/api-url";
+import { PhotoUploadButtons } from "@/components/ui/photo-upload-buttons";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -239,18 +240,16 @@ export default function Projects() {
                         </button>
                       </div>
                     ) : (
-                      <label className="block">
-                        <span className="block px-4 py-6 rounded-xl border-2 border-dashed border-black/15 text-center text-sm text-muted-foreground hover:bg-black/5 cursor-pointer transition-colors">
-                          📷 Subir foto de la obra
-                          <span className="block text-[10px] mt-1 text-muted-foreground/70">Aparecerá en la tarjeta y en el detalle</span>
-                        </span>
-                        <input type="file" accept="image/*" className="hidden" onChange={async (e) => {
-                          const file = e.target.files?.[0];
+                      <PhotoUploadButtons
+                        multiple={false}
+                        helperText="Aparecerá en la tarjeta y en el detalle de la obra"
+                        onFilesSelected={async (files) => {
+                          const file = files[0];
                           if (!file) return;
                           const dataUrl = await fileToDataUrl(file);
                           setForm(f => ({ ...f, coverImageUrl: dataUrl }));
-                        }} />
-                      </label>
+                        }}
+                      />
                     )}
                   </div>
 
@@ -349,17 +348,15 @@ export default function Projects() {
                         ))}
                       </div>
                     )}
-                    <label className="block">
-                      <span className="block px-4 py-3 rounded-xl border-2 border-dashed border-black/15 text-center text-xs text-muted-foreground hover:bg-black/5 cursor-pointer transition-colors">
-                        🖼️ Agregar imágenes (renders, fotos del sitio)
-                      </span>
-                      <input type="file" multiple accept="image/*" className="hidden" onChange={async (e) => {
-                        const files = Array.from(e.target.files ?? []);
+                    <PhotoUploadButtons
+                      variant="compact"
+                      helperText="Renders, fotos del sitio o avances · Hasta 30 imágenes"
+                      onFilesSelected={async (files) => {
                         if (files.length === 0) return;
                         const urls = await Promise.all(files.map(fileToDataUrl));
                         setForm(f => ({ ...f, galleryImages: [...f.galleryImages, ...urls].slice(0, 30) }));
-                      }} />
-                    </label>
+                      }}
+                    />
                   </div>
 
                   <div>

@@ -11,6 +11,7 @@ import { SignaturePad } from "@/components/ui/signature-pad";
 import { useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { apiUrl } from "@/lib/api-url";
+import { PhotoUploadButtons } from "@/components/ui/photo-upload-buttons";
 
 export default function BitacoraDetail() {
   const { id } = useParams();
@@ -362,12 +363,14 @@ export default function BitacoraDetail() {
                       ))}
                     </div>
                   )}
-                  <label className="block">
-                    <span className="block px-4 py-3 rounded-xl border-2 border-dashed border-border text-center text-sm text-muted-foreground hover:bg-accent cursor-pointer transition-colors">
-                      📷 Agregar fotos
-                    </span>
-                    <input type="file" multiple accept="image/*" className="hidden" onChange={e => onAddPhotos(e.target.files)} />
-                  </label>
+                  <PhotoUploadButtons
+                    onFilesSelected={(files) => {
+                      const dt = new DataTransfer();
+                      files.forEach((f) => dt.items.add(f));
+                      onAddPhotos(dt.files);
+                    }}
+                    helperText="Toma fotos en el momento o súbelas desde tu galería"
+                  />
                 </div>
               </Field>
 
@@ -412,6 +415,39 @@ export default function BitacoraDetail() {
           <style>{`.bita-input { width: 100%; padding: 0.6rem 0.85rem; border-radius: 0.6rem; border: 1px solid hsl(var(--border)); background: hsl(var(--background)); font-size: 0.875rem; outline: none; transition: border-color 0.15s; } .bita-input:focus { border-color: hsl(var(--primary)); box-shadow: 0 0 0 3px hsl(var(--primary) / 0.1); }`}</style>
         </div>
       )}
+
+      {/*
+        Barra de acciones flotante para admin. Anclada al fondo de la
+        ventana, siempre visible aunque el usuario haga scroll por la
+        bitácora. Resuelve el caso real: el admin estaba abajo de la
+        página viendo las fotos y NO veía dónde editar/eliminar porque
+        los botones estaban en el header. Aparece SOLO para admin y SOLO
+        cuando el modal de edición está cerrado.
+      */}
+      {isAdmin && !editOpen && (
+        <div className="fixed bottom-0 inset-x-0 z-30 border-t border-border bg-background/95 backdrop-blur-md print:hidden">
+          <div className="max-w-5xl mx-auto px-4 py-3 flex gap-2">
+            <Button
+              onClick={openEdit}
+              className="flex-1 gap-2 bg-primary text-primary-foreground hover:bg-primary/90 font-semibold"
+            >
+              <Icons.Edit className="w-4 h-4" /> Editar bitácora
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleAdminDelete}
+              disabled={deleting}
+              className="flex-1 gap-2 border-red-300 text-red-700 hover:bg-red-50 font-semibold"
+            >
+              <Icons.Delete className="w-4 h-4" /> {deleting ? "Eliminando..." : "Eliminar"}
+            </Button>
+          </div>
+          {/* Espacio extra para que el FAB de + nueva entrada no choque */}
+          <div className="h-[env(safe-area-inset-bottom)]" />
+        </div>
+      )}
+      {/* Padding extra al final del contenido para que la barra flotante no tape la última fila */}
+      {isAdmin && <div className="h-24" aria-hidden="true" />}
     </MainLayout>
   );
 }
