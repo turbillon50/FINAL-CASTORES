@@ -196,7 +196,20 @@ export default function ProjectDetail() {
   }
 
   if (!project) {
-    return <MainLayout><div className="p-8 text-muted-foreground">Obra no encontrada</div></MainLayout>;
+    return (
+      <MainLayout>
+        <div className="max-w-md mx-auto py-20 text-center space-y-4">
+          <div className="text-6xl opacity-30">🏗️</div>
+          <h2 className="font-display text-2xl">Esta obra no existe</h2>
+          <p className="text-sm text-muted-foreground">
+            Puede que haya sido eliminada o que el enlace esté desactualizado.
+          </p>
+          <Button onClick={() => (window.location.href = "/projects")} className="mt-4">
+            Ver todas las obras
+          </Button>
+        </div>
+      </MainLayout>
+    );
   }
 
   const formatCurrency = (amount: number | null | undefined) => {
