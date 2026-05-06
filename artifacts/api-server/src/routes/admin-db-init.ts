@@ -75,9 +75,17 @@ CREATE TABLE IF NOT EXISTS "projects" (
   "progress_percent" integer NOT NULL DEFAULT 0,
   "status" text NOT NULL DEFAULT 'active',
   "cover_image_url" text,
+  "gallery_images" text[] DEFAULT '{}',
+  "milestones" jsonb DEFAULT '[]'::jsonb,
   "created_at" timestamptz NOT NULL DEFAULT NOW(),
   "updated_at" timestamptz NOT NULL DEFAULT NOW()
 );
+
+-- Migración idempotente: agrega galería y milestones si la tabla
+-- ya existía sin esas columnas (caso típico al desplegar este cambio
+-- sobre la DB de producción que se creó antes).
+ALTER TABLE "projects" ADD COLUMN IF NOT EXISTS "gallery_images" text[] DEFAULT '{}';
+ALTER TABLE "projects" ADD COLUMN IF NOT EXISTS "milestones" jsonb DEFAULT '[]'::jsonb;
 
 CREATE TABLE IF NOT EXISTS "activity_log" (
   "id" serial PRIMARY KEY,

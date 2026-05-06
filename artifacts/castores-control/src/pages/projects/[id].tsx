@@ -171,6 +171,67 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
+function ProjectMilestonesView({ project }: { project: any }) {
+  const milestones: any[] = Array.isArray(project.milestones) ? project.milestones : [];
+  if (milestones.length === 0) return null;
+  const fmt = (d?: string | null) => {
+    if (!d) return "Sin fecha";
+    try {
+      return new Date(d).toLocaleDateString("es-MX", { day: "2-digit", month: "short", year: "2-digit" });
+    } catch { return d; }
+  };
+  const total = milestones.length;
+  const done = milestones.filter((m) => m.completed).length;
+  return (
+    <div className="bg-card border border-card-border rounded-2xl p-5 mb-6">
+      <div className="flex items-center justify-between gap-3 mb-4">
+        <div className="flex items-center gap-2">
+          <span className="text-xl">🚧</span>
+          <h3 className="font-display text-lg">Hitos y partidas</h3>
+        </div>
+        <span className="text-xs text-muted-foreground">{done} de {total} completados</span>
+      </div>
+      <div className="space-y-2">
+        {milestones.map((m, i) => (
+          <div key={m.id ?? i} className={"flex items-center gap-3 p-3 rounded-lg border " + (m.completed ? "bg-emerald-50/50 border-emerald-200" : "bg-sidebar border-card-border")}>
+            <span className={"flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold " + (m.completed ? "bg-emerald-500 text-white" : "bg-muted text-muted-foreground")}>
+              {m.completed ? "✓" : i + 1}
+            </span>
+            <div className="flex-1 min-w-0">
+              <p className={"font-medium text-sm " + (m.completed ? "line-through text-muted-foreground" : "")}>{m.name || `Hito ${i + 1}`}</p>
+              {m.notes && <p className="text-xs text-muted-foreground mt-0.5">{m.notes}</p>}
+            </div>
+            <span className="flex-shrink-0 text-[10px] uppercase tracking-wider text-muted-foreground font-mono">
+              {fmt(m.dueDate)}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ProjectGalleryView({ project }: { project: any }) {
+  const images: string[] = Array.isArray(project.galleryImages) ? project.galleryImages : [];
+  if (images.length === 0) return null;
+  return (
+    <div className="bg-card border border-card-border rounded-2xl p-5 mb-6">
+      <div className="flex items-center gap-2 mb-4">
+        <span className="text-xl">🖼️</span>
+        <h3 className="font-display text-lg">Galería</h3>
+        <span className="text-xs text-muted-foreground ml-auto">{images.length} imágenes</span>
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+        {images.map((img, i) => (
+          <a key={i} href={img} target="_blank" rel="noreferrer" className="relative aspect-square rounded-lg overflow-hidden border border-card-border group">
+            <img src={img} alt={`Imagen ${i + 1}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+          </a>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function ProjectCalendarCard({ project }: { project: any }) {
   const fmt = (d?: string | null) => {
     if (!d) return null;
@@ -313,9 +374,34 @@ export default function ProjectDetail() {
       progressPercent: project.progressPercent ?? 0,
       status: project.status ?? "active",
       coverImageUrl: project.coverImageUrl ?? "",
+      galleryImages: Array.isArray((project as any).galleryImages) ? [...(project as any).galleryImages] : [],
+      milestones: Array.isArray((project as any).milestones) ? [...(project as any).milestones] : [],
     });
     setEditOpen(true);
   };
+
+  const addGalleryFiles = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    const dataUrls = await Promise.all(Array.from(files).map(fileToDataUrl));
+    setEditForm((f: any) => ({ ...f, galleryImages: [...(f.galleryImages ?? []), ...dataUrls].slice(0, 30) }));
+  };
+  const removeGalleryAt = (idx: number) =>
+    setEditForm((f: any) => ({ ...f, galleryImages: (f.galleryImages ?? []).filter((_: any, i: number) => i !== idx) }));
+
+  const addMilestone = () => {
+    const id = (crypto as any).randomUUID?.() ?? `m_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    setEditForm((f: any) => ({
+      ...f,
+      milestones: [...(f.milestones ?? []), { id, name: "", dueDate: "", completed: false, notes: "" }],
+    }));
+  };
+  const updateMilestone = (id: string, patch: Partial<any>) =>
+    setEditForm((f: any) => ({
+      ...f,
+      milestones: (f.milestones ?? []).map((m: any) => (m.id === id ? { ...m, ...patch } : m)),
+    }));
+  const removeMilestone = (id: string) =>
+    setEditForm((f: any) => ({ ...f, milestones: (f.milestones ?? []).filter((m: any) => m.id !== id) }));
 
   const fileToDataUrl = (file: File): Promise<string> =>
     new Promise((resolve, reject) => {
@@ -341,6 +427,17 @@ export default function ProjectDetail() {
       if (Number(f.progressPercent) !== (project.progressPercent ?? 0)) payload.progressPercent = Number(f.progressPercent);
       if (f.status !== project.status) payload.status = f.status;
       if ((f.coverImageUrl ?? "") !== (project.coverImageUrl ?? "")) payload.coverImageUrl = f.coverImageUrl || null;
+
+      const galleryBefore: string[] = Array.isArray((project as any).galleryImages) ? (project as any).galleryImages : [];
+      const galleryAfter: string[] = Array.isArray(f.galleryImages) ? f.galleryImages : [];
+      const galleryChanged =
+        galleryBefore.length !== galleryAfter.length ||
+        galleryBefore.some((p, i) => p !== galleryAfter[i]);
+      if (galleryChanged) payload.galleryImages = galleryAfter;
+
+      const milesBefore = Array.isArray((project as any).milestones) ? (project as any).milestones : [];
+      const milesAfter = Array.isArray(f.milestones) ? f.milestones : [];
+      if (JSON.stringify(milesBefore) !== JSON.stringify(milesAfter)) payload.milestones = milesAfter;
 
       const res = await teamFetch(`/projects/${projectId}`, { method: "PATCH", body: JSON.stringify(payload) });
       if (!res.ok) {
@@ -427,6 +524,12 @@ export default function ProjectDetail() {
 
       {/* Calendario / Plazo de la obra */}
       <ProjectCalendarCard project={project} />
+
+      {/* Hitos y partidas */}
+      <ProjectMilestonesView project={project} />
+
+      {/* Galería de imágenes */}
+      <ProjectGalleryView project={project} />
 
       <Tabs defaultValue="overview" className="w-full">
         <TabsList className="bg-sidebar border-b border-card-border rounded-none p-0 h-auto justify-start overflow-x-auto w-full hide-scrollbar">
@@ -659,6 +762,67 @@ export default function ProjectDetail() {
                   <option value="completed">Completada</option>
                   <option value="cancelled">Cancelada</option>
                 </select>
+              </Field>
+
+              <Field label="Galería de imágenes (planos, render, fotos del sitio)">
+                <div className="space-y-3">
+                  {Array.isArray(editForm.galleryImages) && editForm.galleryImages.length > 0 && (
+                    <div className="grid grid-cols-3 md:grid-cols-4 gap-2">
+                      {editForm.galleryImages.map((img: string, i: number) => (
+                        <div key={i} className="relative group aspect-square rounded-lg overflow-hidden border border-border">
+                          <img src={img} alt={`Imagen ${i + 1}`} className="w-full h-full object-cover" />
+                          <button type="button"
+                            onClick={() => removeGalleryAt(i)}
+                            className="absolute top-1 right-1 w-6 h-6 rounded-full bg-red-600 text-white flex items-center justify-center text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity"
+                            title="Quitar imagen"
+                          >✕</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <label className="block">
+                    <span className="block px-4 py-3 rounded-lg border-2 border-dashed border-border text-center text-sm text-muted-foreground hover:bg-accent cursor-pointer transition-colors">
+                      🖼️ Agregar imágenes a la galería
+                    </span>
+                    <input type="file" multiple accept="image/*" className="hidden" onChange={(e) => addGalleryFiles(e.target.files)} />
+                  </label>
+                </div>
+              </Field>
+
+              <Field label="Hitos / Partidas de la obra">
+                <div className="space-y-2">
+                  {(editForm.milestones ?? []).length === 0 && (
+                    <p className="text-xs italic text-muted-foreground">Sin hitos. Agrega los pasos clave de la obra: cimentación, estructura, instalaciones, acabados, entrega…</p>
+                  )}
+                  {(editForm.milestones ?? []).map((m: any) => (
+                    <div key={m.id} className="grid grid-cols-12 gap-2 items-center p-2 rounded-lg border border-border">
+                      <input
+                        type="checkbox"
+                        checked={!!m.completed}
+                        onChange={(e) => updateMilestone(m.id, { completed: e.target.checked })}
+                        className="col-span-1 w-4 h-4 accent-emerald-600"
+                        title="Marcar completado"
+                      />
+                      <input
+                        className="col-span-6 px-2 py-1 rounded-md text-sm border border-transparent focus:border-primary outline-none bg-transparent"
+                        placeholder="Nombre del hito (ej. Cimentación)"
+                        value={m.name ?? ""}
+                        onChange={(e) => updateMilestone(m.id, { name: e.target.value })}
+                      />
+                      <input
+                        type="date"
+                        className="col-span-4 px-2 py-1 rounded-md text-sm border border-transparent focus:border-primary outline-none bg-transparent"
+                        value={(m.dueDate ?? "").slice(0, 10)}
+                        onChange={(e) => updateMilestone(m.id, { dueDate: e.target.value })}
+                      />
+                      <button type="button" onClick={() => removeMilestone(m.id)} className="col-span-1 text-red-600 hover:bg-red-50 rounded-md p-1" title="Eliminar hito">✕</button>
+                    </div>
+                  ))}
+                  <button type="button" onClick={addMilestone}
+                    className="w-full px-3 py-2 rounded-lg border-2 border-dashed border-border text-sm text-muted-foreground hover:bg-accent transition">
+                    + Agregar hito
+                  </button>
+                </div>
               </Field>
             </div>
             <div className="p-6 border-t border-border flex justify-end gap-2">

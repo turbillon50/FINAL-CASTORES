@@ -173,6 +173,14 @@ export const ListProjectsResponse = zod.array(ListProjectsResponseItem);
 /**
  * @summary Create project
  */
+export const ProjectMilestoneSchema = zod.object({
+  id: zod.string(),
+  name: zod.string(),
+  dueDate: zod.string().nullish(),
+  completed: zod.boolean().optional(),
+  notes: zod.string().nullish(),
+});
+
 export const CreateProjectBody = zod.object({
   name: zod.string(),
   description: zod.string().nullish(),
@@ -185,6 +193,8 @@ export const CreateProjectBody = zod.object({
   endDate: zod.string().nullish(),
   budget: zod.number().nullish(),
   coverImageUrl: zod.string().nullish(),
+  galleryImages: zod.array(zod.string()).optional(),
+  milestones: zod.array(ProjectMilestoneSchema).optional(),
   status: zod.enum(["active", "paused", "completed", "cancelled"]).optional(),
 });
 
@@ -236,6 +246,8 @@ export const UpdateProjectBody = zod.object({
   endDate: zod.string().nullish(),
   budget: zod.number().nullish(),
   coverImageUrl: zod.string().nullish(),
+  galleryImages: zod.array(zod.string()).optional(),
+  milestones: zod.array(ProjectMilestoneSchema).optional(),
   progressPercent: zod.number().nullish(),
   status: zod.string().nullish(),
 });

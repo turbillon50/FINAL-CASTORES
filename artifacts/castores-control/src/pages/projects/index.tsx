@@ -1,7 +1,7 @@
 import { MainLayout } from "@/components/layout/main-layout";
 import { CinematicProjectCard } from "@/components/ui/cinematic-project-card";
 import { PageHero } from "@/components/ui/page-hero";
-import { useListProjects, useCreateProject, useListUsers } from "@workspace/api-client-react";
+import { useListProjects, useCreateProject, useListUsers, getAuthToken } from "@workspace/api-client-react";
 import { Icons } from "@/lib/icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
 import { usePermissions } from "@/hooks/use-permissions";
+import { apiUrl } from "@/lib/api-url";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -53,7 +54,9 @@ export default function Projects() {
     startDate: "", endDate: "", supervisorId: "", clientId: "",
     status: "active" as const,
     coverImageUrl: "",
+    galleryImages: [] as string[],
   });
+  const [initialDocs, setInitialDocs] = useState<{ name: string; type: string; size: number; dataUrl: string }[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
   const fileToDataUrl = (file: File): Promise<string> =>
@@ -72,7 +75,7 @@ export default function Projects() {
     }
     setSubmitting(true);
     try {
-      await createProject.mutateAsync({
+      const created = await createProject.mutateAsync({
         data: {
           name: form.name,
           description: form.description || null,
@@ -84,11 +87,41 @@ export default function Projects() {
           clientId: form.clientId ? Number(form.clientId) : null,
           status: form.status,
           coverImageUrl: form.coverImageUrl || null,
+          galleryImages: form.galleryImages,
         },
       });
-      toast({ title: "Obra Creada", description: `"${form.name}" fue registrada exitosamente.` });
+
+      // Subir documentos iniciales (planos, contratos) ya enlazados a esta obra.
+      // Cada uno se envía a /api/documents con projectId del recién creado.
+      if (initialDocs.length > 0 && created?.id) {
+        const token = await getAuthToken().catch(() => null);
+        await Promise.all(initialDocs.map(async (d) => {
+          const cat = /\.(jpe?g|png|gif|webp|heic)$/i.test(d.name) ? "photo"
+            : /\.(pdf|dwg|dxf)$/i.test(d.name) ? "blueprint"
+            : "other";
+          await fetch(apiUrl("/api/documents"), {
+            method: "POST",
+            credentials: "include",
+            headers: {
+              "Content-Type": "application/json",
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+            body: JSON.stringify({
+              projectId: created.id,
+              title: d.name,
+              category: cat,
+              fileUrl: d.dataUrl,
+              fileType: d.type || "application/octet-stream",
+              fileSize: d.size,
+            }),
+          }).catch(() => {});
+        }));
+      }
+
+      toast({ title: "Obra creada", description: `"${form.name}" registrada${initialDocs.length ? ` con ${initialDocs.length} documento(s) inicial(es)` : ""}.` });
       setShowForm(false);
-      setForm({ name: "", description: "", location: "", budget: "", startDate: "", endDate: "", supervisorId: "", clientId: "", status: "active", coverImageUrl: "" });
+      setForm({ name: "", description: "", location: "", budget: "", startDate: "", endDate: "", supervisorId: "", clientId: "", status: "active", coverImageUrl: "", galleryImages: [] });
+      setInitialDocs([]);
       refetch();
     } catch {
       toast({ variant: "destructive", title: "Error", description: "No se pudo crear la obra." });
@@ -300,6 +333,64 @@ export default function Projects() {
                         <SelectItem value="paused">Pausada</SelectItem>
                       </SelectContent>
                     </Select>
+                  </div>
+
+                  <div>
+                    <label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold block mb-1.5">Galería de imágenes (opcional)</label>
+                    {form.galleryImages.length > 0 && (
+                      <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 mb-2">
+                        {form.galleryImages.map((img, i) => (
+                          <div key={i} className="relative group aspect-square rounded-lg overflow-hidden border border-black/10">
+                            <img src={img} alt={`img-${i}`} className="w-full h-full object-cover" />
+                            <button type="button"
+                              onClick={() => setForm(f => ({ ...f, galleryImages: f.galleryImages.filter((_, j) => j !== i) }))}
+                              className="absolute top-1 right-1 w-5 h-5 rounded-full bg-red-600 text-white text-[10px] font-bold opacity-0 group-hover:opacity-100 transition-opacity">✕</button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <label className="block">
+                      <span className="block px-4 py-3 rounded-xl border-2 border-dashed border-black/15 text-center text-xs text-muted-foreground hover:bg-black/5 cursor-pointer transition-colors">
+                        🖼️ Agregar imágenes (renders, fotos del sitio)
+                      </span>
+                      <input type="file" multiple accept="image/*" className="hidden" onChange={async (e) => {
+                        const files = Array.from(e.target.files ?? []);
+                        if (files.length === 0) return;
+                        const urls = await Promise.all(files.map(fileToDataUrl));
+                        setForm(f => ({ ...f, galleryImages: [...f.galleryImages, ...urls].slice(0, 30) }));
+                      }} />
+                    </label>
+                  </div>
+
+                  <div>
+                    <label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold block mb-1.5">Documentos iniciales (planos, contratos, permisos…)</label>
+                    {initialDocs.length > 0 && (
+                      <ul className="space-y-1 mb-2">
+                        {initialDocs.map((d, i) => (
+                          <li key={i} className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-black/5 text-xs">
+                            <span className="truncate">📎 {d.name} <span className="text-muted-foreground">({(d.size / 1024).toFixed(0)} KB)</span></span>
+                            <button type="button" onClick={() => setInitialDocs(ds => ds.filter((_, j) => j !== i))} className="text-red-600 font-bold">✕</button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    <label className="block">
+                      <span className="block px-4 py-3 rounded-xl border-2 border-dashed border-black/15 text-center text-xs text-muted-foreground hover:bg-black/5 cursor-pointer transition-colors">
+                        📂 Subir planos / contratos / permisos
+                        <span className="block text-[10px] mt-1 text-muted-foreground/70">Quedan archivados en la pestaña "Documentos" de la obra.</span>
+                      </span>
+                      <input type="file" multiple className="hidden" onChange={async (e) => {
+                        const files = Array.from(e.target.files ?? []);
+                        if (files.length === 0) return;
+                        const docs = await Promise.all(files.map(async (f) => ({
+                          name: f.name,
+                          type: f.type,
+                          size: f.size,
+                          dataUrl: await fileToDataUrl(f),
+                        })));
+                        setInitialDocs(prev => [...prev, ...docs].slice(0, 12));
+                      }} />
+                    </label>
                   </div>
 
                   <div className="flex gap-3 pt-2">
