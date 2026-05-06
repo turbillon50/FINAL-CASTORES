@@ -18,6 +18,7 @@ import {
 import { Icons } from "@/lib/icons";
 import { useState } from "react";
 import { PhotoUploadButtons } from "@/components/ui/photo-upload-buttons";
+import { compressImageFile } from "@/lib/compress-image";
 import { PageHero } from "@/components/ui/page-hero";
 
 const logSchema = z.object({
@@ -33,13 +34,11 @@ const logSchema = z.object({
 
 type LogFormValues = z.infer<typeof logSchema>;
 
+// Antes leíamos el archivo crudo (3-5 MB cada foto del iPhone). Con 6
+// fotos por bitácora reventábamos el body de 4.5 MB de Vercel y el POST
+// se caía sin guardar. Ahora compress-image.ts las baja a ~250 KB JPEG.
 async function fileToDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
+  return compressImageFile(file);
 }
 
 export default function NewBitacoraEntry() {

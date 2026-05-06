@@ -12,6 +12,7 @@ import { useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { apiUrl } from "@/lib/api-url";
 import { PhotoUploadButtons } from "@/components/ui/photo-upload-buttons";
+import { compressImageFile } from "@/lib/compress-image";
 
 export default function BitacoraDetail() {
   const { id } = useParams();
@@ -47,13 +48,8 @@ export default function BitacoraDetail() {
     setEditOpen(true);
   };
 
-  const fileToDataUrl = (file: File): Promise<string> =>
-    new Promise((resolve, reject) => {
-      const r = new FileReader();
-      r.onload = () => resolve(r.result as string);
-      r.onerror = reject;
-      r.readAsDataURL(file);
-    });
+  // Compresión client-side para no reventar el body de Vercel.
+  const fileToDataUrl = (file: File): Promise<string> => compressImageFile(file);
 
   const onAddPhotos = async (files: FileList | null) => {
     if (!files || files.length === 0) return;

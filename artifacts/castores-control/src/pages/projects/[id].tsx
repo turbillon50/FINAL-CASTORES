@@ -1,6 +1,7 @@
 import { MainLayout } from "@/components/layout/main-layout";
 import { useGetProject, useGetProjectProgress, getAuthToken, getClerkUserInfo } from "@workspace/api-client-react";
 import { PhotoUploadButtons } from "@/components/ui/photo-upload-buttons";
+import { compressImageFile } from "@/lib/compress-image";
 import { useParams } from "wouter";
 import { Icons } from "@/lib/icons";
 import { Badge } from "@/components/ui/badge";
@@ -404,13 +405,10 @@ export default function ProjectDetail() {
   const removeMilestone = (id: string) =>
     setEditForm((f: any) => ({ ...f, milestones: (f.milestones ?? []).filter((m: any) => m.id !== id) }));
 
-  const fileToDataUrl = (file: File): Promise<string> =>
-    new Promise((resolve, reject) => {
-      const r = new FileReader();
-      r.onload = () => resolve(r.result as string);
-      r.onerror = reject;
-      r.readAsDataURL(file);
-    });
+  // Compresión client-side antes de mandar — ver compress-image.ts.
+  // Sin esto, una galería de 6 fotos del iPhone reventaba el límite
+  // de 4.5 MB de Vercel y el PATCH se caía sin guardar nada.
+  const fileToDataUrl = (file: File): Promise<string> => compressImageFile(file);
 
   const submitEdit = async () => {
     setEditSaving(true);
