@@ -119,14 +119,22 @@ router.post("/notifications/send", async (req, res): Promise<void> => {
     targetUsers = [{ id: targetUserId }];
   }
 
-  if (targetUsers.length === 0) {
+  // Asegura que el admin que mandó el aviso reciba siempre su propia copia,
+  // aunque el broadcast haya sido a otro rol o a otro usuario. Así desde
+  // /notificaciones puede ver lo que él mismo envió y confirmar que salió.
+  // Antes, mandar a "rol cliente" creaba filas solo para clientes y el
+  // admin no veía nada en su feed.
+  const targetIds = new Set(targetUsers.map((u) => u.id));
+  targetIds.add(user.id);
+
+  if (targetIds.size === 0) {
     res.json({ sent: 0 });
     return;
   }
 
   await db.insert(notificationsTable).values(
-    targetUsers.map((u) => ({
-      userId: u.id,
+    Array.from(targetIds).map((id) => ({
+      userId: id,
       title,
       message,
       type: "general" as const,
@@ -134,7 +142,15 @@ router.post("/notifications/send", async (req, res): Promise<void> => {
     }))
   );
 
-  res.json({ sent: targetUsers.length });
+  // El número que devolvemos al admin es el de destinatarios reales
+  // (sin contarse a sí mismo). Si el admin estaba ya en la lista, lo
+  // muestra tal cual; si no, restamos su copia para no dar un conteo
+  // engañoso.
+  const sentToOthers = targetUsers.some((u) => u.id === user.id)
+    ? targetIds.size
+    : targetIds.size - 1;
+
+  res.json({ sent: sentToOthers });
 });
 
 export default router;
