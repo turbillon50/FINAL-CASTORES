@@ -8,6 +8,16 @@
 
 export interface UpdateMaterialBody {
   /** @nullable */
+  name?: string | null;
+  /** @nullable */
+  description?: string | null;
+  /** @nullable */
+  unit?: string | null;
+  /** @nullable */
+  quantityRequested?: number | null;
+  /** @nullable */
+  quantityApproved?: number | null;
+  /** @nullable */
   quantityUsed?: number | null;
   /** @nullable */
   costPerUnit?: number | null;

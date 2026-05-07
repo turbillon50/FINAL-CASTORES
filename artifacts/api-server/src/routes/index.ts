@@ -15,6 +15,7 @@ import dashboardRouter from "./dashboard";
 import rolesRouter from "./roles";
 import adminDbInitRouter from "./admin-db-init";
 import pushRouter from "./push";
+import auditRouter from "./audit";
 
 const router: IRouter = Router();
 
@@ -41,5 +42,6 @@ router.use(reportsRouter);
 router.use(notificationsRouter);
 router.use(dashboardRouter);
 router.use(pushRouter);
+router.use(auditRouter);
 
 export default router;

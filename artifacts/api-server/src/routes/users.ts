@@ -396,7 +396,7 @@ router.post("/users/:id/send-password-reset", async (req, res): Promise<void> =>
   await logAdminOverride({
     actorId: actor.id,
     action: "user.password_reset_sent",
-    description: `Admin ${actor.name} envió correo de reset a ${target.name} <${target.email}>`,
+    description: `Admin (usuario #${actor.id}) envió correo de reset a ${target.name} <${target.email}>`,
   });
 
   res.json({ ok: true, message: `Enlace de recuperación enviado a ${target.email}` });

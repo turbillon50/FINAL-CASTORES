@@ -81,10 +81,30 @@ export default function BitacoraDetail() {
 
   const submitEdit = async () => {
     if (!log) return;
+    const f = editForm;
+    // Validación mínima — la bitácora pierde sentido sin actividad y sin
+    // fecha. Si el admin las vacía a propósito, mostramos por qué se bloqueó
+    // en vez de mandar un PATCH que el servidor aceptaría con NULL.
+    const activityTrim = String(f.activity ?? "").trim();
+    if (activityTrim.length < 5) {
+      toast({
+        variant: "destructive",
+        title: "Actividad requerida",
+        description: "Describe la actividad realizada (mínimo 5 caracteres).",
+      });
+      return;
+    }
+    if (!f.logDate) {
+      toast({
+        variant: "destructive",
+        title: "Fecha requerida",
+        description: "La bitácora necesita una fecha válida.",
+      });
+      return;
+    }
     setEditSaving(true);
     try {
       const payload: Record<string, unknown> = {};
-      const f = editForm;
       if ((f.activity ?? "") !== (log.activity ?? "")) payload.activity = f.activity;
       if ((f.observations ?? "") !== (log.observations ?? "")) payload.observations = f.observations || null;
       if ((f.workersInvolved ?? "") !== (log.workersInvolved ?? "")) payload.workersInvolved = f.workersInvolved || null;

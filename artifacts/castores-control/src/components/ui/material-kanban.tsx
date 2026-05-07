@@ -7,14 +7,17 @@ interface MaterialKanbanProps {
   materials: Material[];
   onApprove?: (id: number) => void;
   onReject?: (id: number) => void;
+  onEdit?: (material: Material) => void;
+  onDelete?: (material: Material) => void;
 }
 
-export function MaterialKanban({ materials, onApprove, onReject }: MaterialKanbanProps) {
+export function MaterialKanban({ materials, onApprove, onReject, onEdit, onDelete }: MaterialKanbanProps) {
   // The approve/reject affordances appear only when the parent passes
   // callbacks for them. The parent in turn checks materialsApprove via the
   // usePermissions hook. This avoids the old hard-coded role check that was
   // ignoring permission overrides set by an admin in /admin → Permisos.
   const showApprovalActions = typeof onApprove === "function" || typeof onReject === "function";
+  const showEditActions = typeof onEdit === "function" || typeof onDelete === "function";
 
   const columns = [
     { id: "pending", title: "Solicitud Pendiente", status: "pending", color: "border-[#F39C12]" },
@@ -93,6 +96,28 @@ export function MaterialKanban({ materials, onApprove, onReject }: MaterialKanba
                     >
                       Rechazar
                     </button>
+                  </div>
+                )}
+
+                {showEditActions && (
+                  <div className="mt-3 pt-3 border-t border-card-border/40 flex gap-2">
+                    {onEdit && (
+                      <button
+                        onClick={() => onEdit(material)}
+                        className="flex-1 bg-foreground/5 hover:bg-foreground/10 text-foreground/70 transition-colors py-1.5 rounded-md font-semibold text-xs flex items-center justify-center gap-1.5"
+                      >
+                        <Icons.Edit className="w-3 h-3" /> Editar
+                      </button>
+                    )}
+                    {onDelete && (
+                      <button
+                        onClick={() => onDelete(material)}
+                        className="bg-destructive/10 hover:bg-destructive/20 text-destructive transition-colors px-2.5 py-1.5 rounded-md font-semibold text-xs flex items-center justify-center"
+                        title="Eliminar"
+                      >
+                        <Icons.Delete className="w-3 h-3" />
+                      </button>
+                    )}
                   </div>
                 )}
               </motion.div>

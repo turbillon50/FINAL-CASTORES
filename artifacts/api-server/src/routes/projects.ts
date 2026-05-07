@@ -108,6 +108,9 @@ router.get("/projects/:id/assignments", async (req, res): Promise<void> => {
   if (!await hasPermission(user.role, "workersManage")) {
     res.status(403).json({ error: "No tienes permiso para ver asignaciones" }); return;
   }
+  if (!(await canAccessProject(user, projectId))) {
+    res.status(403).json({ error: "No tienes acceso a esta obra" }); return;
+  }
 
   const rows = await db
     .select({
@@ -135,6 +138,9 @@ router.post("/projects/:id/assignments", async (req, res): Promise<void> => {
   if (!user) { res.status(401).json({ error: "No autenticado" }); return; }
   if (!await hasPermission(user.role, "workersManage")) {
     res.status(403).json({ error: "No tienes permiso para asignar usuarios" }); return;
+  }
+  if (!(await canAccessProject(user, projectId))) {
+    res.status(403).json({ error: "No tienes acceso a esta obra" }); return;
   }
 
   const userId = Number((req.body as { userId?: unknown })?.userId);
@@ -176,6 +182,9 @@ router.delete("/projects/:id/assignments/:userId", async (req, res): Promise<voi
   if (!await hasPermission(user.role, "workersManage")) {
     res.status(403).json({ error: "No tienes permiso para remover asignaciones" }); return;
   }
+  if (!(await canAccessProject(user, projectId))) {
+    res.status(403).json({ error: "No tienes acceso a esta obra" }); return;
+  }
 
   await db
     .delete(projectAssignmentsTable)
@@ -195,6 +204,11 @@ router.patch("/projects/:id", async (req, res): Promise<void> => {
   const params = UpdateProjectParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: formatZodError(params.error) });
+    return;
+  }
+
+  if (!(await canAccessProject(user, params.data.id))) {
+    res.status(403).json({ error: "No tienes acceso a esta obra" });
     return;
   }
 
@@ -264,7 +278,7 @@ router.delete("/projects/:id", async (req, res): Promise<void> => {
   await logAdminOverride({
     actorId: user.id,
     action: "project.delete",
-    description: `Admin ${user.name} eliminó la obra "${existing.name}" (#${existing.id}) y su contenido: ${logsCount} bitácoras, ${materialsCount} materiales, ${docsCount} documentos`,
+    description: `Admin (usuario #${user.id}) eliminó la obra "${existing.name}" (#${existing.id}) y su contenido: ${logsCount} bitácoras, ${materialsCount} materiales, ${docsCount} documentos`,
     projectId,
   });
 

@@ -3,7 +3,8 @@ import { MaterialKanban } from "@/components/ui/material-kanban";
 import { PageHero } from "@/components/ui/page-hero";
 import {
   useListMaterials, useGetMaterialStats, useApproveMaterial,
-  useCreateMaterial, useUpdateMaterial, useListProjects,
+  useCreateMaterial, useUpdateMaterial, useDeleteMaterial, useListProjects,
+  type Material,
 } from "@workspace/api-client-react";
 import { Icons } from "@/lib/icons";
 import { Button } from "@/components/ui/button";
@@ -28,7 +29,13 @@ export default function Materiales() {
   const approveMaterial = useApproveMaterial();
   const updateMaterial = useUpdateMaterial();
   const createMaterial = useCreateMaterial();
+  const deleteMaterial = useDeleteMaterial();
   const { toast } = useToast();
+  const [editing, setEditing] = useState<Material | null>(null);
+  const [editForm, setEditForm] = useState({ name: "", quantityRequested: "", costPerUnit: "", notes: "" });
+  const [editSaving, setEditSaving] = useState(false);
+  const [deleting, setDeleting] = useState<Material | null>(null);
+  const [deletingBusy, setDeletingBusy] = useState(false);
 
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({
@@ -60,6 +67,59 @@ export default function Materiales() {
         reload();
       },
     });
+  };
+
+  const openEdit = (m: Material) => {
+    setEditing(m);
+    setEditForm({
+      name: m.name ?? "",
+      quantityRequested: String(m.quantityRequested ?? ""),
+      costPerUnit: m.costPerUnit != null ? String(m.costPerUnit) : "",
+      notes: m.notes ?? "",
+    });
+  };
+
+  const submitEdit = async () => {
+    if (!editing) return;
+    const qty = Number(editForm.quantityRequested);
+    if (!editForm.name.trim() || !Number.isFinite(qty) || qty <= 0) {
+      toast({ variant: "destructive", title: "Datos inválidos", description: "Nombre y cantidad mayor a 0 son requeridos." });
+      return;
+    }
+    setEditSaving(true);
+    try {
+      await updateMaterial.mutateAsync({
+        id: editing.id,
+        data: {
+          name: editForm.name.trim(),
+          quantityRequested: qty,
+          costPerUnit: editForm.costPerUnit ? Number(editForm.costPerUnit) : null,
+          notes: editForm.notes ? editForm.notes.trim() : null,
+        },
+      });
+      toast({ title: "Material actualizado", description: "Los cambios se guardaron correctamente." });
+      setEditing(null);
+      reload();
+    } catch {
+      toast({ variant: "destructive", title: "Error", description: "No se pudo actualizar el material." });
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
+  const submitDelete = async () => {
+    if (!deleting) return;
+    setDeletingBusy(true);
+    try {
+      await deleteMaterial.mutateAsync({ id: deleting.id });
+      toast({ title: "Material eliminado", description: `Se eliminó "${deleting.name}".` });
+      setDeleting(null);
+      reload();
+    } catch {
+      toast({ variant: "destructive", title: "Error", description: "No se pudo eliminar el material." });
+    } finally {
+      setDeletingBusy(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -156,6 +216,8 @@ export default function Materiales() {
           materials={materials}
           onApprove={canApprove ? handleApprove : undefined}
           onReject={canApprove ? handleReject : undefined}
+          onEdit={canApprove ? openEdit : undefined}
+          onDelete={canApprove ? (m) => setDeleting(m) : undefined}
         />
       </div>
 
@@ -261,6 +323,116 @@ export default function Materiales() {
                     </Button>
                   </div>
                 </form>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* ─── Modal Editar Material ─────────────────── */}
+      <AnimatePresence>
+        {editing && (
+          <>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50" style={{ background: "rgba(0,0,0,0.4)", backdropFilter: "blur(8px)" }}
+              onClick={() => !editSaving && setEditing(null)} />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.94, y: 16 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.94, y: 16 }}
+              transition={{ type: "spring", stiffness: 380, damping: 30 }}
+              className="fixed inset-x-4 top-[8%] bottom-[8%] z-50 overflow-y-auto rounded-2xl md:inset-x-auto md:left-1/2 md:-translate-x-1/2 md:w-[480px]"
+              style={{ background: "#fff", boxShadow: "0 24px 64px rgba(0,0,0,0.2)" }}
+            >
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <h2 className="font-display text-2xl text-foreground">Editar Material</h2>
+                    <p className="text-xs text-muted-foreground mt-0.5">Corrige cantidad, costo o notas</p>
+                  </div>
+                  <button onClick={() => !editSaving && setEditing(null)}
+                    className="w-8 h-8 rounded-full flex items-center justify-center text-foreground/40 hover:bg-foreground/8 transition-colors">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="w-5 h-5">
+                      <path d="M18 6L6 18M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold block mb-1.5">Nombre *</label>
+                    <Input value={editForm.name}
+                      onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
+                      className="h-11 rounded-xl border-black/10" />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold block mb-1.5">Cantidad *</label>
+                      <Input type="number" min="1" value={editForm.quantityRequested}
+                        onChange={e => setEditForm(f => ({ ...f, quantityRequested: e.target.value }))}
+                        className="h-11 rounded-xl border-black/10" />
+                    </div>
+                    <div>
+                      <label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold block mb-1.5">Costo Unitario</label>
+                      <Input type="number" min="0" step="0.01" value={editForm.costPerUnit}
+                        onChange={e => setEditForm(f => ({ ...f, costPerUnit: e.target.value }))}
+                        className="h-11 rounded-xl border-black/10" />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold block mb-1.5">Notas</label>
+                    <Textarea value={editForm.notes}
+                      onChange={e => setEditForm(f => ({ ...f, notes: e.target.value }))}
+                      className="rounded-xl border-black/10 resize-none" rows={2} />
+                  </div>
+
+                  <div className="flex gap-3 pt-2">
+                    <Button type="button" variant="outline" onClick={() => setEditing(null)}
+                      disabled={editSaving} className="flex-1 rounded-xl border-black/10">Cancelar</Button>
+                    <Button type="button" onClick={submitEdit} disabled={editSaving}
+                      className="flex-1 rounded-xl font-bold"
+                      style={{ background: "#C8952A", color: "#fff" }}>
+                      {editSaving ? "Guardando..." : "Guardar cambios"}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* ─── Modal Eliminar Material ─────────────────── */}
+      <AnimatePresence>
+        {deleting && (
+          <>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50" style={{ background: "rgba(0,0,0,0.5)", backdropFilter: "blur(8px)" }}
+              onClick={() => !deletingBusy && setDeleting(null)} />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.94 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.94 }}
+              className="fixed inset-x-4 top-1/2 -translate-y-1/2 z-50 rounded-2xl md:inset-x-auto md:left-1/2 md:-translate-x-1/2 md:w-[440px]"
+              style={{ background: "#fff", boxShadow: "0 24px 64px rgba(0,0,0,0.2)" }}
+            >
+              <div className="p-6">
+                <h3 className="font-display text-xl text-foreground mb-2">Eliminar material</h3>
+                <p className="text-sm text-muted-foreground mb-6">
+                  Vas a eliminar <span className="font-semibold text-foreground">"{deleting.name}"</span> ({deleting.quantityRequested} {deleting.unit}).
+                  Esta acción queda registrada en la auditoría y no se puede deshacer.
+                </p>
+                <div className="flex gap-3">
+                  <Button type="button" variant="outline" onClick={() => setDeleting(null)}
+                    disabled={deletingBusy} className="flex-1 rounded-xl border-black/10">Cancelar</Button>
+                  <Button type="button" onClick={submitDelete} disabled={deletingBusy}
+                    className="flex-1 rounded-xl font-bold"
+                    style={{ background: "#EF4444", color: "#fff" }}>
+                    {deletingBusy ? "Eliminando..." : "Eliminar"}
+                  </Button>
+                </div>
               </div>
             </motion.div>
           </>

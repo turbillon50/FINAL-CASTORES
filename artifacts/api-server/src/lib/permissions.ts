@@ -2,10 +2,12 @@ import { eq } from "drizzle-orm";
 import { db, rolePermissionsTable, ROLE_DEFAULTS } from "@workspace/db";
 import type { PermissionKey } from "@workspace/db";
 
-// TTL cache: avoids a DB round-trip on every request while letting
-// permission changes propagate within ~60 seconds.
+// TTL cache: avoids a DB round-trip on every request. La invalidación
+// explícita (clearPermissionsCache) corre cuando el admin cambia permisos
+// de rol, pero dejamos un TTL corto (15 s) como red de seguridad por si
+// el cambio se hace por SQL directo o desde otra réplica del proceso.
 const cache = new Map<string, { permissions: Record<string, boolean>; expiresAt: number }>();
-const TTL_MS = 60_000;
+const TTL_MS = 15_000;
 
 async function getRolePermissions(role: string): Promise<Record<string, boolean>> {
   const now = Date.now();

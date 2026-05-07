@@ -1,8 +1,26 @@
 import { Resend } from "resend";
+import { db, activityLogTable } from "@workspace/db";
+import { logger } from "./logger";
 
 const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
   : null;
+
+// Cualquier fallo de envío queda asentado tanto en logger.error (para
+// observabilidad runtime) como en activity_log con tipo `email.failure` —
+// así el admin puede ver desde la UI de auditoría qué correos no llegaron.
+async function recordEmailFailure(opts: { kind: string; to: string; subject: string; reason: string }) {
+  try {
+    await db.insert(activityLogTable).values({
+      type: "email.failure",
+      description: `Falló envío "${opts.subject}" a ${opts.to} (tipo: ${opts.kind}): ${opts.reason.slice(0, 240)}`,
+      userId: null,
+      projectId: null,
+    });
+  } catch (err) {
+    logger.warn({ err }, "email: also failed to write failure to activity_log");
+  }
+}
 
 const FROM_EMAIL = "Castores Control <no-reply@castores.info>";
 const APP_URL = "https://castores.info";
@@ -64,12 +82,27 @@ function infoRow(label: string, value: string) {
   </tr>`;
 }
 
-function sendEmail(to: string, subject: string, html: string) {
+async function sendEmail(to: string, subject: string, html: string, kind = "generic") {
   if (!resend) {
-    console.warn("[email] RESEND_API_KEY no configurado — omitiendo envío:", subject, "→", to);
-    return Promise.resolve(null);
+    logger.warn({ to, subject, kind }, "email: RESEND_API_KEY no configurado — omitiendo envío");
+    await recordEmailFailure({ kind, to, subject, reason: "RESEND_API_KEY no configurado" });
+    return null;
   }
-  return resend.emails.send({ from: FROM_EMAIL, to, subject, html });
+  try {
+    const res = await resend.emails.send({ from: FROM_EMAIL, to, subject, html });
+    if (res?.error) {
+      const reason = (res.error as { message?: string })?.message ?? JSON.stringify(res.error);
+      logger.error({ to, subject, kind, error: res.error }, "email: Resend rechazó el envío");
+      await recordEmailFailure({ kind, to, subject, reason });
+      return null;
+    }
+    return res;
+  } catch (err) {
+    const reason = err instanceof Error ? err.message : String(err);
+    logger.error({ err, to, subject, kind }, "email: excepción al enviar");
+    await recordEmailFailure({ kind, to, subject, reason });
+    return null;
+  }
 }
 
 /* ─── Nueva solicitud de acceso → Admin ─── */
@@ -107,6 +140,7 @@ export async function sendNewRegistrationEmail(opts: {
     opts.adminEmail,
     `Nueva solicitud de acceso: ${opts.userName} (${roleLabel})`,
     html,
+    "new-registration",
   );
 }
 
@@ -135,6 +169,7 @@ export async function sendApprovalEmail(opts: {
     opts.to,
     "Tu acceso a Castores Control fue aprobado",
     html,
+    "approval",
   );
 }
 
@@ -162,6 +197,7 @@ export async function sendRejectionEmail(opts: {
     opts.to,
     "Tu solicitud de acceso a Castores Control",
     html,
+    "rejection",
   );
 }
 
@@ -184,7 +220,7 @@ export async function sendWelcomeEmail(opts: {
     ${btn(APP_URL, "Ingresar al sistema →")}
   `);
 
-  return sendEmail(opts.to, "Bienvenido a Castores Control", html);
+  return sendEmail(opts.to, "Bienvenido a Castores Control", html, "welcome");
 }
 
 /* ─── Firma de bitácora ─── */
@@ -215,6 +251,7 @@ export async function sendLogSignedEmail(opts: {
     opts.to,
     `Bitácora firmada — ${opts.projectName} (${opts.logDate})`,
     html,
+    "log-signed",
   );
 }
 
@@ -247,6 +284,7 @@ export async function sendMaterialRequestEmail(opts: {
     opts.to,
     `Nueva solicitud de material: ${opts.materialName}`,
     html,
+    "material-request",
   );
 }
 
@@ -277,5 +315,6 @@ export async function sendPasswordResetEmail(opts: {
     opts.to,
     "Restablecer contraseña — Castores Control",
     html,
+    "password-reset",
   );
 }

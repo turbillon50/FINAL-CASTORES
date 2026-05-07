@@ -173,14 +173,6 @@ export const ListProjectsResponse = zod.array(ListProjectsResponseItem);
 /**
  * @summary Create project
  */
-export const ProjectMilestoneSchema = zod.object({
-  id: zod.string(),
-  name: zod.string(),
-  dueDate: zod.string().nullish(),
-  completed: zod.boolean().optional(),
-  notes: zod.string().nullish(),
-});
-
 export const CreateProjectBody = zod.object({
   name: zod.string(),
   description: zod.string().nullish(),
@@ -194,7 +186,6 @@ export const CreateProjectBody = zod.object({
   budget: zod.number().nullish(),
   coverImageUrl: zod.string().nullish(),
   galleryImages: zod.array(zod.string()).optional(),
-  milestones: zod.array(ProjectMilestoneSchema).optional(),
   status: zod.enum(["active", "paused", "completed", "cancelled"]).optional(),
 });
 
@@ -240,16 +231,13 @@ export const UpdateProjectBody = zod.object({
   clientId: zod.number().nullish(),
   supervisorId: zod.number().nullish(),
   location: zod.string().nullish(),
-  latitude: zod.number().nullish(),
-  longitude: zod.number().nullish(),
   startDate: zod.string().nullish(),
   endDate: zod.string().nullish(),
   budget: zod.number().nullish(),
-  coverImageUrl: zod.string().nullish(),
-  galleryImages: zod.array(zod.string()).optional(),
-  milestones: zod.array(ProjectMilestoneSchema).optional(),
   progressPercent: zod.number().nullish(),
   status: zod.string().nullish(),
+  coverImageUrl: zod.string().nullish(),
+  galleryImages: zod.array(zod.string()).optional(),
 });
 
 export const UpdateProjectResponse = zod.object({
@@ -385,9 +373,6 @@ export const UpdateLogBody = zod.object({
   workersInvolved: zod.string().nullish(),
   materialsUsed: zod.string().nullish(),
   photos: zod.array(zod.string()).optional(),
-  logDate: zod.string().nullish(),
-  supervisorSignature: zod.string().nullish(),
-  clientSignature: zod.string().nullish(),
 });
 
 export const UpdateLogResponse = zod.object({
@@ -552,6 +537,11 @@ export const UpdateMaterialParams = zod.object({
 });
 
 export const UpdateMaterialBody = zod.object({
+  name: zod.string().nullish(),
+  description: zod.string().nullish(),
+  unit: zod.string().nullish(),
+  quantityRequested: zod.number().nullish(),
+  quantityApproved: zod.number().nullish(),
   quantityUsed: zod.number().nullish(),
   costPerUnit: zod.number().nullish(),
   notes: zod.string().nullish(),
@@ -745,11 +735,7 @@ export const ListReportsResponseItem = zod.object({
   generatedById: zod.number(),
   generatedByName: zod.string().nullish(),
   title: zod.string(),
-  type: zod.enum([
-    "avance",
-    "bitacora",
-    "materiales",
-  ]),
+  type: zod.enum(["avance", "bitacora", "materiales"]),
   dateFrom: zod.string().nullish(),
   dateTo: zod.string().nullish(),
   summary: zod.string().nullish(),
@@ -764,11 +750,7 @@ export const ListReportsResponse = zod.array(ListReportsResponseItem);
 export const CreateReportBody = zod.object({
   projectId: zod.number(),
   title: zod.string(),
-  type: zod.enum([
-    "avance",
-    "bitacora",
-    "materiales",
-  ]),
+  type: zod.enum(["avance", "bitacora", "materiales"]),
   dateFrom: zod.string().nullish(),
   dateTo: zod.string().nullish(),
 });
@@ -787,11 +769,7 @@ export const GetReportResponse = zod.object({
   generatedById: zod.number(),
   generatedByName: zod.string().nullish(),
   title: zod.string(),
-  type: zod.enum([
-    "avance",
-    "bitacora",
-    "materiales",
-  ]),
+  type: zod.enum(["avance", "bitacora", "materiales"]),
   dateFrom: zod.string().nullish(),
   dateTo: zod.string().nullish(),
   summary: zod.string().nullish(),

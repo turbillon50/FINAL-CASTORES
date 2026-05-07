@@ -176,7 +176,7 @@ router.patch("/logs/:id", async (req, res): Promise<void> => {
     await logAdminOverride({
       actorId: user.id,
       action: "log.edit_after_submit",
-      description: `Admin ${user.name} editó la bitácora #${existing.id} ya enviada`,
+      description: `Admin (usuario #${user.id}) editó la bitácora #${existing.id} ya enviada`,
       projectId: existing.projectId ?? null,
     });
   }
@@ -209,7 +209,7 @@ router.delete("/logs/:id", async (req, res): Promise<void> => {
   await logAdminOverride({
     actorId: user.id,
     action: "log.delete",
-    description: `Admin ${user.name} eliminó la bitácora #${existing.id} (${existing.activity?.slice(0, 80) ?? "sin actividad"})`,
+    description: `Admin (usuario #${user.id}) eliminó la bitácora #${existing.id} (${existing.activity?.slice(0, 80) ?? "sin actividad"})`,
     projectId: existing.projectId ?? null,
   });
 
