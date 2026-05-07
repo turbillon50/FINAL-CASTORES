@@ -51,10 +51,29 @@ export default function BitacoraDetail() {
   // Compresión client-side para no reventar el body de Vercel.
   const fileToDataUrl = (file: File): Promise<string> => compressImageFile(file);
 
+  const MAX_PHOTOS_BITACORA = 10;
+  const [compressingMsg, setCompressingMsg] = useState<string | null>(null);
+
   const onAddPhotos = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
-    const newPhotos = await Promise.all(Array.from(files).map(fileToDataUrl));
-    setEditForm((f: any) => ({ ...f, photos: [...(f.photos ?? []), ...newPhotos].slice(0, 12) }));
+    const current = Array.isArray(editForm.photos) ? editForm.photos.length : 0;
+    const room = Math.max(0, MAX_PHOTOS_BITACORA - current);
+    const arr = Array.from(files);
+    if (arr.length > room && room > 0) {
+      toast({ title: "Demasiadas fotos", description: `Solo entran ${room} más (límite ${MAX_PHOTOS_BITACORA}).` });
+    }
+    const accepted = arr.slice(0, room);
+    if (accepted.length === 0) {
+      toast({ title: "Tope alcanzado", description: `Esta bitácora ya tiene ${MAX_PHOTOS_BITACORA} fotos. Quita alguna para agregar otras.`, variant: "destructive" });
+      return;
+    }
+    const newPhotos: string[] = [];
+    for (let i = 0; i < accepted.length; i++) {
+      setCompressingMsg(`Comprimiendo ${i + 1} de ${accepted.length}...`);
+      newPhotos.push(await fileToDataUrl(accepted[i]));
+    }
+    setCompressingMsg(null);
+    setEditForm((f: any) => ({ ...f, photos: [...(f.photos ?? []), ...newPhotos] }));
   };
 
   const removePhoto = (idx: number) =>
@@ -360,10 +379,17 @@ export default function BitacoraDetail() {
                     </div>
                   )}
                   <PhotoUploadButtons
+                    currentCount={Array.isArray(editForm.photos) ? editForm.photos.length : 0}
+                    maxCount={MAX_PHOTOS_BITACORA}
+                    currentSizeKB={(Array.isArray(editForm.photos) ? editForm.photos : []).reduce((acc: number, p: string) => acc + Math.round((p.length * 3) / 4 / 1024), 0)}
+                    busyLabel={compressingMsg ?? undefined}
+                    onLimitExceeded={(_attempted, allowed) => {
+                      toast({ title: "Demasiadas fotos", description: allowed === 0 ? `Tope ${MAX_PHOTOS_BITACORA} alcanzado.` : `Solo entran ${allowed} más.` });
+                    }}
                     onFilesSelected={(files) => {
                       const dt = new DataTransfer();
                       files.forEach((f) => dt.items.add(f));
-                      onAddPhotos(dt.files);
+                      return onAddPhotos(dt.files);
                     }}
                     helperText="Toma fotos en el momento o súbelas desde tu galería"
                   />

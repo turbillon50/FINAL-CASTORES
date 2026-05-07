@@ -60,6 +60,12 @@ export default function Projects() {
   });
   const [initialDocs, setInitialDocs] = useState<{ name: string; type: string; size: number; dataUrl: string }[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [galleryBusy, setGalleryBusy] = useState<string | null>(null);
+
+  // 20 imágenes en galería de proyecto cubre álbumes razonables sin
+  // saturar el body de Vercel incluso con compresión (~5 MB total).
+  const MAX_GALLERY = 20;
+  const MAX_INITIAL_DOCS = 8;
 
   // Compresión client-side: las fotos del iPhone vienen de 3-5 MB cada una;
   // sin esto, 6 imágenes saturan el límite de 4.5 MB de Vercel y la
@@ -79,6 +85,21 @@ export default function Projects() {
     e.preventDefault();
     if (!form.name) {
       toast({ variant: "destructive", title: "Campo requerido", description: "El nombre de la obra es obligatorio." });
+      return;
+    }
+    // Pre-check: el create de la obra (cover + galería) viaja en una sola
+    // request. Si supera el budget de Vercel (4.5MB) sabemos que va a fallar.
+    // Le decimos al usuario antes en lugar de dejar que Vercel cierre la
+    // conexión y le caigamos en un toast genérico.
+    const coverKB = form.coverImageUrl ? Math.round((form.coverImageUrl.length * 3) / 4 / 1024) : 0;
+    const galleryKB = form.galleryImages.reduce((acc, p) => acc + Math.round((p.length * 3) / 4 / 1024), 0);
+    const projectPayloadKB = coverKB + galleryKB;
+    if (projectPayloadKB > 3800) {
+      toast({
+        variant: "destructive",
+        title: "El paquete es muy pesado",
+        description: `Las fotos de la obra suman ~${(projectPayloadKB / 1024).toFixed(1)} MB y el límite del servidor es 4 MB. Quita algunas imágenes de la galería o crea la obra primero y agrégalas después desde Editar Obra.`,
+      });
       return;
     }
     setSubmitting(true);
@@ -364,17 +385,32 @@ export default function Projects() {
                     )}
                     <PhotoUploadButtons
                       variant="compact"
-                      helperText="Renders, fotos del sitio o avances · Hasta 30 imágenes"
+                      currentCount={form.galleryImages.length}
+                      maxCount={MAX_GALLERY}
+                      currentSizeKB={form.galleryImages.reduce((acc, p) => acc + Math.round((p.length * 3) / 4 / 1024), 0)}
+                      busyLabel={galleryBusy ?? undefined}
+                      onLimitExceeded={(_a, allowed) => {
+                        toast({ title: "Demasiadas imágenes", description: allowed === 0 ? `Tope ${MAX_GALLERY} alcanzado.` : `Solo entran ${allowed} más.` });
+                      }}
+                      helperText="Renders, fotos del sitio o avances"
                       onFilesSelected={async (files) => {
                         if (files.length === 0) return;
-                        const urls = await Promise.all(files.map(fileToDataUrl));
-                        setForm(f => ({ ...f, galleryImages: [...f.galleryImages, ...urls].slice(0, 30) }));
+                        const urls: string[] = [];
+                        for (let i = 0; i < files.length; i++) {
+                          setGalleryBusy(`Comprimiendo ${i + 1} de ${files.length}...`);
+                          urls.push(await fileToDataUrl(files[i]));
+                        }
+                        setGalleryBusy(null);
+                        setForm(f => ({ ...f, galleryImages: [...f.galleryImages, ...urls].slice(0, MAX_GALLERY) }));
                       }}
                     />
                   </div>
 
                   <div>
-                    <label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold block mb-1.5">Documentos iniciales (planos, contratos, permisos…)</label>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Documentos iniciales (planos, contratos, permisos…)</label>
+                      <span className="text-[10px] text-muted-foreground">{initialDocs.length} de {MAX_INITIAL_DOCS}</span>
+                    </div>
                     {initialDocs.length > 0 && (
                       <ul className="space-y-1 mb-2">
                         {initialDocs.map((d, i) => (
@@ -385,21 +421,38 @@ export default function Projects() {
                         ))}
                       </ul>
                     )}
-                    <label className="block">
+                    <label className={`block ${initialDocs.length >= MAX_INITIAL_DOCS ? "pointer-events-none opacity-40" : ""}`}>
                       <span className="block px-4 py-3 rounded-xl border-2 border-dashed border-black/15 text-center text-xs text-muted-foreground hover:bg-black/5 cursor-pointer transition-colors">
                         📂 Subir planos / contratos / permisos
-                        <span className="block text-[10px] mt-1 text-muted-foreground/70">Quedan archivados en la pestaña "Documentos" de la obra.</span>
+                        <span className="block text-[10px] mt-1 text-muted-foreground/70">Quedan archivados en la pestaña "Documentos" de la obra. Cada archivo individual no debe exceder 4 MB.</span>
                       </span>
                       <input type="file" multiple className="hidden" onChange={async (e) => {
                         const files = Array.from(e.target.files ?? []);
+                        e.currentTarget.value = "";
                         if (files.length === 0) return;
-                        const docs = await Promise.all(files.map(async (f) => ({
+                        // Cada doc se sube por separado a /documents después
+                        // de crear la obra; cada request tiene su propio
+                        // budget de 4.5MB Vercel. Si un archivo individual
+                        // pasa de 4MB lo rechazamos antes de cargarlo en
+                        // memoria para no saturar el navegador.
+                        const tooBig = files.filter(f => f.size > 4 * 1024 * 1024);
+                        if (tooBig.length > 0) {
+                          toast({ variant: "destructive", title: "Archivo demasiado grande", description: `${tooBig.map(f => f.name).join(", ")} pasa de 4 MB. Comprime el PDF y vuelve a intentarlo.` });
+                        }
+                        const ok = files.filter(f => f.size <= 4 * 1024 * 1024);
+                        const room = Math.max(0, MAX_INITIAL_DOCS - initialDocs.length);
+                        if (ok.length > room) {
+                          toast({ title: "Demasiados documentos", description: `Solo entran ${room} más (límite ${MAX_INITIAL_DOCS}).` });
+                        }
+                        const accepted = ok.slice(0, room);
+                        if (accepted.length === 0) return;
+                        const docs = await Promise.all(accepted.map(async (f) => ({
                           name: f.name,
                           type: f.type,
                           size: f.size,
                           dataUrl: await fileToDataUrl(f),
                         })));
-                        setInitialDocs(prev => [...prev, ...docs].slice(0, 12));
+                        setInitialDocs(prev => [...prev, ...docs].slice(0, MAX_INITIAL_DOCS));
                       }} />
                     </label>
                   </div>

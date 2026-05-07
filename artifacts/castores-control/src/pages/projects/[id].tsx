@@ -382,10 +382,29 @@ export default function ProjectDetail() {
     setEditOpen(true);
   };
 
+  const MAX_PROJECT_GALLERY = 20;
+  const [galleryBusy, setGalleryBusy] = useState<string | null>(null);
+
   const addGalleryFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
-    const dataUrls = await Promise.all(Array.from(files).map(fileToDataUrl));
-    setEditForm((f: any) => ({ ...f, galleryImages: [...(f.galleryImages ?? []), ...dataUrls].slice(0, 30) }));
+    const arr = Array.from(files);
+    const current = (editForm.galleryImages ?? []).length;
+    const room = Math.max(0, MAX_PROJECT_GALLERY - current);
+    if (arr.length > room && room > 0) {
+      toast({ title: "Demasiadas imágenes", description: `Solo entran ${room} más (límite ${MAX_PROJECT_GALLERY}).` });
+    }
+    const accepted = arr.slice(0, room);
+    if (accepted.length === 0) {
+      toast({ title: "Tope alcanzado", description: `La galería ya tiene ${MAX_PROJECT_GALLERY} imágenes. Quita alguna.`, variant: "destructive" });
+      return;
+    }
+    const dataUrls: string[] = [];
+    for (let i = 0; i < accepted.length; i++) {
+      setGalleryBusy(`Comprimiendo ${i + 1} de ${accepted.length}...`);
+      dataUrls.push(await fileToDataUrl(accepted[i]));
+    }
+    setGalleryBusy(null);
+    setEditForm((f: any) => ({ ...f, galleryImages: [...(f.galleryImages ?? []), ...dataUrls] }));
   };
   const removeGalleryAt = (idx: number) =>
     setEditForm((f: any) => ({ ...f, galleryImages: (f.galleryImages ?? []).filter((_: any, i: number) => i !== idx) }));
@@ -437,6 +456,14 @@ export default function ProjectDetail() {
       const milesBefore = Array.isArray((project as any).milestones) ? (project as any).milestones : [];
       const milesAfter = Array.isArray(f.milestones) ? f.milestones : [];
       if (JSON.stringify(milesBefore) !== JSON.stringify(milesAfter)) payload.milestones = milesAfter;
+
+      // Pre-check de tamaño antes de mandar — Vercel rechaza > 4.5MB en
+      // el edge. Si el payload (cover + galería) se pasa, lo decimos en
+      // español claro en lugar de dejar que Vercel cierre la conexión.
+      const approxKB = Math.round(JSON.stringify(payload).length / 1024);
+      if (approxKB > 3800) {
+        throw new Error(`El paquete (~${(approxKB / 1024).toFixed(1)} MB) supera el límite del servidor (4 MB). Quita imágenes de la galería o guarda en dos pasos.`);
+      }
 
       // teamFetch ya parsea el body y lanza en errores. No envolver en
       // res.ok / res.json — eso era el bug que generaba el toast rojo
@@ -776,11 +803,18 @@ export default function ProjectDetail() {
                   )}
                   <PhotoUploadButtons
                     variant="compact"
-                    helperText="Hasta 30 imágenes por obra"
+                    currentCount={(editForm.galleryImages ?? []).length}
+                    maxCount={MAX_PROJECT_GALLERY}
+                    currentSizeKB={(editForm.galleryImages ?? []).reduce((acc: number, p: string) => acc + Math.round((p.length * 3) / 4 / 1024), 0)}
+                    busyLabel={galleryBusy ?? undefined}
+                    onLimitExceeded={(_a, allowed) => {
+                      toast({ title: "Demasiadas imágenes", description: allowed === 0 ? `Tope ${MAX_PROJECT_GALLERY} alcanzado.` : `Solo entran ${allowed} más.` });
+                    }}
+                    helperText={`Renders, fotos del sitio o avances`}
                     onFilesSelected={(files) => {
                       const dt = new DataTransfer();
                       files.forEach((f) => dt.items.add(f));
-                      addGalleryFiles(dt.files);
+                      return addGalleryFiles(dt.files);
                     }}
                   />
                 </div>
