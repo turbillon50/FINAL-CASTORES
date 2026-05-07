@@ -49,6 +49,12 @@ export default function NewBitacoraEntry() {
   const [photoFiles, setPhotoFiles] = useState<File[]>([]);
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [compressingMsg, setCompressingMsg] = useState<string | null>(null);
+
+  // 10 fotos por bitácora cubre el caso real de obra (un par de overall,
+  // un par de cada esquina, detalles). Más que eso usualmente debería ser
+  // una segunda bitácora o terminar en la galería del proyecto.
+  const MAX_PHOTOS = 10;
 
   const form = useForm<LogFormValues>({
     resolver: zodResolver(logSchema),
@@ -67,10 +73,27 @@ export default function NewBitacoraEntry() {
   const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
     if (files.length === 0) return;
-    const newFiles = [...photoFiles, ...files].slice(0, 6);
-    setPhotoFiles(newFiles);
-    const previews = await Promise.all(newFiles.map(fileToDataUrl));
-    setPhotoPreviews(previews);
+    // Comprimimos solo lo nuevo (las anteriores ya están comprimidas en
+    // photoPreviews) y mostramos progreso por foto para que el usuario no
+    // sienta que la app se trabó cuando son varios MB de imágenes.
+    const room = Math.max(0, MAX_PHOTOS - photoFiles.length);
+    if (files.length > room && room > 0) {
+      toast({ title: "Límite de fotos", description: `Solo puedes agregar ${room} más (máximo ${MAX_PHOTOS} por bitácora). Quita alguna si necesitas espacio.` });
+    }
+    const accepted = files.slice(0, room);
+    if (accepted.length === 0) {
+      if (files.length > 0) toast({ title: "Tope alcanzado", description: `Esta bitácora ya tiene las ${MAX_PHOTOS} fotos máximas. Quita alguna para agregar otras.`, variant: "destructive" });
+      return;
+    }
+    const newPreviews: string[] = [];
+    for (let i = 0; i < accepted.length; i++) {
+      setCompressingMsg(`Comprimiendo ${i + 1} de ${accepted.length}...`);
+      const url = await fileToDataUrl(accepted[i]);
+      newPreviews.push(url);
+    }
+    setCompressingMsg(null);
+    setPhotoFiles([...photoFiles, ...accepted]);
+    setPhotoPreviews([...photoPreviews, ...newPreviews]);
   };
 
   const removePhoto = (idx: number) => {
@@ -231,13 +254,25 @@ export default function NewBitacoraEntry() {
                 )}
 
                 <PhotoUploadButtons
+                  currentCount={photoPreviews.length}
+                  maxCount={MAX_PHOTOS}
+                  currentSizeKB={photoPreviews.reduce((acc, p) => acc + Math.round((p.length * 3) / 4 / 1024), 0)}
+                  busyLabel={compressingMsg ?? undefined}
+                  onLimitExceeded={(attempted, allowed) => {
+                    toast({
+                      title: "Demasiadas fotos",
+                      description: allowed === 0
+                        ? `Esta bitácora ya tiene las ${MAX_PHOTOS} fotos máximas. Quita alguna.`
+                        : `Intentaste subir ${attempted}, solo entran ${allowed} más (límite ${MAX_PHOTOS}).`,
+                    });
+                  }}
                   onFilesSelected={(files) => {
                     const dt = new DataTransfer();
                     files.forEach((f) => dt.items.add(f));
                     const fakeEvent = { target: { files: dt.files } } as unknown as React.ChangeEvent<HTMLInputElement>;
-                    handlePhotoSelect(fakeEvent);
+                    return handlePhotoSelect(fakeEvent);
                   }}
-                  helperText={photoPreviews.length > 0 ? `${photoPreviews.length} de 6 fotos` : "Toma fotos en obra o súbelas desde tu galería · Máx. 6"}
+                  helperText="Toma fotos en obra o súbelas desde tu galería"
                 />
               </div>
 
