@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, and } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 import { db, notificationsTable, usersTable } from "@workspace/db";
 import {
   MarkNotificationReadParams,
@@ -37,7 +37,7 @@ router.get("/notifications", async (req, res): Promise<void> => {
     .select()
     .from(notificationsTable)
     .where(eq(notificationsTable.userId, userId))
-    .orderBy(notificationsTable.createdAt);
+    .orderBy(desc(notificationsTable.createdAt));
 
   if (parsed.success && parsed.data.unread === true) {
     notifications = notifications.filter((n) => !n.isRead);
@@ -124,33 +124,47 @@ router.post("/notifications/send", async (req, res): Promise<void> => {
   // /notificaciones puede ver lo que él mismo envió y confirmar que salió.
   // Antes, mandar a "rol cliente" creaba filas solo para clientes y el
   // admin no veía nada en su feed.
-  const targetIds = new Set(targetUsers.map((u) => u.id));
-  targetIds.add(user.id);
+  //
+  // Marcamos con un prefijo + un sufijo en el destino la copia que se le
+  // entrega al propio admin para que pueda distinguir "yo lo envié" vs
+  // "alguien me envió esto" sin necesidad de ampliar el esquema con un
+  // senderId.
+  const externalIds = targetUsers.map((u) => u.id).filter((id) => id !== user.id);
+  const dedupedExternal = Array.from(new Set(externalIds));
 
-  if (targetIds.size === 0) {
-    res.json({ sent: 0 });
-    return;
-  }
+  const destLabel = (() => {
+    if (targetType === "all") return "todos";
+    if (targetType === "role" && targetRole) return `rol "${targetRole}"`;
+    if (targetType === "user" && targetUserId) return `usuario #${targetUserId}`;
+    return "destinatarios";
+  })();
 
-  await db.insert(notificationsTable).values(
-    Array.from(targetIds).map((id) => ({
+  const rows: Array<{ userId: number; title: string; message: string; type: "general"; isRead: boolean }> = [
+    // Filas de los destinatarios reales — el título y el mensaje van tal
+    // cual, sin mencionar al emisor.
+    ...dedupedExternal.map((id) => ({
       userId: id,
       title,
       message,
       type: "general" as const,
       isRead: false,
-    }))
-  );
+    })),
+    // Copia del admin emisor — prefijo + nota de destino para que en su
+    // feed quede claro que es algo que ÉL envió, no algo que recibió.
+    {
+      userId: user.id,
+      title: `📤 Enviado: ${title}`,
+      message: `${message}\n\n— Aviso enviado a ${destLabel}.`,
+      type: "general" as const,
+      isRead: true,
+    },
+  ];
 
-  // El número que devolvemos al admin es el de destinatarios reales
-  // (sin contarse a sí mismo). Si el admin estaba ya en la lista, lo
-  // muestra tal cual; si no, restamos su copia para no dar un conteo
-  // engañoso.
-  const sentToOthers = targetUsers.some((u) => u.id === user.id)
-    ? targetIds.size
-    : targetIds.size - 1;
+  await db.insert(notificationsTable).values(rows);
 
-  res.json({ sent: sentToOthers });
+  // El número que devolvemos al admin es el de destinatarios externos
+  // (sin contar la copia de confirmación que se entrega a sí mismo).
+  res.json({ sent: dedupedExternal.length });
 });
 
 export default router;
