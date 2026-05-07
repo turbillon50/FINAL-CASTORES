@@ -34,6 +34,7 @@ const Usuarios = lazy(() => import("@/pages/usuarios"));
 const Notificaciones = lazy(() => import("@/pages/notificaciones"));
 const Explorar = lazy(() => import("@/pages/explorar"));
 const AdminPanel = lazy(() => import("@/pages/admin"));
+const AdminAuditoria = lazy(() => import("@/pages/admin-auditoria"));
 const Cuenta = lazy(() => import("@/pages/cuenta"));
 const FAQ = lazy(() => import("@/pages/faq"));
 const Terminos = lazy(() => import("@/pages/legal-terminos"));
@@ -1624,6 +1625,9 @@ function Router() {
       </Route>
       <Route path="/admin">
         {() => <ProtectedRoute component={AdminPanel} />}
+      </Route>
+      <Route path="/admin/auditoria">
+        {() => <ProtectedRoute component={AdminAuditoria} />}
       </Route>
       <Route path="/cuenta">
         {() => <ProtectedRoute component={Cuenta} />}

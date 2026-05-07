@@ -1459,6 +1459,7 @@ function getInitialTab(): Tab {
 
 export default function AdminPanel() {
   const { user } = useAuth();
+  const [, setLocationGlobal] = useLocation();
   const [tab, setTabState] = useState<Tab>(getInitialTab);
 
   // Persist tab to URL hash + localStorage so it survives reloads,
@@ -1519,7 +1520,7 @@ export default function AdminPanel() {
               style={{ background: "rgba(200,149,42,0.2)", border: "1px solid rgba(200,149,42,0.3)" }}>
               🛡️
             </div>
-            <div>
+            <div className="flex-1">
               <h1 className="text-white font-black text-2xl" style={{ fontFamily: "'Bebas Neue', sans-serif", letterSpacing: "0.04em" }}>
                 Panel Administrativo
               </h1>
@@ -1527,6 +1528,13 @@ export default function AdminPanel() {
                 Hola, {user.name} — Control total del sistema
               </p>
             </div>
+            <button
+              onClick={() => setLocationGlobal("/admin/auditoria")}
+              className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all hover:scale-[1.02]"
+              style={{ background: "rgba(200,149,42,0.2)", border: "1px solid rgba(200,149,42,0.4)", color: "#fff" }}
+            >
+              📜 Auditoría
+            </button>
           </div>
         </div>
       </div>

@@ -5,6 +5,7 @@ import { getRequestUser } from "../lib/getRequestUser";
 import { resolveAuthedUser } from "../lib/authContext";
 import { hasPermission } from "../lib/permissions";
 import { getAccessibleProjectIds, canAccessProject } from "../lib/projectAccess";
+import { logAdminOverride } from "../lib/adminOverride";
 import { formatZodError } from "../lib/zodError";
 import {
   CreateMaterialBody,
@@ -248,7 +249,21 @@ router.delete("/materials/:id", async (req, res): Promise<void> => {
     return;
   }
 
+  const [existing] = await db.select().from(materialsTable).where(eq(materialsTable.id, params.data.id));
+  if (!existing) { res.status(404).json({ error: "Material no encontrado" }); return; }
+  if (!(await canAccessProject(actor, existing.projectId))) {
+    res.status(403).json({ error: "No tienes acceso a esta obra" }); return;
+  }
+
   await db.delete(materialsTable).where(eq(materialsTable.id, params.data.id));
+
+  await logAdminOverride({
+    actorId: actor.id,
+    action: "material.delete",
+    description: `Usuario #${actor.id} (${actor.role}) eliminó la solicitud de material "${existing.name}" (${existing.quantityRequested} ${existing.unit}, status=${existing.status})`,
+    projectId: existing.projectId,
+  });
+
   res.sendStatus(204);
 });
 
@@ -269,6 +284,12 @@ router.post("/materials/:id/approve", async (req, res): Promise<void> => {
     return;
   }
 
+  const [pre] = await db.select().from(materialsTable).where(eq(materialsTable.id, params.data.id));
+  if (!pre) { res.status(404).json({ error: "Material no encontrado" }); return; }
+  if (!(await canAccessProject(actor, pre.projectId))) {
+    res.status(403).json({ error: "No tienes acceso a esta obra" }); return;
+  }
+
   const [material] = await db
     .update(materialsTable)
     .set({ status: "approved", approvedById: actor.id, approvedAt: new Date() })
@@ -279,6 +300,13 @@ router.post("/materials/:id/approve", async (req, res): Promise<void> => {
     res.status(404).json({ error: "Material no encontrado" });
     return;
   }
+
+  await logAdminOverride({
+    actorId: actor.id,
+    action: "material.approve",
+    description: `Usuario #${actor.id} (${actor.role}) aprobó "${material.name}" (${material.quantityRequested} ${material.unit}${material.totalCost ? `, $${material.totalCost} MXN` : ""})`,
+    projectId: material.projectId,
+  });
 
   res.json(await enrichMaterial(material));
 });

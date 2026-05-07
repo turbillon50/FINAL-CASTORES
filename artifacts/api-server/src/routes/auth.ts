@@ -6,6 +6,11 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { logger } from "../lib/logger";
 import { sendNewRegistrationEmail, sendWelcomeEmail, sendPasswordResetEmail } from "../lib/email";
 import { and } from "drizzle-orm";
+import { rateLimit } from "../middlewares/rateLimit";
+
+const inviteLoginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10, keyPrefix: "invite-login" });
+const forgotPasswordLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 5, keyPrefix: "forgot-password" });
+const resetPasswordLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10, keyPrefix: "reset-password" });
 
 const ADMIN_MASTER_KEY = (process.env["ADMIN_ACCESS_PHRASE"] || process.env["ADMIN_MASTER_KEY"] || "").trim().toUpperCase();
 const LEGACY_MASTER_KEY = "CASTORES";
@@ -181,7 +186,7 @@ router.post("/auth/login", (_req, res): void => {
  * Body: { email, password }
  * Response 200: { user, signInUrl }
  */
-router.post("/auth/invite-login", async (req, res): Promise<void> => {
+router.post("/auth/invite-login", inviteLoginLimiter, async (req, res): Promise<void> => {
   const { email: rawEmail, password } = req.body as { email?: string; password?: string };
   if (!rawEmail || !password) {
     res.status(400).json({ error: "Correo y contraseña requeridos" });
@@ -464,7 +469,7 @@ router.post("/auth/invite-register", async (req, res): Promise<void> => {
   }
 
   // Optional welcome email — never block on it.
-  Promise.resolve().then(() => sendWelcomeEmail(email, trimmedName, role)).catch(() => {});
+  Promise.resolve().then(() => sendWelcomeEmail({ to: email, name: trimmedName, role })).catch(() => {});
 
   const { passwordHash: _, ...safeUser } = user;
   res.status(201).json({
@@ -930,7 +935,7 @@ function verifyResetToken(
   return { userId: parsed.userId, email: parsed.email };
 }
 
-router.post("/auth/forgot-password", async (req, res): Promise<void> => {
+router.post("/auth/forgot-password", forgotPasswordLimiter, async (req, res): Promise<void> => {
   const { email: rawEmail } = req.body as { email?: string };
   if (!rawEmail) {
     res.status(400).json({ error: "Correo requerido" });
@@ -979,7 +984,7 @@ router.post("/auth/forgot-password", async (req, res): Promise<void> => {
   uniformOk();
 });
 
-router.post("/auth/reset-password", async (req, res): Promise<void> => {
+router.post("/auth/reset-password", resetPasswordLimiter, async (req, res): Promise<void> => {
   const { token, password } = req.body as { token?: string; password?: string };
   if (!token || !password) {
     res.status(400).json({ error: "Token y nueva contraseña requeridos" });

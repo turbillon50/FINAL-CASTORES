@@ -151,6 +151,9 @@ export interface CreateProjectBody {
   endDate?: string | null;
   /** @nullable */
   budget?: number | null;
+  /** @nullable */
+  coverImageUrl?: string | null;
+  galleryImages?: string[];
   status?: CreateProjectBodyStatus;
 }
 
@@ -175,6 +178,9 @@ export interface UpdateProjectBody {
   progressPercent?: number | null;
   /** @nullable */
   status?: string | null;
+  /** @nullable */
+  coverImageUrl?: string | null;
+  galleryImages?: string[];
 }
 
 export interface ProjectProgress {
@@ -232,6 +238,10 @@ export interface CreateLogBody {
   /** @nullable */
   materialsUsed?: string | null;
   photos?: string[];
+  /** @nullable */
+  supervisorSignature?: string | null;
+  /** @nullable */
+  clientSignature?: string | null;
 }
 
 export interface UpdateLogBody {
@@ -318,6 +328,16 @@ export interface CreateMaterialBody {
 }
 
 export interface UpdateMaterialBody {
+  /** @nullable */
+  name?: string | null;
+  /** @nullable */
+  description?: string | null;
+  /** @nullable */
+  unit?: string | null;
+  /** @nullable */
+  quantityRequested?: number | null;
+  /** @nullable */
+  quantityApproved?: number | null;
   /** @nullable */
   quantityUsed?: number | null;
   /** @nullable */
@@ -418,12 +438,9 @@ export interface CreateDocumentBody {
 export type ReportType = (typeof ReportType)[keyof typeof ReportType];
 
 export const ReportType = {
-  daily: "daily",
-  weekly: "weekly",
-  monthly: "monthly",
-  materials: "materials",
-  cost: "cost",
-  progress: "progress",
+  avance: "avance",
+  bitacora: "bitacora",
+  materiales: "materiales",
 } as const;
 
 export interface Report {
@@ -451,12 +468,9 @@ export type CreateReportBodyType =
   (typeof CreateReportBodyType)[keyof typeof CreateReportBodyType];
 
 export const CreateReportBodyType = {
-  daily: "daily",
-  weekly: "weekly",
-  monthly: "monthly",
-  materials: "materials",
-  cost: "cost",
-  progress: "progress",
+  avance: "avance",
+  bitacora: "bitacora",
+  materiales: "materiales",
 } as const;
 
 export interface CreateReportBody {

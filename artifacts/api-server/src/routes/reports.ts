@@ -57,6 +57,11 @@ router.post("/reports", async (req, res): Promise<void> => {
     return;
   }
 
+  if (!(await canAccessProject(user, parsed.data.projectId))) {
+    res.status(403).json({ error: "No tienes acceso a esta obra" });
+    return;
+  }
+
   const typeLabels: Record<string, string> = {
     avance: "Avance de Obra",
     bitacora: "Bitácora de Trabajo",
@@ -161,11 +166,14 @@ router.get("/reports/:id/data", async (req, res): Promise<void> => {
     return true;
   });
 
-  // Totals
-  const totalMaterialCost = materials.reduce((s, m) => s + (m.totalCost ?? 0), 0);
+  // Totals: el "gastado" del reporte SOLO contabiliza materiales aprobados.
+  // Pendientes y rechazados se cuentan aparte para visibilidad pero no inflan
+  // el costo del PDF (que de otro modo mostraría dinero que nunca se autorizó).
   const approvedMaterials = materials.filter((m) => m.status === "approved");
   const pendingMaterials = materials.filter((m) => m.status === "pending");
   const rejectedMaterials = materials.filter((m) => m.status === "rejected");
+  const totalMaterialCost = approvedMaterials.reduce((s, m) => s + (m.totalCost ?? 0), 0);
+  const pendingMaterialCost = pendingMaterials.reduce((s, m) => s + (m.totalCost ?? 0), 0);
 
   res.json({
     report: {
@@ -189,6 +197,7 @@ router.get("/reports/:id/data", async (req, res): Promise<void> => {
       pendingMaterials: pendingMaterials.length,
       rejectedMaterials: rejectedMaterials.length,
       totalMaterialCost,
+      pendingMaterialCost,
       progressPercent: project?.progressPercent ?? 0,
       budget: project?.budget ?? null,
       spentAmount: project?.spentAmount ?? 0,

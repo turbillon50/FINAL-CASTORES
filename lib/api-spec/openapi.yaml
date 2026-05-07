@@ -1156,6 +1156,12 @@ components:
           type: ["string", "null"]
         budget:
           type: ["number", "null"]
+        coverImageUrl:
+          type: ["string", "null"]
+        galleryImages:
+          type: array
+          items:
+            type: string
         status:
           type: string
           enum: [active, paused, completed, cancelled]
@@ -1185,6 +1191,12 @@ components:
           type: ["integer", "null"]
         status:
           type: ["string", "null"]
+        coverImageUrl:
+          type: ["string", "null"]
+        galleryImages:
+          type: array
+          items:
+            type: string
 
     ProjectProgress:
       type: object
@@ -1286,6 +1298,10 @@ components:
           type: array
           items:
             type: string
+        supervisorSignature:
+          type: ["string", "null"]
+        clientSignature:
+          type: ["string", "null"]
       required:
         - projectId
         - logDate
@@ -1403,6 +1419,16 @@ components:
     UpdateMaterialBody:
       type: object
       properties:
+        name:
+          type: ["string", "null"]
+        description:
+          type: ["string", "null"]
+        unit:
+          type: ["string", "null"]
+        quantityRequested:
+          type: ["number", "null"]
+        quantityApproved:
+          type: ["number", "null"]
         quantityUsed:
           type: ["number", "null"]
         costPerUnit:

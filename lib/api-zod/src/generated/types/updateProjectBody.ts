@@ -18,27 +18,16 @@ export interface UpdateProjectBody {
   /** @nullable */
   location?: string | null;
   /** @nullable */
-  latitude?: number | null;
-  /** @nullable */
-  longitude?: number | null;
-  /** @nullable */
   startDate?: string | null;
   /** @nullable */
   endDate?: string | null;
   /** @nullable */
   budget?: number | null;
   /** @nullable */
-  coverImageUrl?: string | null;
-  galleryImages?: string[];
-  milestones?: Array<{
-    id: string;
-    name: string;
-    dueDate?: string | null;
-    completed?: boolean;
-    notes?: string | null;
-  }>;
-  /** @nullable */
   progressPercent?: number | null;
   /** @nullable */
   status?: string | null;
+  /** @nullable */
+  coverImageUrl?: string | null;
+  galleryImages?: string[];
 }
