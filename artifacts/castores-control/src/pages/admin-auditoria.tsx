@@ -34,11 +34,13 @@ const PAGE_SIZE = 50;
 const typeStyle: Record<string, { color: string; label: string }> = {
   "user.approve": { color: "#10B981", label: "Usuario aprobado" },
   "user.reject": { color: "#EF4444", label: "Usuario rechazado" },
+  "user.password_reset_sent": { color: "#3B82F6", label: "Reset de contraseña" },
   "project.delete": { color: "#EF4444", label: "Obra eliminada" },
   "log.edit_after_submit": { color: "#F59E0B", label: "Bitácora editada" },
   "log.delete": { color: "#EF4444", label: "Bitácora eliminada" },
   "material.delete": { color: "#EF4444", label: "Material eliminado" },
   "material.approve": { color: "#10B981", label: "Material aprobado" },
+  "email.failure": { color: "#F97316", label: "Email no enviado" },
 };
 
 function describeType(t: string) {

@@ -904,7 +904,11 @@ function getResetSecret(): string {
   );
 }
 
-function signResetToken(payload: { userId: number; email: string; exp: number }): string {
+// El token incluye `clerkId` (cuando existe) además de userId+email para
+// prevenir "token rebinding": si la cuenta Clerk se borra y se recrea con
+// otro id pero el mismo email, un token emitido para la cuenta vieja ya
+// no aplica a la nueva.
+function signResetToken(payload: { userId: number; email: string; clerkId: string | null; exp: number }): string {
   const body = Buffer.from(JSON.stringify(payload)).toString("base64url");
   const sig = createHmac("sha256", getResetSecret()).update(body).digest("base64url");
   return `${body}.${sig}`;
@@ -912,7 +916,7 @@ function signResetToken(payload: { userId: number; email: string; exp: number })
 
 function verifyResetToken(
   token: string,
-): { userId: number; email: string } | { error: string } {
+): { userId: number; email: string; clerkId: string | null } | { error: string } {
   const [body, sig] = token.split(".");
   if (!body || !sig) return { error: "Token mal formado" };
 
@@ -923,7 +927,7 @@ function verifyResetToken(
     return { error: "Token inválido" };
   }
 
-  let parsed: { userId: number; email: string; exp: number };
+  let parsed: { userId: number; email: string; clerkId?: string | null; exp: number };
   try {
     parsed = JSON.parse(Buffer.from(body, "base64url").toString("utf8"));
   } catch {
@@ -932,7 +936,11 @@ function verifyResetToken(
   if (typeof parsed.exp !== "number" || Date.now() > parsed.exp) {
     return { error: "Token caducado. Solicita un nuevo enlace." };
   }
-  return { userId: parsed.userId, email: parsed.email };
+  return {
+    userId: parsed.userId,
+    email: parsed.email,
+    clerkId: parsed.clerkId ?? null,
+  };
 }
 
 router.post("/auth/forgot-password", forgotPasswordLimiter, async (req, res): Promise<void> => {
@@ -966,7 +974,7 @@ router.post("/auth/forgot-password", forgotPasswordLimiter, async (req, res): Pr
   }
 
   const exp = Date.now() + RESET_TTL_MIN * 60 * 1000;
-  const token = signResetToken({ userId: user.id, email, exp });
+  const token = signResetToken({ userId: user.id, email, clerkId: user.clerkId ?? null, exp });
   const resetUrl = `https://castores.info/reset-password?token=${encodeURIComponent(token)}`;
 
   try {
@@ -1012,6 +1020,14 @@ router.post("/auth/reset-password", resetPasswordLimiter, async (req, res): Prom
   }
   if (!user.clerkId) {
     res.status(400).json({ error: "Cuenta sin proveedor de identidad. Contacta al administrador." });
+    return;
+  }
+  // Anti-rebinding: si el token se emitió mientras la cuenta tenía un clerkId
+  // dado y la cuenta Clerk se recreó después con otro id (p. ej. el admin
+  // borró + recreó al usuario en el dashboard de Clerk), el token viejo no
+  // debe poder cambiar la contraseña de la cuenta nueva.
+  if (verified.clerkId && verified.clerkId !== user.clerkId) {
+    res.status(400).json({ error: "Token caducado por cambio de cuenta. Solicita un nuevo enlace." });
     return;
   }
 

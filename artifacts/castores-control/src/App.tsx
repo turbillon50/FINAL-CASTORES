@@ -801,8 +801,12 @@ function SignUpPage() {
       // the user.
       const missing = (result as unknown as { missingFields?: string[]; unverifiedFields?: string[] }).missingFields ?? [];
       const unverified = (result as unknown as { unverifiedFields?: string[] }).unverifiedFields ?? [];
-      // eslint-disable-next-line no-console
-      console.error("[signup] attemptVerification did not complete", { status: result.status, missing, unverified });
+      // Solo en dev: en producción no queremos exponer detalles internos del
+      // flujo de Clerk en el devtools del usuario final.
+      if (import.meta.env.DEV) {
+        // eslint-disable-next-line no-console
+        console.error("[signup] attemptVerification did not complete", { status: result.status, missing, unverified });
+      }
 
       if (missing.includes("username") && signUp) {
         try {
@@ -818,8 +822,10 @@ function SignUpPage() {
             return;
           }
         } catch (updateErr) {
-          // eslint-disable-next-line no-console
-          console.error("[signup] username patch failed", updateErr);
+          if (import.meta.env.DEV) {
+            // eslint-disable-next-line no-console
+            console.error("[signup] username patch failed", updateErr);
+          }
         }
       }
 
@@ -1422,6 +1428,24 @@ function ApprovalGate({ children }: { children: React.ReactNode }) {
 
     return () => { controller.abort(); clearTimeout(timeoutId); };
   }, [isLoaded, isSignedIn, clerkUserId, clerkUserEmail, retryTick]);
+
+  // Re-check periódico: si el admin demota/rechaza/inactiva al usuario
+  // mientras tiene la app abierta, en máximo 5 minutos su sesión refleja
+  // el cambio y queda redirigido al estado correspondiente. También se
+  // dispara un re-check al volver al tab (visibilitychange) para casos
+  // en que el usuario tenía la app inactiva.
+  useEffect(() => {
+    if (!isSignedIn) return;
+    const interval = setInterval(() => setRetryTick((t) => t + 1), 5 * 60 * 1000);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") setRetryTick((t) => t + 1);
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [isSignedIn]);
 
   useEffect(() => {
     if (status === "not_registered") setLocation("/complete-profile");

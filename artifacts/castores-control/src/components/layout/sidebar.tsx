@@ -253,8 +253,14 @@ export function Sidebar() {
       </aside>
 
       {/* ─── MOBILE TOP BAR ──────────────────────────────────── */}
-      <div className="md:hidden fixed top-0 left-0 right-0 z-40 flex items-center justify-between px-4 h-14"
-        style={{ background: "rgba(15,13,11,0.92)", backdropFilter: "blur(20px)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+      <div className="md:hidden fixed top-0 left-0 right-0 z-40 flex items-center justify-between px-4"
+        style={{
+          background: "rgba(15,13,11,0.92)",
+          backdropFilter: "blur(20px)",
+          borderBottom: "1px solid rgba(255,255,255,0.06)",
+          paddingTop: "env(safe-area-inset-top)",
+          height: "calc(56px + env(safe-area-inset-top))",
+        }}>
         <img src="/castores-logo.jpeg" alt="CASTORES" className="h-7 w-auto object-contain brightness-0 invert opacity-80" />
         <div className="flex items-center gap-2">
           <span className="text-[9px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full"
@@ -448,8 +454,12 @@ export function Sidebar() {
         )}
       </AnimatePresence>
 
-      {/* Spacer for mobile top bar */}
-      <div className="h-14 md:hidden w-full shrink-0" />
+      {/* Spacer for mobile top bar — incluye safe-area-inset-top para que el
+          notch del iPhone no tape la primera fila del contenido. */}
+      <div
+        className="md:hidden w-full shrink-0"
+        style={{ height: "calc(56px + env(safe-area-inset-top))" }}
+      />
     </>
   );
 }
