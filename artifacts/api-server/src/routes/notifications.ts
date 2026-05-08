@@ -7,6 +7,8 @@ import {
 } from "@workspace/api-zod";
 import { getRequestUser } from "../lib/getRequestUser";
 import { resolveAuthedUser } from "../lib/authContext";
+import { sendPushToUsers } from "../lib/push";
+import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
 
@@ -161,6 +163,26 @@ router.post("/notifications/send", async (req, res): Promise<void> => {
   ];
 
   await db.insert(notificationsTable).values(rows);
+
+  // Disparar push real al celular de los destinatarios externos. Esto es
+  // lo que hace que el avise vibre/aparezca en la pantalla de bloqueo
+  // como en una app nativa, no solo aparezca cuando el usuario abre la
+  // app. Fire-and-forget: si el envío falla (suscripción expirada,
+  // VAPID no configurado, red caída) lo logueamos pero respondemos OK.
+  if (dedupedExternal.length > 0) {
+    sendPushToUsers(dedupedExternal, {
+      title,
+      body: message,
+      url: "/notificaciones",
+      tag: `aviso-${Date.now()}`,
+      // Aviso del dueño = importante: vibración doble fuerte y la
+      // notificación se queda hasta que el trabajador la cierre.
+      vibrate: [220, 100, 220, 100, 220],
+      requireInteraction: true,
+    }).catch((err) => {
+      logger.warn({ err }, "notifications/send: push delivery failed");
+    });
+  }
 
   // El número que devolvemos al admin es el de destinatarios externos
   // (sin contar la copia de confirmación que se entrega a sí mismo).

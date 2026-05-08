@@ -3,7 +3,7 @@
 // On activate: delete ALL caches, ALL stored data, and force-reload all open clients.
 // On fetch: ALWAYS try network first. NEVER cache HTML. Cache static assets only as offline fallback.
 
-const SW_VERSION = 'v6';
+const SW_VERSION = 'v7';
 const ASSET_CACHE = `castores-assets-${SW_VERSION}`;
 
 self.addEventListener('install', () => {
@@ -68,8 +68,16 @@ self.addEventListener('fetch', (event) => {
 });
 
 // ───── Web Push ──────────────────────────────────────────────────────────────
-// El backend envía un JSON {title, body, url, tag, icon}. Si el payload no
-// es JSON válido caemos a un texto genérico para no perder la notificación.
+// El backend envía un JSON con {title, body, url?, tag?, icon?, vibrate?,
+// requireInteraction?}. Si el payload no es JSON válido caemos a un texto
+// genérico para no perder la notificación.
+//
+// Default agresivo: la app es la herramienta de trabajo de gente cuya
+// operación depende de avisos del dueño — preferimos pecar de que vibre
+// muy fuerte que de pasar desapercibido. El backend puede mandar
+// vibrate: [] para suprimir la vibración en casos específicos.
+const DEFAULT_VIBRATE = [220, 100, 220, 100, 220];
+
 self.addEventListener('push', (event) => {
   let data = {};
   try { data = event.data ? event.data.json() : {}; }
@@ -82,7 +90,13 @@ self.addEventListener('push', (event) => {
     badge: '/icon-192.png',
     tag: data.tag || undefined,
     data: { url: data.url || '/notificaciones' },
-    requireInteraction: false,
+    requireInteraction: data.requireInteraction === true,
+    vibrate: Array.isArray(data.vibrate) ? data.vibrate : DEFAULT_VIBRATE,
+    // renotify=true junto con tag igual al anterior fuerza al sistema a
+    // re-mostrar y vibrar incluso si una notificación previa con ese tag
+    // ya estaba ahí. Evita el caso "el celular se quedó callado porque
+    // ya había un Castores en la barra".
+    renotify: !!data.tag,
   };
   event.waitUntil(self.registration.showNotification(title, options));
 });

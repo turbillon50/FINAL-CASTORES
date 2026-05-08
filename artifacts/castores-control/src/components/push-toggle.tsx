@@ -191,24 +191,57 @@ export function PushToggle() {
       )}
 
       {state.kind === "ready" && (
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-sm">
-            {state.subscribed
-              ? "Activadas en este dispositivo."
-              : "No estás recibiendo notificaciones aquí."}
-          </p>
-          <button
-            onClick={state.subscribed ? disable : enable}
-            disabled={busy}
-            className={
-              "px-4 py-2 rounded-xl font-semibold text-sm transition disabled:opacity-50 " +
-              (state.subscribed
-                ? "border border-border bg-background hover:bg-accent"
-                : "bg-amber-600 hover:bg-amber-700 text-white")
-            }
-          >
-            {busy ? "..." : state.subscribed ? "Desactivar" : "Activar"}
-          </button>
+        <div className="space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm">
+              {state.subscribed
+                ? "Activadas en este dispositivo."
+                : "No estás recibiendo notificaciones aquí."}
+            </p>
+            <button
+              onClick={state.subscribed ? disable : enable}
+              disabled={busy}
+              className={
+                "px-4 py-2 rounded-xl font-semibold text-sm transition disabled:opacity-50 " +
+                (state.subscribed
+                  ? "border border-border bg-background hover:bg-accent"
+                  : "bg-amber-600 hover:bg-amber-700 text-white")
+              }
+            >
+              {busy ? "..." : state.subscribed ? "Desactivar" : "Activar"}
+            </button>
+          </div>
+          {state.subscribed && (
+            <button
+              onClick={async () => {
+                setBusy(true);
+                try {
+                  const r = await authedFetch("/api/push/test", { method: "POST" });
+                  const data = await r.json().catch(() => ({}));
+                  if (r.ok && data?.sent > 0) {
+                    toast({
+                      title: "Aviso de prueba enviado",
+                      description: "Si tu celular no vibró, revisa el silencio o el modo concentración.",
+                    });
+                  } else {
+                    toast({
+                      title: "No se envió",
+                      description: "Asegúrate de tener notificaciones activadas en este dispositivo.",
+                      variant: "destructive",
+                    });
+                  }
+                } catch {
+                  toast({ title: "Error", description: "Inténtalo en un momento.", variant: "destructive" });
+                } finally {
+                  setBusy(false);
+                }
+              }}
+              disabled={busy}
+              className="w-full text-xs font-semibold py-2 rounded-lg border border-dashed border-border hover:bg-accent transition disabled:opacity-50"
+            >
+              📳 Probar notificación
+            </button>
+          )}
         </div>
       )}
     </section>

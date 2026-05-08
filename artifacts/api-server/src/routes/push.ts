@@ -2,7 +2,7 @@ import { Router, type IRouter } from "express";
 import { eq, and } from "drizzle-orm";
 import { db, pushSubscriptionsTable } from "@workspace/db";
 import { resolveAuthedUser } from "../lib/authContext";
-import { getPushPublicKey, isPushReady } from "../lib/push";
+import { getPushPublicKey, isPushReady, sendPushToUsers } from "../lib/push";
 import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
@@ -89,6 +89,25 @@ router.post("/push/unsubscribe", async (req, res): Promise<void> => {
     logger.error({ err }, "push/unsubscribe failed");
     res.status(500).json({ error: "No se pudo borrar la suscripción" });
   }
+});
+
+// Test push endpoint: el usuario logueado se manda un aviso a sí mismo
+// para verificar que el celular vibra y aparece en la pantalla. Útil
+// como confirmación visible inmediatamente después de activar el toggle.
+// Si no hay suscripciones el usuario verá "0 enviados" — eso le dice
+// que primero necesita activar el toggle (o instalar la PWA en iPhone).
+router.post("/push/test", async (req, res): Promise<void> => {
+  const user = await resolveAuthedUser(req);
+  if (!user) { res.status(401).json({ error: "No autenticado" }); return; }
+  const result = await sendPushToUsers([user.id], {
+    title: "Aviso de prueba",
+    body: "Si ves esta notificación con vibración, todo está listo. ✅",
+    url: "/notificaciones",
+    tag: `test-${Date.now()}`,
+    vibrate: [220, 100, 220, 100, 220],
+    requireInteraction: false,
+  });
+  res.json({ ok: true, sent: result.sent, pruned: result.pruned });
 });
 
 router.get("/push/status", async (req, res): Promise<void> => {

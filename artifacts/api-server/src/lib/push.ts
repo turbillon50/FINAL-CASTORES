@@ -31,12 +31,20 @@ export function isPushReady(): boolean {
   return pushReady;
 }
 
-type PushPayload = {
+export type PushPayload = {
   title: string;
   body: string;
   url?: string;
   tag?: string;
   icon?: string;
+  // Patrón de vibración en milisegundos. Si no se manda, el SW aplica un
+  // default agresivo (es para trabajadores que no deben perderse el aviso
+  // del dueño). Pasar [] para suprimir vibración explícitamente.
+  vibrate?: number[];
+  // requireInteraction = true → la notificación queda visible hasta que
+  // el usuario la cierre (ideal para avisos críticos). Default false para
+  // no saturar la barra del sistema con cosas menores.
+  requireInteraction?: boolean;
 };
 
 /**
