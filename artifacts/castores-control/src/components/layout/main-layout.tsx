@@ -2,6 +2,7 @@ import { ReactNode } from "react";
 import { Sidebar } from "./sidebar";
 import { LegalFooter } from "./footer";
 import { InstallPrompt } from "@/components/install-prompt";
+import { PushAutoPrompt } from "@/components/push-auto-prompt";
 import { useAuth } from "@/lib/auth";
 import { useLocation, Redirect } from "wouter";
 
@@ -59,6 +60,7 @@ export function MainLayout({ children, publicAccess = false }: MainLayoutProps) 
         </div>
       </main>
       <InstallPrompt />
+      <PushAutoPrompt />
     </div>
   );
 }
