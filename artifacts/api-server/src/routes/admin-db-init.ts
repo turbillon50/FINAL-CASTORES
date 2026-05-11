@@ -87,6 +87,13 @@ CREATE TABLE IF NOT EXISTS "projects" (
 ALTER TABLE "projects" ADD COLUMN IF NOT EXISTS "gallery_images" text[] DEFAULT '{}';
 ALTER TABLE "projects" ADD COLUMN IF NOT EXISTS "milestones" jsonb DEFAULT '[]'::jsonb;
 
+-- Migración idempotente: dinero de real (float32, ~7 dígitos) a double
+-- precision (float64, ~15 dígitos exactos) para que centavos no se
+-- redondeen en montos arriba de ~10 millones. PostgreSQL convierte
+-- el valor existente en-place sin pérdida.
+ALTER TABLE "projects" ALTER COLUMN "budget" TYPE double precision USING "budget"::double precision;
+ALTER TABLE "projects" ALTER COLUMN "spent_amount" TYPE double precision USING "spent_amount"::double precision;
+
 CREATE TABLE IF NOT EXISTS "activity_log" (
   "id" serial PRIMARY KEY,
   "type" text NOT NULL,
@@ -129,18 +136,46 @@ CREATE TABLE IF NOT EXISTS "materials" (
   "id" serial PRIMARY KEY,
   "project_id" integer NOT NULL,
   "requested_by_id" integer NOT NULL,
+  "note_id" integer,
   "name" text NOT NULL,
   "description" text,
   "unit" text NOT NULL,
-  "quantity_requested" real NOT NULL,
-  "quantity_approved" real,
-  "quantity_used" real,
-  "cost_per_unit" real,
-  "total_cost" real,
+  "quantity_requested" double precision NOT NULL,
+  "quantity_approved" double precision,
+  "quantity_used" double precision,
+  "cost_per_unit" double precision,
+  "total_cost" double precision,
   "status" text NOT NULL DEFAULT 'pending',
   "approved_by_id" integer,
   "approved_at" timestamptz,
   "notes" text,
+  "created_at" timestamptz NOT NULL DEFAULT NOW(),
+  "updated_at" timestamptz NOT NULL DEFAULT NOW()
+);
+
+-- Idempotente para producción existente: convertir columnas de dinero
+-- de real a double precision y agregar note_id para asociar renglones
+-- a una nota de mostrador (capturas múltiples conceptos en una sola).
+ALTER TABLE "materials" ADD COLUMN IF NOT EXISTS "note_id" integer;
+ALTER TABLE "materials" ALTER COLUMN "quantity_requested" TYPE double precision USING "quantity_requested"::double precision;
+ALTER TABLE "materials" ALTER COLUMN "quantity_approved" TYPE double precision USING "quantity_approved"::double precision;
+ALTER TABLE "materials" ALTER COLUMN "quantity_used" TYPE double precision USING "quantity_used"::double precision;
+ALTER TABLE "materials" ALTER COLUMN "cost_per_unit" TYPE double precision USING "cost_per_unit"::double precision;
+ALTER TABLE "materials" ALTER COLUMN "total_cost" TYPE double precision USING "total_cost"::double precision;
+
+-- Tabla nueva: cabecera de notas de mostrador. Una nota agrupa varios
+-- renglones en materials (via materials.note_id). El total se persiste
+-- al insertar/actualizar para evitar recomputar en lectura.
+CREATE TABLE IF NOT EXISTS "material_notes" (
+  "id" serial PRIMARY KEY,
+  "project_id" integer NOT NULL,
+  "created_by_id" integer NOT NULL,
+  "note_date" text NOT NULL,
+  "folio" text,
+  "supplier_name" text,
+  "description" text,
+  "total_amount" double precision NOT NULL DEFAULT 0,
+  "status" text NOT NULL DEFAULT 'draft',
   "created_at" timestamptz NOT NULL DEFAULT NOW(),
   "updated_at" timestamptz NOT NULL DEFAULT NOW()
 );

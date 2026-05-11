@@ -1,5 +1,6 @@
 import { MainLayout } from "@/components/layout/main-layout";
 import { MaterialKanban } from "@/components/ui/material-kanban";
+import { MaterialNotesView } from "@/components/material-notes-view";
 import { PageHero } from "@/components/ui/page-hero";
 import {
   useListMaterials, useGetMaterialStats, useApproveMaterial,
@@ -37,6 +38,9 @@ export default function Materiales() {
   const [deleting, setDeleting] = useState<Material | null>(null);
   const [deletingBusy, setDeletingBusy] = useState(false);
 
+  // Vista activa: notas (nuevo flujo "nota de mostrador" con varios
+  // conceptos en una sola nota) vs kanban (vista legacy por estado).
+  const [view, setView] = useState<"notes" | "kanban">("notes");
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({
     projectId: "",
@@ -153,8 +157,14 @@ export default function Materiales() {
   };
 
   const fmt = (n: number | null | undefined) => {
-    if (n == null) return "$0";
-    return new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", maximumFractionDigits: 0 }).format(n);
+    if (n == null) return "$0.00";
+    // Centavos visibles: el dueño pidió que el sistema sea fiel al peso y
+    // al centavo. El viejo formato truncaba decimales en pantalla aunque
+    // la DB ya lo tuviera bien.
+    return new Intl.NumberFormat("es-MX", {
+      style: "currency", currency: "MXN",
+      minimumFractionDigits: 2, maximumFractionDigits: 2,
+    }).format(n);
   };
 
   const statCards = [
@@ -174,16 +184,36 @@ export default function Materiales() {
           accentColor="#C8952A"
           badge="BODEGA Y SUMINISTROS"
         >
-          {canRequest && (
+          {view === "kanban" && canRequest && (
             <Button
               onClick={() => setShowForm(true)}
               className="mt-1 rounded-xl text-xs font-bold px-4 py-2 h-auto"
               style={{ background: "rgba(200,149,42,0.25)", border: "1px solid rgba(200,149,42,0.5)", color: "#fff" }}
             >
-              <Icons.Plus className="w-3.5 h-3.5 mr-1.5" /> Solicitar Material
+              <Icons.Plus className="w-3.5 h-3.5 mr-1.5" /> Solicitar suelto
             </Button>
           )}
         </PageHero>
+
+        {/* Switch de vista: por defecto la nueva (Notas). El Kanban legacy
+            queda accesible para que admins puedan aprobar/rechazar
+            materiales individuales solicitados sin agrupar. */}
+        <div className="flex gap-1 p-1 rounded-2xl" style={{ background: "rgba(0,0,0,0.04)", maxWidth: "fit-content" }}>
+          {(["notes", "kanban"] as const).map((v) => (
+            <button
+              key={v}
+              onClick={() => setView(v)}
+              className="px-4 py-1.5 rounded-xl text-xs font-bold transition-all"
+              style={{
+                background: view === v ? "white" : "transparent",
+                color: view === v ? "#1a1612" : "rgba(26,22,18,0.5)",
+                boxShadow: view === v ? "0 1px 4px rgba(0,0,0,0.08)" : "none",
+              }}
+            >
+              {v === "notes" ? "Notas de mostrador" : "Aprobaciones (Kanban)"}
+            </button>
+          ))}
+        </div>
 
         {/* Stats */}
         {stats && (
@@ -212,13 +242,17 @@ export default function Materiales() {
           </div>
         )}
 
-        <MaterialKanban
-          materials={materials}
-          onApprove={canApprove ? handleApprove : undefined}
-          onReject={canApprove ? handleReject : undefined}
-          onEdit={canApprove ? openEdit : undefined}
-          onDelete={canApprove ? (m) => setDeleting(m) : undefined}
-        />
+        {view === "notes" ? (
+          <MaterialNotesView canCreate={canRequest} />
+        ) : (
+          <MaterialKanban
+            materials={materials}
+            onApprove={canApprove ? handleApprove : undefined}
+            onReject={canApprove ? handleReject : undefined}
+            onEdit={canApprove ? openEdit : undefined}
+            onDelete={canApprove ? (m) => setDeleting(m) : undefined}
+          />
+        )}
       </div>
 
       {/* ─── Modal Solicitar Material ─────────────────── */}

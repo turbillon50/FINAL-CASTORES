@@ -1,4 +1,4 @@
-import { pgTable, text, serial, timestamp, integer, real, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, integer, real, doublePrecision, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -21,8 +21,12 @@ export const projectsTable = pgTable("projects", {
   longitude: real("longitude"),
   startDate: text("start_date"),
   endDate: text("end_date"),
-  budget: real("budget"),
-  spentAmount: real("spent_amount").default(0),
+  // Dinero en doublePrecision: ~15 dígitos exactos, alcanza para
+  // presupuestos en MXN con centavos sin pérdida por redondeo
+  // (el viejo `real` era float32 y empezaba a redondear arriba de
+  // ~$10 millones, comiéndose centavos en obras grandes).
+  budget: doublePrecision("budget"),
+  spentAmount: doublePrecision("spent_amount").default(0),
   progressPercent: integer("progress_percent").notNull().default(0),
   status: text("status").notNull().default("active"),
   coverImageUrl: text("cover_image_url"),
