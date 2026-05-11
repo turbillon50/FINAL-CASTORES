@@ -1032,7 +1032,7 @@ function ObrasTab() {
                   {p.supervisorName && <p className="text-xs" style={{ color: "rgba(26,22,18,0.45)" }}>👷 Supervisor: {p.supervisorName}</p>}
                   {p.budget && (
                     <p className="text-xs mt-1 font-semibold" style={{ color: "#C8952A" }}>
-                      💰 {new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", maximumFractionDigits: 0 }).format(p.budget)}
+                      💰 {new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(p.budget)}
                     </p>
                   )}
                   <p className="text-[10px] mt-2 font-semibold uppercase tracking-wider" style={{ color: "#C8952A" }}>

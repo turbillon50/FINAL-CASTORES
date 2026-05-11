@@ -20,7 +20,7 @@ const STATUS_LABELS: Record<string, string> = {
 export function CinematicProjectCard({ project, index }: CinematicProjectCardProps) {
   const formatCurrency = (amount: number | null | undefined) => {
     if (amount == null) return "$0";
-    return new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", maximumFractionDigits: 0 }).format(amount);
+    return new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount);
   };
 
   const getStatusColor = (status: string) => {

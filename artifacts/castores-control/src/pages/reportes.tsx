@@ -38,7 +38,9 @@ const REPORT_TYPES = [
 const STATUS_LABELS: Record<string, string> = { pending: "Pendiente", approved: "Aprobado", rejected: "Rechazado", delivered: "Entregado" };
 const STATUS_COLORS: Record<string, string> = { pending: "#F59E0B", approved: "#10B981", rejected: "#EF4444", delivered: "#3B82F6" };
 
-const MXN = (v: number) => new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", maximumFractionDigits: 0 }).format(v);
+// Centavos visibles: en reportes oficiales y nota de mostrador el dueño
+// requirió ver hasta el último centavo (cada peso cuenta para la obra).
+const MXN = (v: number) => new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v);
 
 // ─── Print view ───────────────────────────────────────────────────────────────
 function PrintView({ data, onClose }: { data: any; onClose: () => void }) {
