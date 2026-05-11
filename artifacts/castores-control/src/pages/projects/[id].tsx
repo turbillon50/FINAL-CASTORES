@@ -328,6 +328,13 @@ export default function ProjectDetail() {
   const [editForm, setEditForm] = useState<any>({});
   const [editSaving, setEditSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  // Este useState debe vivir ANTES de los return tempranos. Antes
+  // estaba después de "if (projectLoading) return ..." y "if (!project)
+  // return ...", lo que rompía las reglas de hooks de React: en el
+  // primer render (loading) no se llamaba, en el segundo (project ya
+  // cargó) sí, y React #310 crasheaba la pantalla con "Rendered fewer
+  // hooks than expected".
+  const [galleryBusy, setGalleryBusy] = useState<string | null>(null);
 
   const { data: project, isLoading: projectLoading } = useGetProject(projectId, {
     query: { queryKey: ["get-project", projectId], enabled: !!projectId }
@@ -383,7 +390,6 @@ export default function ProjectDetail() {
   };
 
   const MAX_PROJECT_GALLERY = 20;
-  const [galleryBusy, setGalleryBusy] = useState<string | null>(null);
 
   const addGalleryFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
