@@ -328,6 +328,12 @@ export default function ProjectDetail() {
   const [editForm, setEditForm] = useState<any>({});
   const [editSaving, setEditSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  // Quick-update de avance (%) sin abrir el modal grande de Editar Obra.
+  // El dueño pidió poder reflejar el avance rápido — un tap en la tarjeta
+  // AVANCE abre este popover, escribe el número y guarda.
+  const [avanceOpen, setAvanceOpen] = useState(false);
+  const [avanceValue, setAvanceValue] = useState<string>("0");
+  const [avanceSaving, setAvanceSaving] = useState(false);
   // Este useState debe vivir ANTES de los return tempranos. Antes
   // estaba después de "if (projectLoading) return ..." y "if (!project)
   // return ...", lo que rompía las reglas de hooks de React: en el
@@ -486,6 +492,35 @@ export default function ProjectDetail() {
     }
   };
 
+  // Guardado rápido del % de avance — sin pasar por el modal grande
+  // de Editar Obra. Se invoca desde el tap en la tarjeta AVANCE.
+  const submitAvance = async () => {
+    const n = Math.round(Number(avanceValue));
+    if (!Number.isFinite(n) || n < 0 || n > 100) {
+      toast({ title: "Avance inválido", description: "Pon un número entre 0 y 100.", variant: "destructive" });
+      return;
+    }
+    if (n === (project.progressPercent ?? 0)) {
+      setAvanceOpen(false);
+      return;
+    }
+    setAvanceSaving(true);
+    try {
+      await teamFetch(`/projects/${projectId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ progressPercent: n }),
+      });
+      toast({ title: "Avance actualizado", description: `${n}% reportado.` });
+      setAvanceOpen(false);
+      qc.invalidateQueries({ queryKey: ["get-project", projectId] });
+      qc.invalidateQueries({ queryKey: ["get-project-progress", projectId] });
+    } catch (e: any) {
+      toast({ title: "No se guardó", description: e.message, variant: "destructive" });
+    } finally {
+      setAvanceSaving(false);
+    }
+  };
+
   const handleDelete = async () => {
     if (!confirm(`¿Eliminar la obra "${project.name}"?\n\nEsto borra TODAS sus bitácoras, materiales, documentos y reportes. Esta acción queda registrada en la auditoría y no se puede deshacer.`)) return;
     setDeleting(true);
@@ -536,9 +571,27 @@ export default function ProjectDetail() {
             <h1 className="font-display text-5xl md:text-7xl text-white drop-shadow-lg">{project.name}</h1>
           </div>
 
-          <div className="flex items-center gap-6 bg-card/80 backdrop-blur-xl p-4 rounded-2xl border border-white/10 shrink-0">
+          {/* Tarjeta de Avance. Para admin es tappable y abre un modal
+              corto donde se actualiza el % con un solo número, sin
+              necesidad de entrar a "Editar obra". Para no-admin es
+              solo display. */}
+          <button
+            type="button"
+            onClick={isAdmin ? () => {
+              setAvanceValue(String(project.progressPercent ?? 0));
+              setAvanceOpen(true);
+            } : undefined}
+            disabled={!isAdmin}
+            className={
+              "flex items-center gap-6 bg-card/80 backdrop-blur-xl p-4 rounded-2xl border border-white/10 shrink-0 text-left transition " +
+              (isAdmin ? "hover:border-primary/50 active:scale-[0.99] cursor-pointer" : "cursor-default")
+            }
+          >
             <div>
-              <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Avance</p>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                Avance
+                {isAdmin && <span className="text-[9px] opacity-70">✎ tocar para editar</span>}
+              </p>
               <div className="flex items-end gap-2">
                 <span className="font-display text-4xl text-primary leading-none">{project.progressPercent}</span>
                 <span className="text-muted-foreground mb-1">%</span>
@@ -546,7 +599,7 @@ export default function ProjectDetail() {
             </div>
             <div className="w-px h-12 bg-white/10" />
             <ProgressRing progress={project.progressPercent} size={60} strokeWidth={4} showLabel={false} />
-          </div>
+          </button>
         </div>
       </div>
 
@@ -715,6 +768,72 @@ export default function ProjectDetail() {
           )}
         </div>
       </Tabs>
+
+      {/* Modal rápido: actualizar % de avance (admin) */}
+      {avanceOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(6px)" }}
+          onClick={() => !avanceSaving && setAvanceOpen(false)}
+        >
+          <div
+            className="bg-background border border-border rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-5 border-b border-border">
+              <h3 className="font-display text-xl">Actualizar avance</h3>
+              <p className="text-xs text-muted-foreground mt-1">
+                ¿Qué porcentaje de la obra está hecho a la fecha?
+              </p>
+            </div>
+            <div className="p-5 space-y-4">
+              <div className="flex items-baseline gap-3">
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  step={1}
+                  inputMode="numeric"
+                  value={avanceValue}
+                  onChange={(e) => setAvanceValue(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter" && !avanceSaving) submitAvance(); }}
+                  autoFocus
+                  className="flex-1 text-4xl font-display text-primary px-3 py-2 rounded-xl border border-border bg-background/60 outline-none focus:border-primary"
+                />
+                <span className="text-2xl text-muted-foreground">%</span>
+              </div>
+              {/* Slider para arrastrar más rápido en móvil */}
+              <input
+                type="range"
+                min={0}
+                max={100}
+                step={1}
+                value={Number(avanceValue) || 0}
+                onChange={(e) => setAvanceValue(e.target.value)}
+                className="w-full accent-primary"
+              />
+              <div className="flex gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setAvanceOpen(false)}
+                  disabled={avanceSaving}
+                  className="flex-1 py-2.5 rounded-xl border border-border text-sm font-semibold hover:bg-foreground/5 disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={submitAvance}
+                  disabled={avanceSaving}
+                  className="flex-1 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-bold disabled:opacity-50"
+                >
+                  {avanceSaving ? "Guardando…" : "Guardar"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal de Editar Obra (admin) */}
       {editOpen && (
