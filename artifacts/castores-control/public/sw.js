@@ -3,7 +3,7 @@
 // On activate: delete ALL caches, ALL stored data, and force-reload all open clients.
 // On fetch: ALWAYS try network first. NEVER cache HTML. Cache static assets only as offline fallback.
 
-const SW_VERSION = 'v7';
+const SW_VERSION = 'v8';
 const ASSET_CACHE = `castores-assets-${SW_VERSION}`;
 
 self.addEventListener('install', () => {
