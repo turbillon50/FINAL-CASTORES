@@ -61,6 +61,22 @@
             window.addEventListener('load', function () {
               navigator.serviceWorker.register('/sw.js').catch(function () {});
             });
+            // Cuando el SW nuevo se active (deploy en producción), el SW
+            // hace postMessage SW_ACTIVATED. Forzamos reload UNA sola vez
+            // por sesión para que la PWA del cliente jale el bundle nuevo
+            // sin que el usuario tenga que cerrar y reabrir. Bandera en
+            // sessionStorage evita loop si por algún motivo el reload no
+            // limpia el evento.
+            navigator.serviceWorker.addEventListener('message', function (ev) {
+              if (!ev || !ev.data || ev.data.type !== 'SW_ACTIVATED') return;
+              var key = 'castores_sw_reload_' + (ev.data.version || 'unknown');
+              try {
+                if (sessionStorage.getItem(key)) return;
+                sessionStorage.setItem(key, '1');
+              } catch (e) {}
+              // Pequeño delay para que el SW termine sus tareas de claim.
+              setTimeout(function () { location.reload(); }, 300);
+            });
           }
         } catch (e) {}
 

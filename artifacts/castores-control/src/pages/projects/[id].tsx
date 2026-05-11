@@ -539,7 +539,7 @@ export default function ProjectDetail() {
               </div>
             </div>
             <div className="w-px h-12 bg-white/10" />
-            <ProgressRing progress={project.progressPercent} size={60} strokeWidth={4} />
+            <ProgressRing progress={project.progressPercent} size={60} strokeWidth={4} showLabel={false} />
           </div>
         </div>
       </div>

@@ -8,6 +8,14 @@ import { CLERK_PROXY_PATH, clerkProxyMiddleware } from "./middlewares/clerkProxy
 import router from "./routes";
 import healthRouter from "./routes/health";
 import { logger } from "./lib/logger";
+import { runStartupMigrations } from "./lib/startupMigrations";
+
+// Auto-aplica migraciones en cada cold start (idempotente). Antes esto
+// solo corría manualmente vía POST /api/admin/db-init con master key,
+// lo que dejó la prod del cliente con material_notes inexistente tras
+// el deploy de PR #34 y los endpoints fallando silenciosamente.
+// Fire-and-forget: no bloquea boot; errores quedan en log.
+runStartupMigrations().catch(() => {});
 
 const app: Express = express();
 

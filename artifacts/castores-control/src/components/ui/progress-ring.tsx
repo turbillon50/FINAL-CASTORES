@@ -6,9 +6,13 @@ interface ProgressRingProps {
   size?: number;
   strokeWidth?: number;
   className?: string;
+  // showLabel=false oculta el texto "NN%" centrado adentro del anillo.
+  // Útil cuando el anillo va al lado de un número grande que ya muestra
+  // el porcentaje, para evitar el "0% 0%" duplicado que el dueño reportó.
+  showLabel?: boolean;
 }
 
-export function ProgressRing({ progress, size = 60, strokeWidth = 4, className = "" }: ProgressRingProps) {
+export function ProgressRing({ progress, size = 60, strokeWidth = 4, className = "", showLabel = true }: ProgressRingProps) {
   const [currentProgress, setCurrentProgress] = useState(0);
   
   useEffect(() => {
@@ -51,9 +55,11 @@ export function ProgressRing({ progress, size = 60, strokeWidth = 4, className =
           transition={{ duration: 1.5, ease: "easeOut" }}
         />
       </svg>
-      <div className="absolute font-display text-sm tracking-wide text-foreground">
-        {Math.round(currentProgress)}%
-      </div>
+      {showLabel && (
+        <div className="absolute font-display text-sm tracking-wide text-foreground">
+          {Math.round(currentProgress)}%
+        </div>
+      )}
     </div>
   );
 }

@@ -15,7 +15,7 @@ function isMasterAdminKey(rawCode: string): boolean {
   return normalized === LEGACY_MASTER_KEY || (!!ADMIN_MASTER_KEY && normalized === ADMIN_MASTER_KEY);
 }
 
-const INIT_SQL = `-- ============================================================
+export const INIT_SQL = `-- ============================================================
 -- CASTORES — Init schema (12 tablas)
 -- ============================================================
 
@@ -247,7 +247,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS "push_subscriptions_endpoint_unique"
   ON "push_subscriptions" ("endpoint");`;
 
 // Seed: matriz de permisos por defecto para los 5 roles. Idempotente.
-const SEED_ROLE_PERMISSIONS_SQL = `
+export const SEED_ROLE_PERMISSIONS_SQL = `
 INSERT INTO role_permissions (role, permissions) VALUES
   ('admin', '{"dashboardFull":true,"projectsViewAll":true,"projectsCreateEdit":true,"bitacoraView":true,"bitacoraCreate":true,"budgetViewAmounts":true,"materialsApprove":true,"materialsRequest":true,"materialsSupply":true,"workersView":true,"workersManage":true,"documentsLegalView":true,"documentsLegalManage":true,"adminPanelAccess":true}'::jsonb),
   ('supervisor', '{"dashboardFull":true,"projectsViewAll":true,"projectsCreateEdit":false,"bitacoraView":true,"bitacoraCreate":true,"budgetViewAmounts":true,"materialsApprove":false,"materialsRequest":true,"materialsSupply":false,"workersView":true,"workersManage":false,"documentsLegalView":true,"documentsLegalManage":false,"adminPanelAccess":false}'::jsonb),
