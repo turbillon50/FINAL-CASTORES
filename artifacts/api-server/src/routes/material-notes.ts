@@ -265,26 +265,190 @@ router.delete("/material-notes/:id", async (req, res): Promise<void> => {
 });
 
 /**
- * POST /api/material-notes/scan — MOCK pendiente.
+ * POST /api/material-notes/scan — OCR de notas de mostrador con IA.
  *
- * En cuanto el dueño nos pase ANTHROPIC_API_KEY, este endpoint hará lo
- * siguiente: recibirá una foto (base64) → llamará a Claude Vision con un
- * prompt + schema → devolverá un objeto IncomingNoteBody con items
- * preparados para revisión humana antes de confirmar.
+ * Body: { image: "data:image/jpeg;base64,..." }
  *
- * Por ahora regresa 501 con una explicación clara para que el frontend
- * sepa que el botón está visible pero deshabilitado/etiquetado como
- * "próximamente".
+ * Llama a OpenRouter con un modelo de visión (default
+ * anthropic/claude-sonnet-4-5, configurable vía OPENROUTER_VISION_MODEL).
+ * Pide extraer cabecera y renglones de una nota de proveedor mexicana
+ * (Cemex, Acero, ferreterías, etc.) y devuelve JSON estructurado listo
+ * para pre-rellenar el formulario.
+ *
+ * El usuario SIEMPRE revisa el resultado antes de guardar — esto NO
+ * crea la nota automáticamente, solo extrae los datos para que el
+ * dueño confirme/corrija.
+ *
+ * Sin OPENROUTER_API_KEY configurada → 503 con mensaje claro. El
+ * frontend muestra el botón como "próximamente" en ese caso.
  */
+const SCAN_SYSTEM_PROMPT = `Eres un asistente que extrae datos de notas de mostrador de proveedores de construcción mexicanos (Cemex, Holcim, Acero del Norte, ferreterías, distribuidoras). Las notas pueden estar impresas o escritas a mano, parcialmente arrugadas, o tener anotaciones del dueño.
+
+Devuelve EXCLUSIVAMENTE un objeto JSON con esta forma exacta:
+{
+  "supplierName": string | null,    // nombre del proveedor en mayúsculas si lo ves
+  "folio": string | null,           // número de folio / nota / remisión si aparece
+  "noteDate": string | null,        // ISO YYYY-MM-DD si puedes inferir
+  "items": [
+    {
+      "name": string,               // descripción del concepto, p. ej. "Acero 5/8 grado 60"
+      "unit": string,                // "kg", "ton", "saco", "pza", "m³", "varilla", etc.
+      "quantityRequested": number,   // cantidad numérica
+      "costPerUnit": number | null   // precio unitario en MXN si se ve, null si no
+    }
+  ],
+  "confidence": number               // 0..1 — qué tan seguro estás del extract
+}
+
+Reglas:
+- Si no estás seguro de un dato, usa null en vez de adivinar.
+- Las unidades en español. "kgs"→"kg", "tons"→"ton", "sacos"→"saco".
+- costPerUnit es UNITARIO, no total. Si solo ves el total, divídelo entre quantity.
+- Si la foto es ilegible o no es una nota, devuelve items: [] y confidence: 0.
+- Importante: SOLO el JSON, sin texto adicional, sin markdown fences.`;
+
+type ScanResponse = {
+  supplierName: string | null;
+  folio: string | null;
+  noteDate: string | null;
+  items: Array<{
+    name: string;
+    unit: string;
+    quantityRequested: number;
+    costPerUnit: number | null;
+  }>;
+  confidence: number;
+};
+
+function parseScanJson(raw: string): ScanResponse | null {
+  // Algunos modelos siguen agregando ```json wrappers o texto antes/después.
+  // Buscamos el primer { y el último } para extraer el JSON crudo.
+  const start = raw.indexOf("{");
+  const end = raw.lastIndexOf("}");
+  if (start < 0 || end <= start) return null;
+  const slice = raw.slice(start, end + 1);
+  try {
+    const parsed = JSON.parse(slice) as Partial<ScanResponse>;
+    if (!Array.isArray(parsed.items)) return null;
+    return {
+      supplierName: typeof parsed.supplierName === "string" ? parsed.supplierName : null,
+      folio: typeof parsed.folio === "string" ? parsed.folio : null,
+      noteDate: typeof parsed.noteDate === "string" ? parsed.noteDate : null,
+      items: parsed.items
+        .filter((it): it is { name: string; unit: string; quantityRequested: number; costPerUnit: number | null } =>
+          !!it && typeof it.name === "string" && typeof it.unit === "string" && typeof it.quantityRequested === "number",
+        )
+        .map((it) => ({
+          name: it.name.trim(),
+          unit: it.unit.trim(),
+          quantityRequested: it.quantityRequested,
+          costPerUnit: typeof it.costPerUnit === "number" ? it.costPerUnit : null,
+        })),
+      confidence: typeof parsed.confidence === "number" ? parsed.confidence : 0,
+    };
+  } catch {
+    return null;
+  }
+}
+
 router.post("/material-notes/scan", async (req, res): Promise<void> => {
   const user = await resolveAuthedUser(req);
   if (!user) { res.status(401).json({ error: "No autenticado" }); return; }
-  void req;
-  res.status(501).json({
-    ok: false,
-    pending: true,
-    message: "El escaneo automático de notas está en desarrollo. Por ahora captura los conceptos manualmente — pronto la foto rellenará todo solo.",
-  });
+  if (!(await hasPermission(user.role, "materialsRequest"))) {
+    res.status(403).json({ error: "No tienes permiso para registrar materiales" });
+    return;
+  }
+
+  const apiKey = process.env["OPENROUTER_API_KEY"];
+  if (!apiKey) {
+    res.status(503).json({
+      ok: false,
+      pending: true,
+      message: "El escaneo automático aún no está configurado. Captura los conceptos manualmente — el admin lo activará cuando agregue la llave del servicio.",
+    });
+    return;
+  }
+
+  const { image } = req.body as { image?: string };
+  if (!image || typeof image !== "string" || !image.startsWith("data:image/")) {
+    res.status(400).json({ error: "Adjunta una foto válida (data URL)" });
+    return;
+  }
+  // Protección de costo: rechazamos fotos > 8 MB (después de la
+  // compresión en cliente típicamente quedan en ~250-500 KB).
+  if (image.length > 8 * 1024 * 1024 * 1.4) {
+    res.status(413).json({ error: "La foto es muy pesada. Toma una nueva con menos resolución." });
+    return;
+  }
+
+  const model = process.env["OPENROUTER_VISION_MODEL"] ?? "anthropic/claude-sonnet-4-5";
+  const started = Date.now();
+
+  try {
+    const orRes = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${apiKey}`,
+        // OpenRouter pide HTTP-Referer + X-Title como buena práctica para
+        // aparecer correctamente en su dashboard de uso.
+        "HTTP-Referer": "https://castores.info",
+        "X-Title": "Castores Control — Note OCR",
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: SCAN_SYSTEM_PROMPT },
+              { type: "image_url", image_url: { url: image } },
+            ],
+          },
+        ],
+        // temperature baja: queremos extraer lo que está, no inventar.
+        temperature: 0.1,
+        max_tokens: 2000,
+      }),
+    });
+
+    if (!orRes.ok) {
+      const detail = await orRes.text().catch(() => "");
+      logger.error({ status: orRes.status, detail: detail.slice(0, 500), model }, "scan: OpenRouter rechazó la petición");
+      res.status(502).json({
+        error: "El servicio de visión rechazó la foto. Inténtalo de nuevo o captura manual.",
+      });
+      return;
+    }
+
+    const data = (await orRes.json()) as {
+      choices?: Array<{ message?: { content?: string } }>;
+      usage?: { prompt_tokens?: number; completion_tokens?: number };
+    };
+    const content = data?.choices?.[0]?.message?.content ?? "";
+    const parsed = parseScanJson(content);
+
+    if (!parsed) {
+      logger.warn({ model, content: content.slice(0, 300) }, "scan: respuesta del modelo no parseable");
+      res.status(502).json({
+        error: "No pudimos leer la foto. Asegúrate de que se vean los renglones y el folio. Mientras, captura los conceptos manualmente.",
+      });
+      return;
+    }
+
+    logger.info({
+      ms: Date.now() - started,
+      itemCount: parsed.items.length,
+      confidence: parsed.confidence,
+      model,
+      tokens: data.usage,
+    }, "scan: extract completo");
+
+    res.json({ ok: true, ...parsed });
+  } catch (err) {
+    logger.error({ err, ms: Date.now() - started }, "scan: excepción al llamar OpenRouter");
+    res.status(500).json({ error: "No se pudo procesar la foto. Inténtalo de nuevo." });
+  }
 });
 
 export default router;
