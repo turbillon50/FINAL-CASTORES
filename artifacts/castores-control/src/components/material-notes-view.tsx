@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import { customFetch, type Project } from "@workspace/api-client-react";
@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/select";
 import { Icons } from "@/lib/icons";
 import { useToast } from "@/hooks/use-toast";
+import { compressImageFile } from "@/lib/compress-image";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 //
@@ -381,6 +382,8 @@ function NewNoteModal({
   const [description, setDescription] = useState("");
   const [items, setItems] = useState<FormItem[]>([{ ...EMPTY_ITEM }]);
   const [submitting, setSubmitting] = useState(false);
+  const [scanning, setScanning] = useState(false);
+  const scanInputRef = useRef<HTMLInputElement | null>(null);
 
   const total = useMemo(
     () => items.reduce((acc, it) => {
@@ -397,14 +400,89 @@ function NewNoteModal({
   const addRow = () => setItems((xs) => [...xs, { ...EMPTY_ITEM }]);
   const removeRow = (i: number) => setItems((xs) => xs.length === 1 ? xs : xs.filter((_, idx) => idx !== i));
 
+  // Tipo del response del endpoint /scan — espejado del backend.
+  type ScanResult = {
+    ok: boolean;
+    supplierName?: string | null;
+    folio?: string | null;
+    noteDate?: string | null;
+    items?: Array<{ name: string; unit: string; quantityRequested: number; costPerUnit: number | null }>;
+    confidence?: number;
+    pending?: boolean;
+    message?: string;
+  };
+
+  const onScanFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    // Reseteamos el input para que si el usuario reescanea la misma foto,
+    // el change event vuelva a disparar.
+    if (e.target) e.target.value = "";
+    if (!file) return;
+
+    setScanning(true);
+    try {
+      // Compresión client-side: la nota suele ser 3-5MB del iPhone y
+      // necesitamos quedar bajo el límite de Vercel (4.5 MB request body)
+      // y reducir costo de tokens en OpenRouter.
+      const dataUrl = await compressImageFile(file);
+
+      const result = await customFetch<ScanResult>("/api/material-notes/scan", {
+        method: "POST",
+        body: JSON.stringify({ image: dataUrl }),
+      });
+
+      if (!result.ok) {
+        toast({
+          variant: "destructive",
+          title: "Escaneo no disponible",
+          description: result.message ?? "El servicio de visión no está disponible en este momento.",
+        });
+        return;
+      }
+
+      const extractedItems = result.items ?? [];
+      if (extractedItems.length === 0) {
+        toast({
+          variant: "destructive",
+          title: "No se reconocieron conceptos",
+          description: "La foto no es legible o no parece una nota. Inténtalo con mejor luz o captura manualmente.",
+        });
+        return;
+      }
+
+      // Pre-rellenar cabecera (solo campos vacíos para no pisar lo que
+      // el usuario ya escribió a mano).
+      if (result.supplierName && !supplier.trim()) setSupplier(result.supplierName);
+      if (result.folio && !folio.trim()) setFolio(result.folio);
+      if (result.noteDate && /^\d{4}-\d{2}-\d{2}$/.test(result.noteDate)) setNoteDate(result.noteDate);
+
+      // Reemplazar renglones por los extraídos. El usuario revisa y
+      // edita antes de "Guardar nota".
+      setItems(extractedItems.map((it) => ({
+        name: it.name,
+        unit: it.unit,
+        quantityRequested: String(it.quantityRequested),
+        costPerUnit: it.costPerUnit != null ? String(it.costPerUnit) : "",
+        notes: "",
+      })));
+
+      const conf = result.confidence ?? 0;
+      toast({
+        title: `📷 ${extractedItems.length} concepto${extractedItems.length === 1 ? "" : "s"} extraído${extractedItems.length === 1 ? "" : "s"}`,
+        description: conf >= 0.8
+          ? "Revisa los datos y guarda la nota."
+          : "La foto se leyó pero con baja confianza — revisa cada renglón antes de guardar.",
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "No se pudo procesar la foto.";
+      toast({ variant: "destructive", title: "Error al escanear", description: msg });
+    } finally {
+      setScanning(false);
+    }
+  };
+
   const handleScanReceipt = () => {
-    // Mock: el endpoint /scan ya existe en backend y devuelve 501 con
-    // mensaje claro. Aquí solo lo invocamos para que el toast se vea
-    // como el flujo real (UI lista, backend pendiente).
-    toast({
-      title: "📷 Escaneo de nota — próximamente",
-      description: "En cuanto se conecte el servicio de visión, la foto rellenará los renglones automáticamente. Por ahora captura los conceptos manualmente.",
-    });
+    scanInputRef.current?.click();
   };
 
   const handleSubmit = async () => {
@@ -502,18 +580,29 @@ function NewNoteModal({
             </Field>
           </div>
 
-          {/* Botón mock OCR */}
+          {/* Botón OCR — abre cámara/galería, comprime y manda a /scan.
+              El input file está oculto; usar el ref a través del botón.
+              capture="environment" abre la cámara trasera directo en iOS/Android. */}
+          <input
+            ref={scanInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            onChange={onScanFileSelected}
+            className="hidden"
+          />
           <button
             type="button"
             onClick={handleScanReceipt}
-            className="w-full text-xs font-semibold py-3 rounded-xl border-2 border-dashed transition hover:bg-foreground/[0.02] flex items-center justify-center gap-2"
+            disabled={scanning || submitting}
+            className="w-full text-xs font-semibold py-3 rounded-xl border-2 border-dashed transition hover:bg-foreground/[0.02] flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-wait"
             style={{ borderColor: "rgba(200,149,42,0.4)", color: "#C8952A" }}
           >
             <span className="text-base">📷</span>
-            <span>Escanear nota con foto</span>
-            <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded-full" style={{ background: "rgba(200,149,42,0.15)", color: "#9c7220" }}>
-              próximamente
-            </span>
+            <span>{scanning ? "Leyendo la nota…" : "Escanear nota con foto"}</span>
+            {scanning && (
+              <span className="inline-block w-3 h-3 rounded-full border-2 border-current border-t-transparent animate-spin ml-1" />
+            )}
           </button>
 
           {/* Renglones dinámicos */}
