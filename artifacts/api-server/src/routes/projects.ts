@@ -308,6 +308,20 @@ router.get("/projects/:id/progress", async (req, res): Promise<void> => {
 
   const logs = await db.select({ id: workLogsTable.id }).from(workLogsTable).where(eq(workLogsTable.projectId, params.data.id));
   const materials = await db.select().from(materialsTable).where(eq(materialsTable.projectId, params.data.id));
+  // Costo "comprometido": materiales aprobados (admin ya autorizó el gasto).
+  // Antes contábamos todo, lo que inflaba el "gastado" con pendientes y
+  // rechazados que no representaban dinero real. El campo manual
+  // project.spentAmount queda como override opcional para gastos no
+  // ligados a materiales (mano de obra, fletes, etc.) si llegan a usarse.
+  const approvedMaterialCost = materials
+    .filter((m) => m.status === "approved" || m.status === "delivered")
+    .reduce((sum, m) => sum + (m.totalCost ?? (m.costPerUnit ?? 0) * m.quantityRequested), 0);
+  const pendingMaterialCost = materials
+    .filter((m) => m.status === "pending")
+    .reduce((sum, m) => sum + (m.totalCost ?? (m.costPerUnit ?? 0) * m.quantityRequested), 0);
+  // materialCost se mantiene como el total de todos los materiales por
+  // compatibilidad con consumidores existentes; los nuevos usan
+  // approvedMaterialCost.
   const materialCost = materials.reduce((sum, m) => sum + (m.totalCost ?? (m.costPerUnit ?? 0) * m.quantityRequested), 0);
 
   let daysElapsed: number | null = null;
@@ -325,7 +339,13 @@ router.get("/projects/:id/progress", async (req, res): Promise<void> => {
   }
 
   if (project.budget && project.budget > 0) {
-    budgetUsedPercent = Math.round(((project.spentAmount ?? materialCost) / project.budget) * 100);
+    // El "gastado real" para el % usado: si admin no metió un override
+    // en spentAmount, usamos lo aprobado. Si lo metió (>0), se respeta
+    // para que mano de obra y otros gastos también cuenten.
+    const effectiveSpent = (project.spentAmount && project.spentAmount > 0)
+      ? project.spentAmount
+      : approvedMaterialCost;
+    budgetUsedPercent = Math.round((effectiveSpent / project.budget) * 100);
   }
 
   res.json({
@@ -334,6 +354,8 @@ router.get("/projects/:id/progress", async (req, res): Promise<void> => {
     totalLogs: logs.length,
     totalMaterials: materials.length,
     materialCost,
+    approvedMaterialCost,
+    pendingMaterialCost,
     budget: project.budget ?? null,
     budgetUsedPercent,
     daysElapsed,

@@ -681,19 +681,46 @@ export default function ProjectDetail() {
                       <p className="font-mono text-2xl text-foreground">{formatCurrency(project.budget)}</p>
                     </div>
 
-                    <div>
-                      <div className="flex justify-between items-end mb-1">
-                        <p className="text-xs text-muted-foreground uppercase tracking-wider">Monto Gastado</p>
-                        <p className="text-xs font-bold text-primary">{Math.round(progress?.budgetUsedPercent || 0)}%</p>
-                      </div>
-                      <p className="font-mono text-xl text-foreground mb-2">{formatCurrency(project.spentAmount)}</p>
-                      <div className="w-full h-1.5 bg-background rounded-full overflow-hidden">
-                        <div
-                          className={`h-full rounded-full ${(progress?.budgetUsedPercent || 0) > 90 ? 'bg-destructive' : 'bg-primary'}`}
-                          style={{ width: `${Math.min(progress?.budgetUsedPercent || 0, 100)}%` }}
-                        />
-                      </div>
-                    </div>
+                    {(() => {
+                      // "Gastado" auto-calculado: si admin metió un override
+                      // manual en spentAmount lo respetamos; si no, usamos
+                      // approvedMaterialCost (suma de materiales aprobados +
+                      // entregados). Antes leíamos solo project.spentAmount
+                      // que nadie poblaba, así que la tarjeta marcaba $0.00
+                      // aunque hubiera 32 materiales en la obra.
+                      const p: any = progress;
+                      const approved = Number(p?.approvedMaterialCost ?? 0);
+                      const pending = Number(p?.pendingMaterialCost ?? 0);
+                      const manual = Number(project.spentAmount ?? 0);
+                      const spent = manual > 0 ? manual : approved;
+                      return (
+                        <>
+                          <div>
+                            <div className="flex justify-between items-end mb-1">
+                              <p className="text-xs text-muted-foreground uppercase tracking-wider">Monto Gastado</p>
+                              <p className="text-xs font-bold text-primary">{Math.round(progress?.budgetUsedPercent || 0)}%</p>
+                            </div>
+                            <p className="font-mono text-xl text-foreground mb-2">{formatCurrency(spent)}</p>
+                            <div className="w-full h-1.5 bg-background rounded-full overflow-hidden">
+                              <div
+                                className={`h-full rounded-full ${(progress?.budgetUsedPercent || 0) > 90 ? 'bg-destructive' : 'bg-primary'}`}
+                                style={{ width: `${Math.min(progress?.budgetUsedPercent || 0, 100)}%` }}
+                              />
+                            </div>
+                            {manual === 0 && approved === 0 && pending > 0 && (
+                              <p className="text-[11px] text-muted-foreground mt-2">
+                                Hay {formatCurrency(pending)} en materiales por aprobar — al aprobarlos se reflejan aquí.
+                              </p>
+                            )}
+                            {pending > 0 && (manual > 0 || approved > 0) && (
+                              <p className="text-[11px] text-muted-foreground mt-2">
+                                + {formatCurrency(pending)} por aprobar.
+                              </p>
+                            )}
+                          </div>
+                        </>
+                      );
+                    })()}
                   </div>
                 </div>
 
