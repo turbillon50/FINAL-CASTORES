@@ -2,7 +2,7 @@ import { MainLayout } from "@/components/layout/main-layout";
 import { useGetProject, useGetProjectProgress, getAuthToken, getClerkUserInfo } from "@workspace/api-client-react";
 import { PhotoUploadButtons } from "@/components/ui/photo-upload-buttons";
 import { compressImageFile } from "@/lib/compress-image";
-import { useParams } from "wouter";
+import { useParams, useLocation } from "wouter";
 import { Icons } from "@/lib/icons";
 import { Badge } from "@/components/ui/badge";
 import { ProgressRing } from "@/components/ui/progress-ring";
@@ -320,6 +320,7 @@ function ProjectCalendarCard({ project }: { project: any }) {
 export default function ProjectDetail() {
   const { id } = useParams();
   const projectId = Number(id);
+  const [, setLocation] = useLocation();
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
   const { toast } = useToast();
@@ -748,7 +749,10 @@ export default function ProjectDetail() {
                   </div>
                 </div>
 
-                <Button className="w-full h-12 bg-primary text-primary-foreground font-bold tracking-wider hover:bg-primary/90">
+                <Button
+                  onClick={() => setLocation(`/reportes?projectId=${projectId}&open=1`)}
+                  className="w-full h-12 bg-primary text-primary-foreground font-bold tracking-wider hover:bg-primary/90"
+                >
                   Generar Reporte
                 </Button>
               </div>

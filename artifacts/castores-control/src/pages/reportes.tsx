@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { MainLayout } from "@/components/layout/main-layout";
 import { useAuth } from "@/lib/auth";
 import { usePermissions } from "@/hooks/use-permissions";
@@ -342,6 +342,24 @@ export default function Reportes() {
     dateFrom: "",
     dateTo: "",
   });
+
+  // Pre-llenado vía URL: si llegamos desde el botón "Generar Reporte"
+  // de una obra, el detalle pasa ?projectId=NN&open=1 y aquí abrimos el
+  // formulario con la obra ya seleccionada. Antes el botón era estático
+  // y no hacía nada al tocarlo — esto cierra ese ciclo.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const sp = new URLSearchParams(window.location.search);
+    const pid = sp.get("projectId");
+    const open = sp.get("open");
+    if (pid) setForm((f) => ({ ...f, projectId: pid }));
+    if (open === "1") setShowForm(true);
+    // limpiar la URL para que un reload no abra el form otra vez
+    if (pid || open) {
+      const clean = window.location.pathname + window.location.hash;
+      window.history.replaceState(null, "", clean);
+    }
+  }, []);
 
   const { data: reports = [], isLoading } = useQuery<any[]>({
     queryKey: ["reports"],

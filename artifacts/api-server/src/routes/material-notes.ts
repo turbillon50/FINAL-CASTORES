@@ -282,30 +282,37 @@ router.delete("/material-notes/:id", async (req, res): Promise<void> => {
  * Sin OPENROUTER_API_KEY configurada → 503 con mensaje claro. El
  * frontend muestra el botón como "próximamente" en ese caso.
  */
-const SCAN_SYSTEM_PROMPT = `Eres un asistente que extrae datos de notas de mostrador de proveedores de construcción mexicanos (Cemex, Holcim, Acero del Norte, ferreterías, distribuidoras). Las notas pueden estar impresas o escritas a mano, parcialmente arrugadas, o tener anotaciones del dueño.
+const SCAN_SYSTEM_PROMPT = `Eres un asistente experto en leer notas, recibos, facturas y remisiones de proveedores de construcción mexicanos. La imagen puede ser:
+- Una foto directa de una nota física (papel)
+- Un screenshot de una imagen que el proveedor mandó por WhatsApp / correo
+- Una factura PDF capturada como imagen
+- Notas impresas o escritas a mano, con tachones, sellos o firmas
+
+Tu trabajo es EXTRAER de forma intuitiva los conceptos comprados, aunque la imagen esté arrugada, mal iluminada, o tenga formato libre. Usa contexto: si dice "5 ton de cemento gris 50kg" eso es 5 toneladas (unidad=ton, qty=5, name="Cemento gris 50kg").
 
 Devuelve EXCLUSIVAMENTE un objeto JSON con esta forma exacta:
 {
   "supplierName": string | null,    // nombre del proveedor en mayúsculas si lo ves
-  "folio": string | null,           // número de folio / nota / remisión si aparece
-  "noteDate": string | null,        // ISO YYYY-MM-DD si puedes inferir
+  "folio": string | null,           // número de folio / nota / remisión / factura
+  "noteDate": string | null,        // ISO YYYY-MM-DD si puedes inferir; "2024-05-12" no "12/5/24"
   "items": [
     {
-      "name": string,               // descripción del concepto, p. ej. "Acero 5/8 grado 60"
-      "unit": string,                // "kg", "ton", "saco", "pza", "m³", "varilla", etc.
-      "quantityRequested": number,   // cantidad numérica
-      "costPerUnit": number | null   // precio unitario en MXN si se ve, null si no
+      "name": string,               // descripción del concepto. p. ej. "Acero 5/8 grado 60", "Cemento gris 50kg", "Varilla corrugada 3/8"
+      "unit": string,                // "kg", "ton", "saco", "pza", "m³", "m", "varilla", "lt", "caja", "rollo"
+      "quantityRequested": number,   // cantidad numérica (no string)
+      "costPerUnit": number | null   // precio unitario en MXN sin signo de pesos
     }
   ],
-  "confidence": number               // 0..1 — qué tan seguro estás del extract
+  "confidence": number               // 0..1 — qué tan seguro estás del extract completo
 }
 
-Reglas:
-- Si no estás seguro de un dato, usa null en vez de adivinar.
-- Las unidades en español. "kgs"→"kg", "tons"→"ton", "sacos"→"saco".
-- costPerUnit es UNITARIO, no total. Si solo ves el total, divídelo entre quantity.
-- Si la foto es ilegible o no es una nota, devuelve items: [] y confidence: 0.
-- Importante: SOLO el JSON, sin texto adicional, sin markdown fences.`;
+Reglas inteligentes:
+- Si solo ves el TOTAL del renglón y la cantidad, divide para sacar el unitario.
+- Si solo ves el total general y un renglón, asume que ese total es del renglón.
+- Unidades en español, minúsculas: "kgs"→"kg", "Tons"→"ton", "SACOS"→"saco", "PZAS"→"pza".
+- Si no ves precio (solo conceptos y cantidades), pon costPerUnit: null. NO inventes.
+- Si la imagen es ilegible / no es una nota / no se distingue nada útil, devuelve items: [] y confidence: 0.
+- Importante: SOLO el JSON, sin markdown fences, sin texto antes o después.`;
 
 type ScanResponse = {
   supplierName: string | null;
@@ -415,8 +422,23 @@ router.post("/material-notes/scan", async (req, res): Promise<void> => {
     if (!orRes.ok) {
       const detail = await orRes.text().catch(() => "");
       logger.error({ status: orRes.status, detail: detail.slice(0, 500), model }, "scan: OpenRouter rechazó la petición");
+      // Damos diagnóstico real al frontend para no dejar al usuario
+      // sin pistas. Cubrimos los casos comunes que vimos:
+      //  401 → key inválida / sin créditos
+      //  402 → sin saldo en OpenRouter
+      //  404 → modelo mal escrito (variable de entorno OPENROUTER_VISION_MODEL)
+      //  413 → imagen muy grande
+      //  429 → rate limit
+      let userMessage = "El servicio de visión rechazó la foto. Inténtalo de nuevo en un momento.";
+      if (orRes.status === 401) userMessage = "API key de OpenRouter inválida o sin permisos. Avísale al administrador.";
+      else if (orRes.status === 402) userMessage = "OpenRouter sin saldo. Avísale al administrador para recargar.";
+      else if (orRes.status === 404) userMessage = `Modelo "${model}" no existe en OpenRouter. Revisa la variable OPENROUTER_VISION_MODEL.`;
+      else if (orRes.status === 413) userMessage = "La foto es muy pesada. Tómala con menos resolución.";
+      else if (orRes.status === 429) userMessage = "Demasiados escaneos en poco tiempo. Espera 30 segundos.";
+      else if (orRes.status >= 500) userMessage = "OpenRouter está caído. Captura manual por ahora.";
       res.status(502).json({
-        error: "El servicio de visión rechazó la foto. Inténtalo de nuevo o captura manual.",
+        error: userMessage,
+        diagnostic: `HTTP ${orRes.status}: ${detail.slice(0, 200)}`,
       });
       return;
     }
