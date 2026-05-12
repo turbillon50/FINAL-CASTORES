@@ -266,8 +266,11 @@ function NoteRow({
     if (!confirm(`¿Eliminar la nota del ${note.noteDate} con ${note.itemCount} renglón(es)?`)) return;
     setDeleting(true);
     try {
-      const res = await fetch(`/api/material-notes/${note.id}`, { method: "DELETE", credentials: "include" });
-      if (!res.ok) throw new Error("No autorizado o ya fue eliminada");
+      // customFetch adjunta el Bearer token de Clerk automáticamente.
+      // Antes usábamos fetch crudo con credentials:'include' y eso solo
+      // mandaba la cookie de sesión, no el JWT — el server respondía 401
+      // y el toast decía "Error" sin pista.
+      await customFetch(`/api/material-notes/${note.id}`, { method: "DELETE" });
       onDeleted();
     } catch (e) {
       toast({ variant: "destructive", title: "Error", description: e instanceof Error ? e.message : "Falló el borrado" });
@@ -414,10 +417,15 @@ function NewNoteModal({
     }
     setSubmitting(true);
     try {
-      const res = await fetch("/api/material-notes", {
+      // customFetch adjunta automáticamente el Bearer token de Clerk en
+      // el header Authorization. Antes usábamos fetch crudo con solo
+      // credentials:'include', lo que mandaba la cookie pero NO el JWT.
+      // En PWA (donde la sesión Clerk vive en localStorage, no cookie),
+      // el server respondía 401 "No autenticado" y el toast decía
+      // "Error al guardar" sin pista del por qué — ese era el bug del
+      // registro reportado por el cliente.
+      await customFetch("/api/material-notes", {
         method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           projectId: Number(projectId),
           noteDate,
@@ -433,10 +441,6 @@ function NewNoteModal({
           })),
         }),
       });
-      if (!res.ok) {
-        const j = await res.json().catch(() => ({}));
-        throw new Error(j?.error ?? "Error al guardar");
-      }
       onCreated();
     } catch (e) {
       toast({ variant: "destructive", title: "No se guardó la nota", description: e instanceof Error ? e.message : "Error desconocido" });
