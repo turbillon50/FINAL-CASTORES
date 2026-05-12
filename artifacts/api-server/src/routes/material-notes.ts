@@ -208,7 +208,14 @@ router.post("/material-notes", async (req, res): Promise<void> => {
         costPerUnit: it.costPerUnit ?? null,
         totalCost: it.costPerUnit != null ? (it.costPerUnit as number) * (it.quantityRequested as number) : null,
         notes: it.notes ?? null,
-        status: "pending" as const,
+        // Notas de mostrador = registro de gasto YA HECHO (factura/recibo
+        // capturado por el dueño). No requieren aprobación separada como
+        // sí pasa con las solicitudes individuales del Kanban. Si se
+        // dejaran en "pending", FINANZAS mostraría $0 aunque el dinero
+        // ya salió, que fue justo el reclamo del cliente.
+        status: "approved" as const,
+        approvedById: user.id,
+        approvedAt: new Date(),
       }));
 
       const inserted = await tx.insert(materialsTable).values(itemRows).returning();

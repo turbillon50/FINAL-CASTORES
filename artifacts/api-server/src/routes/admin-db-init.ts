@@ -157,6 +157,16 @@ CREATE TABLE IF NOT EXISTS "materials" (
 -- de real a double precision y agregar note_id para asociar renglones
 -- a una nota de mostrador (capturas múltiples conceptos en una sola).
 ALTER TABLE "materials" ADD COLUMN IF NOT EXISTS "note_id" integer;
+-- Backfill idempotente: los materiales que viven dentro de una nota de
+-- mostrador representan un gasto ya hecho. Cuando se introdujo la
+-- nueva tabla material_notes, los items se creaban en status='pending',
+-- lo que dejaba FINANZAS marcando $0 aunque el dinero ya salió. Aquí
+-- los promovemos a 'approved' una sola vez. Es seguro re-ejecutar:
+-- solo afecta filas con note_id != NULL que sigan en 'pending'; si en
+-- algún flujo futuro se decide volver una nota a pending, esta query
+-- la re-aprobaría — eso lo manejamos solo si se vuelve un caso real.
+UPDATE "materials" SET "status" = 'approved'
+  WHERE "note_id" IS NOT NULL AND "status" = 'pending';
 ALTER TABLE "materials" ALTER COLUMN "quantity_requested" TYPE double precision USING "quantity_requested"::double precision;
 ALTER TABLE "materials" ALTER COLUMN "quantity_approved" TYPE double precision USING "quantity_approved"::double precision;
 ALTER TABLE "materials" ALTER COLUMN "quantity_used" TYPE double precision USING "quantity_used"::double precision;
