@@ -3,6 +3,11 @@
   "installCommand": "corepack pnpm install --frozen-lockfile",
   "buildCommand": "corepack pnpm --filter @workspace/api-server run build && corepack pnpm --filter @workspace/castores-control run build",
   "outputDirectory": "artifacts/castores-control/dist/public",
+  "functions": {
+    "api/index.mjs": {
+      "maxDuration": 60
+    }
+  },
   "rewrites": [
     { "source": "/api", "destination": "/api/index" },
     { "source": "/api/:path*", "destination": "/api/index" },
