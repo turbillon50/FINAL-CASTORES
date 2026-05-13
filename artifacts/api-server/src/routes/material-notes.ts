@@ -391,9 +391,17 @@ router.post("/material-notes/scan", async (req, res): Promise<void> => {
   const model = process.env["OPENROUTER_VISION_MODEL"] ?? "anthropic/claude-sonnet-4-5";
   const started = Date.now();
 
+  // AbortController explícito: si OpenRouter tarda demasiado (modelo
+  // ocupado, factura con 20+ renglones, etc.), abortamos limpio en
+  // 50 seg para que el catch agarre el error en vez de que Vercel
+  // mate la función entera con un timeout opaco.
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 50_000);
+
   try {
     const orRes = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
+      signal: controller.signal,
       headers: {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${apiKey}`,
@@ -468,8 +476,31 @@ router.post("/material-notes/scan", async (req, res): Promise<void> => {
 
     res.json({ ok: true, ...parsed });
   } catch (err) {
-    logger.error({ err, ms: Date.now() - started }, "scan: excepción al llamar OpenRouter");
-    res.status(500).json({ error: "No se pudo procesar la foto. Inténtalo de nuevo." });
+    const ms = Date.now() - started;
+    logger.error({ err, ms, model }, "scan: excepción al llamar OpenRouter");
+    // Mensajes humanos para los modos de falla comunes. Antes mostrábamos
+    // un genérico "No se pudo procesar la foto" que no permitía ni a
+    // soporte ni al cliente saber qué fue lo que pasó.
+    const isAbort =
+      err instanceof Error && (err.name === "AbortError" || /aborted|timeout/i.test(err.message));
+    const detail = err instanceof Error ? err.message : String(err);
+    let userMessage = "No se pudo procesar la foto. Inténtalo de nuevo.";
+    let status = 500;
+    if (isAbort) {
+      userMessage = `El servicio de visión tardó más de 50 segundos leyendo la nota. Inténtalo con una foto más nítida o un modelo más rápido (cambia OPENROUTER_VISION_MODEL a google/gemini-2.5-flash).`;
+      status = 504;
+    } else if (/fetch|network|ENOTFOUND|ECONN/i.test(detail)) {
+      userMessage = "No se pudo conectar con OpenRouter. Revisa tu conexión.";
+      status = 502;
+    }
+    res.status(status).json({
+      error: userMessage,
+      diagnostic: detail.slice(0, 240),
+      elapsedMs: ms,
+      model,
+    });
+  } finally {
+    clearTimeout(timeoutId);
   }
 });
 

@@ -475,14 +475,20 @@ function NewNoteModal({
       });
     } catch (err) {
       // customFetch lanza ApiError con el body del server en .data.
-      // Sacamos el error humano que ya viene en español del backend,
-      // si está; de lo contrario caemos al mensaje genérico.
+      // Sacamos el error humano + el detail técnico para que el dueño
+      // pueda mandarnos un screenshot útil si reporta un fallo.
       let msg = "No se pudo procesar la foto.";
-      const apiErr = err as { data?: { error?: string; message?: string } };
+      let diag: string | undefined;
+      const apiErr = err as { data?: { error?: string; message?: string; diagnostic?: string } };
       if (apiErr?.data?.error) msg = apiErr.data.error;
       else if (apiErr?.data?.message) msg = apiErr.data.message;
       else if (err instanceof Error) msg = err.message;
-      toast({ variant: "destructive", title: "Error al escanear", description: msg });
+      if (apiErr?.data?.diagnostic) diag = apiErr.data.diagnostic;
+      toast({
+        variant: "destructive",
+        title: "Error al escanear",
+        description: diag ? `${msg}\n\nDetalle: ${diag}` : msg,
+      });
     } finally {
       setScanning(false);
     }
