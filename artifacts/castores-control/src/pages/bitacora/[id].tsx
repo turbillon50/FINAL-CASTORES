@@ -8,7 +8,7 @@ import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
 import { SignaturePad } from "@/components/ui/signature-pad";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth";
 import { apiUrl } from "@/lib/api-url";
 import { PhotoUploadButtons } from "@/components/ui/photo-upload-buttons";
@@ -26,6 +26,8 @@ export default function BitacoraDetail() {
   const [editOpen, setEditOpen] = useState(false);
   const [editForm, setEditForm] = useState<any>({});
   const [editSaving, setEditSaving] = useState(false);
+
+  useEffect(() => { window.scrollTo(0, 0); }, [logId]);
 
   const { data: log, isLoading, refetch } = useGetLog(logId, {
     query: { queryKey: ["get-log", logId], enabled: !!logId }

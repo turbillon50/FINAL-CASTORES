@@ -29,7 +29,8 @@ export function MainLayout({ children, publicAccess = false }: MainLayoutProps) 
     if (publicAccess) {
       return (
         <div className="min-h-[100dvh] bg-background text-foreground">
-          <header className="border-b border-border bg-card/80 backdrop-blur sticky top-0 z-30">
+          <header className="border-b border-border bg-card/80 backdrop-blur sticky top-0 z-30"
+            style={{ paddingTop: "env(safe-area-inset-top)" }}>
             <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
               <a href={import.meta.env.BASE_URL} className="flex items-center gap-2">
                 <img src={`${import.meta.env.BASE_URL}castores-logo.jpeg`} alt="Castores" className="h-8 w-8 rounded-lg object-cover" />
@@ -54,6 +55,8 @@ export function MainLayout({ children, publicAccess = false }: MainLayoutProps) 
       <Sidebar />
       {/* pb-[120px] on mobile accounts for floating orange button (64px) + 20px gap + safe area */}
       <main className="flex-1 w-full max-w-[100vw] overflow-x-hidden pb-[120px] md:pb-0">
+        {/* Spacer for the fixed mobile top bar (56px + safe-area-inset-top) */}
+        <div className="md:hidden" style={{ height: "calc(56px + env(safe-area-inset-top))" }} aria-hidden="true" />
         <div className="p-4 md:p-8 max-w-7xl mx-auto w-full">
           {children}
           <LegalFooter />

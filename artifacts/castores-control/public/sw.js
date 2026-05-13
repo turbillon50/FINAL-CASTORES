@@ -13,7 +13,7 @@ self.addEventListener('install', () => {
 self.addEventListener('activate', (event) => {
   event.waitUntil((async () => {
     const cacheNames = await caches.keys();
-    await Promise.all(cacheNames.map((name) => caches.delete(name)));
+    await Promise.all(cacheNames.filter(name => name !== ASSET_CACHE).map((name) => caches.delete(name)));
 
     await self.clients.claim();
 
