@@ -474,7 +474,14 @@ function NewNoteModal({
           : "La foto se leyó pero con baja confianza — revisa cada renglón antes de guardar.",
       });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "No se pudo procesar la foto.";
+      // customFetch lanza ApiError con el body del server en .data.
+      // Sacamos el error humano que ya viene en español del backend,
+      // si está; de lo contrario caemos al mensaje genérico.
+      let msg = "No se pudo procesar la foto.";
+      const apiErr = err as { data?: { error?: string; message?: string } };
+      if (apiErr?.data?.error) msg = apiErr.data.error;
+      else if (apiErr?.data?.message) msg = apiErr.data.message;
+      else if (err instanceof Error) msg = err.message;
       toast({ variant: "destructive", title: "Error al escanear", description: msg });
     } finally {
       setScanning(false);
@@ -580,14 +587,15 @@ function NewNoteModal({
             </Field>
           </div>
 
-          {/* Botón OCR — abre cámara/galería, comprime y manda a /scan.
-              El input file está oculto; usar el ref a través del botón.
-              capture="environment" abre la cámara trasera directo en iOS/Android. */}
+          {/* Botón OCR — abre el selector nativo de iOS/Android que da
+              al usuario opciones "Tomar foto" o "Elegir de la biblioteca".
+              Sin capture="environment" el SO muestra ambas opciones, lo
+              que el dueño pidió porque a veces el proveedor le manda la
+              nota por WhatsApp y ya tiene la imagen guardada. */}
           <input
             ref={scanInputRef}
             type="file"
             accept="image/*"
-            capture="environment"
             onChange={onScanFileSelected}
             className="hidden"
           />
