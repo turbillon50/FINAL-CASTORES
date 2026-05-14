@@ -113,6 +113,7 @@ function SignInPage() {
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [accountReset, setAccountReset] = useState(false);
   const inputCls = "w-full px-4 py-3 rounded-xl border border-gray-200 bg-white focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-100 text-gray-900 placeholder-gray-400 transition text-sm";
 
   // If a previous Clerk session is sitting around (user opened /sign-in while
@@ -142,6 +143,11 @@ function SignInPage() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
+        if (data?.code === "account_reset") {
+          setAccountReset(true);
+          setBusy(false);
+          return;
+        }
         setError((data && (data.error || data.detail)) || "No pudimos iniciar sesión.");
         setBusy(false);
         return;
@@ -165,55 +171,79 @@ function SignInPage() {
           <h1 className="text-2xl font-bold text-gray-900">Iniciar sesión</h1>
           <p className="text-sm text-gray-500 mt-1">Entra con el correo y contraseña que creaste al registrarte.</p>
         </div>
-        <form onSubmit={onSubmit} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-3">
-          <input
-            type="email"
-            value={email}
-            onChange={e => setEmail(e.target.value.trim().toLowerCase())}
-            placeholder="Correo electrónico"
-            required
-            autoComplete="email"
-            autoCorrect="off"
-            autoCapitalize="off"
-            spellCheck={false}
-            inputMode="email"
-            className={inputCls}
-          />
-          <input
-            type="password"
-            value={password}
-            onChange={e => setPassword(e.target.value)}
-            placeholder="Contraseña"
-            autoComplete="current-password"
-            required
-            className={inputCls}
-          />
-          {error && (
-            <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 space-y-1.5">
-              <p className="text-sm text-red-700 text-center font-medium">{error}</p>
-              <button
-                type="button"
-                onClick={() => setLocation("/forgot-password")}
-                className="block w-full text-center text-xs font-semibold text-amber-700 hover:text-amber-900 underline"
-              >
-                Recupera tu contraseña en 30 segundos →
-              </button>
-            </div>
-          )}
-          <button type="submit" disabled={busy} className="w-full py-3 rounded-xl font-semibold text-white bg-amber-600 hover:bg-amber-700 transition disabled:opacity-50 text-sm mt-1">
-            {busy ? "Entrando..." : "Iniciar sesión →"}
-          </button>
-          <button
-            type="button"
-            onClick={() => setLocation("/forgot-password")}
-            className="block w-full text-center text-xs text-gray-500 hover:text-amber-700 mt-2"
-          >
-            ¿Olvidaste tu contraseña?
-          </button>
-          <p className="text-[10px] text-gray-400 text-center pt-2 border-t border-gray-100 mt-3 leading-relaxed">
-            🔒 Tu contraseña se guarda encriptada. Si la pierdes, siempre puedes recuperarla con tu correo.
-          </p>
-        </form>
+        {accountReset ? (
+          <div className="bg-white rounded-2xl shadow-sm border border-amber-200 p-6 space-y-4 text-center">
+            <div className="text-4xl">🔑</div>
+            <h2 className="font-bold text-gray-900 text-base">Tu acceso fue reiniciado</h2>
+            <p className="text-sm text-gray-600 leading-relaxed">
+              Un administrador eliminó tu cuenta anterior. Para volver a entrar necesitas usar el <span className="font-semibold">código de invitación</span> que te enviaron por WhatsApp o correo.
+            </p>
+            <button
+              type="button"
+              onClick={() => { window.location.assign(`${basePath}/sign-up`); }}
+              className="w-full py-3 rounded-xl font-bold text-white bg-amber-600 hover:bg-amber-700 transition text-sm"
+            >
+              Registrarme con mi código de invitación →
+            </button>
+            <button
+              type="button"
+              onClick={() => setAccountReset(false)}
+              className="block w-full text-center text-xs text-gray-400 hover:text-gray-600 mt-1"
+            >
+              ← Volver al inicio de sesión
+            </button>
+          </div>
+        ) : (
+          <form onSubmit={onSubmit} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-3">
+            <input
+              type="email"
+              value={email}
+              onChange={e => setEmail(e.target.value.trim().toLowerCase())}
+              placeholder="Correo electrónico"
+              required
+              autoComplete="email"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck={false}
+              inputMode="email"
+              className={inputCls}
+            />
+            <input
+              type="password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              placeholder="Contraseña"
+              autoComplete="current-password"
+              required
+              className={inputCls}
+            />
+            {error && (
+              <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 space-y-1.5">
+                <p className="text-sm text-red-700 text-center font-medium">{error}</p>
+                <button
+                  type="button"
+                  onClick={() => setLocation("/forgot-password")}
+                  className="block w-full text-center text-xs font-semibold text-amber-700 hover:text-amber-900 underline"
+                >
+                  Recupera tu contraseña en 30 segundos →
+                </button>
+              </div>
+            )}
+            <button type="submit" disabled={busy} className="w-full py-3 rounded-xl font-semibold text-white bg-amber-600 hover:bg-amber-700 transition disabled:opacity-50 text-sm mt-1">
+              {busy ? "Entrando..." : "Iniciar sesión →"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setLocation("/forgot-password")}
+              className="block w-full text-center text-xs text-gray-500 hover:text-amber-700 mt-2"
+            >
+              ¿Olvidaste tu contraseña?
+            </button>
+            <p className="text-[10px] text-gray-400 text-center pt-2 border-t border-gray-100 mt-3 leading-relaxed">
+              🔒 Tu contraseña se guarda encriptada. Si la pierdes, siempre puedes recuperarla con tu correo.
+            </p>
+          </form>
+        )}
         <p className="text-center text-sm text-gray-500 mt-4">
           ¿Aún no tienes cuenta?{" "}
           <button onClick={() => setLocation("/")} className="text-amber-700 font-medium hover:text-amber-900 underline">
