@@ -680,6 +680,7 @@ function UsuariosTab() {
   const authFetch = useAuthFetch();
   const [editingRole, setEditingRole] = useState<{ id: number; role: string } | null>(null);
   const [savingRole, setSavingRole] = useState(false);
+  const [resetResult, setResetResult] = useState<{ inv: any; userName: string } | null>(null);
 
   const { data: users = [], isLoading } = useQuery<any[]>({
     queryKey: ["admin-users"],
@@ -717,6 +718,25 @@ function UsuariosTab() {
       toast({ title: "Rol actualizado correctamente." });
     } catch (e: any) { toast({ title: e.message, variant: "destructive" }); }
     finally { setSavingRole(false); }
+  };
+
+  const resetAccess = async (u: any) => {
+    try {
+      const inv = await authFetch("/invitations", {
+        method: "POST",
+        body: JSON.stringify({ role: u.role, label: u.name }),
+      });
+      setResetResult({ inv, userName: u.name });
+    } catch (e: any) {
+      toast({ title: "Error al generar código", description: e.message, variant: "destructive" });
+    }
+  };
+
+  const shareResetWhatsApp = (inv: any, userName: string) => {
+    const msg = encodeURIComponent(
+      `🏗️ *Castores Control* — Tu acceso fue reiniciado\n\nHola ${userName}, tu cuenta fue restablecida.\n\n🔑 Tu nuevo código de acceso:\n*${inv.code}*\n\n1️⃣ Abre: https://castores.info/api/invite/${inv.code}\n2️⃣ Crea tu nueva contraseña\n3️⃣ Entra al sistema\n\nEl código es de un solo uso.`
+    );
+    window.open(`https://wa.me/?text=${msg}`, "_blank");
   };
 
   const pending = users.filter((u: any) => u.approvalStatus === "pending");
@@ -785,15 +805,27 @@ function UsuariosTab() {
                 Rol ✎
               </button>
             )}
+            <button onClick={() => resetAccess(u)}
+              className="text-[10px] font-bold px-3 py-1.5 rounded-lg text-white"
+              style={{ background: "#7C3AED" }}>
+              🔄 Reinvitar
+            </button>
             <button onClick={() => reject(u.id)}
               className="text-[10px] font-bold px-3 py-1.5 rounded-lg text-white"
               style={{ background: "#EF4444" }}>Bloquear</button>
           </>
         )}
         {u.approvalStatus === "rejected" && (
-          <button onClick={() => approve(u.id)}
-            className="text-[10px] font-bold px-3 py-1.5 rounded-lg text-white"
-            style={{ background: "#10B981" }}>Reactivar</button>
+          <>
+            <button onClick={() => approve(u.id)}
+              className="text-[10px] font-bold px-3 py-1.5 rounded-lg text-white"
+              style={{ background: "#10B981" }}>Reactivar</button>
+            <button onClick={() => resetAccess(u)}
+              className="text-[10px] font-bold px-3 py-1.5 rounded-lg text-white"
+              style={{ background: "#7C3AED" }}>
+              🔄 Reinvitar
+            </button>
+          </>
         )}
       </div>
     </div>
@@ -801,6 +833,48 @@ function UsuariosTab() {
 
   return (
     <div className="space-y-6">
+
+      {/* Reset access result modal */}
+      {resetResult && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{ background: "rgba(0,0,0,0.5)" }}
+          onClick={() => setResetResult(null)}>
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm space-y-4 shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="text-center">
+              <div className="text-3xl mb-2">🔑</div>
+              <h3 className="font-bold text-lg" style={{ color: "#1a1612" }}>Código generado</h3>
+              <p className="text-sm mt-1" style={{ color: "rgba(26,22,18,0.5)" }}>Para: <span className="font-semibold">{resetResult.userName}</span></p>
+            </div>
+            <div className="rounded-xl px-4 py-3 text-center font-mono text-2xl font-bold tracking-widest"
+              style={{ background: "rgba(124,58,237,0.08)", border: "1.5px solid rgba(124,58,237,0.2)", color: "#7C3AED" }}>
+              {resetResult.inv.code}
+            </div>
+            <p className="text-xs text-center" style={{ color: "rgba(26,22,18,0.45)" }}>
+              El usuario debe abrir:<br />
+              <span className="font-mono text-[10px]">castores.info/api/invite/{resetResult.inv.code}</span>
+            </p>
+            <button
+              onClick={() => shareResetWhatsApp(resetResult.inv, resetResult.userName)}
+              className="w-full py-3 rounded-xl font-bold text-white text-sm"
+              style={{ background: "#25D366" }}>
+              📲 Enviar por WhatsApp
+            </button>
+            <button
+              onClick={() => {
+                navigator.clipboard?.writeText(`https://castores.info/api/invite/${resetResult.inv.code}`);
+                toast({ title: "Link copiado" });
+              }}
+              className="w-full py-2.5 rounded-xl font-semibold text-sm"
+              style={{ background: "rgba(0,0,0,0.05)", color: "rgba(26,22,18,0.7)" }}>
+              Copiar link
+            </button>
+            <button onClick={() => setResetResult(null)}
+              className="block w-full text-center text-xs" style={{ color: "rgba(26,22,18,0.3)" }}>
+              Cerrar
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Pending */}
       {pending.length > 0 && (
         <div>
