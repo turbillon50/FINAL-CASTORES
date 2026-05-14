@@ -347,7 +347,7 @@ export default function Usuarios() {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.94, y: 16 }}
               transition={{ type: "spring", stiffness: 380, damping: 30 }}
-              className="fixed inset-x-4 top-[8%] z-50 rounded-2xl md:inset-x-auto md:left-1/2 md:-translate-x-1/2 md:w-[480px]"
+              className="fixed inset-x-4 top-[8%] bottom-[5%] overflow-y-auto z-50 rounded-2xl md:inset-x-auto md:left-1/2 md:-translate-x-1/2 md:w-[480px] md:bottom-auto md:max-h-[90vh]"
               style={{ background: "#fff", boxShadow: "0 24px 64px rgba(0,0,0,0.2)" }}
               onClick={e => e.stopPropagation()}
             >
