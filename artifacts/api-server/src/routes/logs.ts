@@ -149,11 +149,10 @@ router.patch("/logs/:id", async (req, res): Promise<void> => {
     res.status(403).json({ error: "Acceso denegado" });
     return;
   }
-  // Admin override: el dueño del habitáculo puede editar registros ya
-  // enviados (cambiar fotos, observaciones, ubicación, etc.). Resto de
-  // roles siguen bloqueados después del envío. Cada edición post-envío
-  // queda registrada en activity_log.
-  if (existing.isSubmitted && !isAdmin(user)) {
+  // Admin y supervisor pueden editar registros ya enviados. El resto sigue
+  // bloqueado tras el envío. Cada edición post-envío queda en activity_log.
+  const canEditSubmitted = isAdmin(user) || user.role === "supervisor";
+  if (existing.isSubmitted && !canEditSubmitted) {
     res.status(403).json({ error: "No se puede editar una bitácora ya enviada" });
     return;
   }
@@ -171,12 +170,12 @@ router.patch("/logs/:id", async (req, res): Promise<void> => {
 
   const [log] = await db.update(workLogsTable).set(data).where(eq(workLogsTable.id, params.data.id)).returning();
 
-  // Si admin editó después del envío, queda registro auditable.
-  if (existing.isSubmitted && isAdmin(user)) {
+  // Registrar auditoría cuando se edita un log ya enviado.
+  if (existing.isSubmitted) {
     await logAdminOverride({
       actorId: user.id,
       action: "log.edit_after_submit",
-      description: `Admin (usuario #${user.id}) editó la bitácora #${existing.id} ya enviada`,
+      description: `${user.role === "admin" ? "Admin" : "Supervisor"} (usuario #${user.id}) editó la bitácora #${existing.id} ya enviada`,
       projectId: existing.projectId ?? null,
     });
   }

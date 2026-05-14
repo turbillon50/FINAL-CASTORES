@@ -1416,7 +1416,10 @@ function ApprovalGate({ children }: { children: React.ReactNode }) {
           });
         }
 
-        if (dbUser.approvalStatus === "pending") setStatus("pending");
+        // isActive:false means the user was pre-seeded by clerk-me but never
+        // completed the invitation-code form. Route them back to finish it.
+        if (dbUser.approvalStatus === "pending" && !dbUser.isActive) setStatus("not_registered");
+        else if (dbUser.approvalStatus === "pending") setStatus("pending");
         else if (dbUser.approvalStatus === "rejected") setStatus("rejected");
         else setStatus("approved");
       } catch (e: any) {

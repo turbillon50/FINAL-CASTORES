@@ -215,6 +215,7 @@ export function MaterialNotesView({ canCreate }: Props) {
                   expanded={expandedNote === n.id}
                   onToggle={() => setExpandedNote((cur) => (cur === n.id ? null : n.id))}
                   onDeleted={() => { notesQ.refetch(); toast({ title: "Nota eliminada" }); }}
+                  onEdited={() => { notesQ.refetch(); }}
                 />
               ))}
             </div>
@@ -241,16 +242,85 @@ function NoteRow({
   expanded,
   onToggle,
   onDeleted,
+  onEdited,
 }: {
   note: MaterialNote;
   expanded: boolean;
   onToggle: () => void;
   onDeleted: () => void;
+  onEdited: () => void;
 }) {
   const [items, setItems] = useState<NoteItem[] | null>(null);
   const [loadingItems, setLoadingItems] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editDate, setEditDate] = useState("");
+  const [editFolio, setEditFolio] = useState("");
+  const [editSupplier, setEditSupplier] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editItems, setEditItems] = useState<FormItem[]>([{ ...EMPTY_ITEM }]);
+  const [editSaving, setEditSaving] = useState(false);
   const { toast } = useToast();
+
+  const openEdit = () => {
+    setEditDate(note.noteDate ?? todayIso());
+    setEditFolio(note.folio ?? "");
+    setEditSupplier(note.supplierName ?? "");
+    setEditDescription(note.description ?? "");
+    setEditItems(
+      items && items.length > 0
+        ? items.map((it) => ({
+            name: it.name,
+            unit: it.unit,
+            quantityRequested: String(it.quantityRequested),
+            costPerUnit: it.costPerUnit != null ? String(it.costPerUnit) : "",
+            notes: it.notes ?? "",
+          }))
+        : [{ ...EMPTY_ITEM }]
+    );
+    setEditOpen(true);
+  };
+
+  const updateEditItem = (idx: number, patch: Partial<FormItem>) =>
+    setEditItems((prev) => prev.map((it, i) => (i === idx ? { ...it, ...patch } : it)));
+
+  const handleEditSave = async () => {
+    if (!editDate) { toast({ variant: "destructive", title: "Falta la fecha de la nota" }); return; }
+    const badIdx = editItems.findIndex(
+      (it) => !it.name.trim() || !it.unit.trim() || !it.quantityRequested || Number(it.quantityRequested) <= 0
+    );
+    if (badIdx >= 0) {
+      toast({ variant: "destructive", title: `Renglón ${badIdx + 1} incompleto` }); return;
+    }
+    setEditSaving(true);
+    try {
+      await customFetch(`/api/material-notes/${note.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          noteDate: editDate,
+          folio: editFolio.trim() || null,
+          supplierName: editSupplier.trim() || null,
+          description: editDescription.trim() || null,
+          items: editItems.map((it) => ({
+            name: it.name.trim(),
+            unit: it.unit,
+            quantityRequested: Number(it.quantityRequested),
+            costPerUnit: it.costPerUnit ? Number(it.costPerUnit) : null,
+            notes: it.notes || null,
+          })),
+        }),
+      });
+      setItems(null); // force re-fetch on next expand
+      setEditOpen(false);
+      onEdited();
+      toast({ title: "Nota actualizada" });
+    } catch (e) {
+      const apiErr = e as { data?: { error?: string } };
+      toast({ variant: "destructive", title: "Error al guardar", description: apiErr?.data?.error ?? (e instanceof Error ? e.message : "Error") });
+    } finally {
+      setEditSaving(false);
+    }
+  };
 
   useEffect(() => {
     if (!expanded || items != null) return;
@@ -347,10 +417,17 @@ function NoteRow({
                   {note.description}
                 </p>
               )}
-              <div className="pt-2 flex justify-end">
+              <div className="pt-2 flex justify-between items-center">
+                <button
+                  onClick={openEdit}
+                  disabled={deleting || editSaving}
+                  className="text-[11px] font-semibold text-primary hover:underline disabled:opacity-50"
+                >
+                  ✏️ Editar nota
+                </button>
                 <button
                   onClick={handleDelete}
-                  disabled={deleting}
+                  disabled={deleting || editSaving}
                   className="text-[11px] font-semibold text-destructive hover:underline disabled:opacity-50"
                 >
                   {deleting ? "Eliminando…" : "🗑️ Eliminar nota"}
@@ -358,6 +435,106 @@ function NoteRow({
               </div>
             </div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ─── Modal de edición ───────────────────────────────────────── */}
+      <AnimatePresence>
+        {editOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
+              onClick={() => !editSaving && setEditOpen(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96, y: 12 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 12 }}
+              transition={{ type: "spring", stiffness: 360, damping: 32 }}
+              className="fixed inset-x-3 top-[3%] bottom-[3%] z-50 overflow-y-auto rounded-2xl md:inset-x-auto md:left-1/2 md:-translate-x-1/2 md:w-[680px]"
+              style={{ background: "#fff", boxShadow: "0 24px 64px rgba(0,0,0,0.22)" }}
+            >
+              <div className="p-6 space-y-4">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h2 className="font-display text-2xl text-foreground">Editar nota de materiales</h2>
+                    <p className="text-xs text-muted-foreground mt-0.5">Los renglones se reemplazan por completo al guardar.</p>
+                  </div>
+                  <button onClick={() => !editSaving && setEditOpen(false)} className="w-8 h-8 rounded-full flex items-center justify-center text-foreground/40 hover:bg-foreground/8">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="w-5 h-5">
+                      <path d="M18 6L6 18M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <Field label="Fecha de la nota *">
+                    <Input type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)} className="h-11 rounded-xl border-black/10" />
+                  </Field>
+                  <Field label="Folio (opcional)">
+                    <Input value={editFolio} onChange={(e) => setEditFolio(e.target.value)} placeholder="Ej. 1234" className="h-11 rounded-xl border-black/10" />
+                  </Field>
+                  <Field label="Proveedor (opcional)">
+                    <Input value={editSupplier} onChange={(e) => setEditSupplier(e.target.value)} placeholder="Ej. Cemex, Acero del Norte" className="h-11 rounded-xl border-black/10" />
+                  </Field>
+                  <Field label="Descripción (opcional)">
+                    <Input value={editDescription} onChange={(e) => setEditDescription(e.target.value)} placeholder="Observaciones generales" className="h-11 rounded-xl border-black/10" />
+                  </Field>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-bold text-sm">Conceptos</h3>
+                    <button type="button" onClick={() => setEditItems((prev) => [...prev, { ...EMPTY_ITEM }])} className="text-xs font-bold text-amber-700 hover:underline">
+                      + Agregar concepto
+                    </button>
+                  </div>
+                  {editItems.map((it, i) => (
+                    <div key={i} className="rounded-xl border border-card-border p-3 bg-sidebar/20 space-y-2">
+                      <div className="flex items-baseline justify-between">
+                        <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Concepto {i + 1}</span>
+                        {editItems.length > 1 && (
+                          <button type="button" onClick={() => setEditItems((prev) => prev.filter((_, j) => j !== i))} className="text-[10px] font-semibold text-destructive hover:underline">
+                            Quitar
+                          </button>
+                        )}
+                      </div>
+                      <Input value={it.name} onChange={(e) => updateEditItem(i, { name: e.target.value })} placeholder="Ej. Acero 5/8 grado 60" className="h-10 rounded-lg border-black/10" />
+                      <div className="grid grid-cols-3 gap-2">
+                        <Input type="number" min="0" step="0.01" value={it.quantityRequested} onChange={(e) => updateEditItem(i, { quantityRequested: e.target.value })} placeholder="Cantidad" className="h-10 rounded-lg border-black/10" />
+                        <Select value={it.unit} onValueChange={(v) => updateEditItem(i, { unit: v })}>
+                          <SelectTrigger className="h-10 rounded-lg border-black/10"><SelectValue /></SelectTrigger>
+                          <SelectContent>{UNITS.map((u) => <SelectItem key={u} value={u}>{u}</SelectItem>)}</SelectContent>
+                        </Select>
+                        <Input type="number" min="0" step="0.01" value={it.costPerUnit} onChange={(e) => updateEditItem(i, { costPerUnit: e.target.value })} placeholder="$/unidad" className="h-10 rounded-lg border-black/10" />
+                      </div>
+                      <div className="flex items-baseline justify-between text-xs">
+                        <span className="text-muted-foreground">Subtotal</span>
+                        <span className="font-mono font-bold tabular-nums" style={{ color: "#C8952A" }}>
+                          {fmtMoney((Number(it.quantityRequested) || 0) * (Number(it.costPerUnit) || 0))}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="rounded-xl p-4 flex items-baseline justify-between" style={{ background: "rgba(200,149,42,0.08)", border: "1px solid rgba(200,149,42,0.2)" }}>
+                  <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Total</span>
+                  <span className="font-display text-2xl tabular-nums" style={{ color: "#C8952A" }}>
+                    {fmtMoney(editItems.reduce((acc, it) => acc + (Number(it.quantityRequested) || 0) * (Number(it.costPerUnit) || 0), 0))}
+                  </span>
+                </div>
+
+                <div className="flex gap-3">
+                  <Button variant="outline" onClick={() => setEditOpen(false)} disabled={editSaving} className="flex-1 rounded-xl border-black/10">Cancelar</Button>
+                  <Button onClick={handleEditSave} disabled={editSaving} className="flex-1 rounded-xl font-bold" style={{ background: "#C8952A", color: "#fff" }}>
+                    {editSaving ? "Guardando…" : "Guardar cambios"}
+                  </Button>
+                </div>
+              </div>
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
     </div>

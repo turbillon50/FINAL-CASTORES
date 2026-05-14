@@ -265,6 +265,83 @@ router.delete("/material-notes/:id", async (req, res): Promise<void> => {
 });
 
 /**
+ * PATCH /api/material-notes/:id — edita cabecera + renglones de una nota.
+ * Solo el creador o un usuario con materialsApprove pueden editarla.
+ * Los renglones se reemplazan en su totalidad en una transacción.
+ */
+router.patch("/material-notes/:id", async (req, res): Promise<void> => {
+  const user = await resolveAuthedUser(req);
+  if (!user) { res.status(401).json({ error: "No autenticado" }); return; }
+
+  const id = Number(req.params["id"]);
+  if (!Number.isFinite(id) || id <= 0) { res.status(400).json({ error: "ID inválido" }); return; }
+
+  const [note] = await db.select().from(materialNotesTable).where(eq(materialNotesTable.id, id));
+  if (!note) { res.status(404).json({ error: "Nota no encontrada" }); return; }
+
+  const canApprove = await hasPermission(user.role, "materialsApprove");
+  if (note.createdById !== user.id && !canApprove) {
+    res.status(403).json({ error: "Solo el creador o un aprobador puede editar esta nota" });
+    return;
+  }
+  if (!(await canAccessProject(user, note.projectId))) {
+    res.status(403).json({ error: "Sin acceso a esta obra" }); return;
+  }
+
+  const body = req.body as IncomingNoteBody;
+  if (!body.items || !Array.isArray(body.items) || body.items.length === 0) {
+    res.status(400).json({ error: "La nota debe tener al menos un concepto" }); return;
+  }
+  for (let i = 0; i < body.items.length; i++) {
+    const err = validateItem(body.items[i], i);
+    if (err) { res.status(400).json({ error: err }); return; }
+  }
+
+  const total = sumTotal(body.items);
+  try {
+    const result = await db.transaction(async (tx) => {
+      const [updated] = await tx
+        .update(materialNotesTable)
+        .set({
+          noteDate: body.noteDate ?? note.noteDate,
+          folio: body.folio ?? null,
+          supplierName: body.supplierName ?? null,
+          description: body.description ?? null,
+          totalAmount: total,
+        })
+        .where(eq(materialNotesTable.id, id))
+        .returning();
+
+      await tx.delete(materialsTable).where(eq(materialsTable.noteId, id));
+
+      const itemRows = (body.items as IncomingItem[]).map((it) => ({
+        projectId: note.projectId,
+        requestedById: note.createdById,
+        noteId: id,
+        name: (it.name as string).trim(),
+        description: it.description ?? null,
+        unit: (it.unit as string).trim(),
+        quantityRequested: it.quantityRequested as number,
+        costPerUnit: it.costPerUnit ?? null,
+        totalCost: it.costPerUnit != null
+          ? (it.costPerUnit as number) * (it.quantityRequested as number)
+          : null,
+        notes: it.notes ?? null,
+        status: "approved" as const,
+        approvedById: note.createdById,
+        approvedAt: new Date(),
+      }));
+      const inserted = await tx.insert(materialsTable).values(itemRows).returning();
+      return { note: updated, items: inserted };
+    });
+    res.json(result);
+  } catch (err) {
+    logger.error({ err }, "PATCH /material-notes/:id failed");
+    res.status(500).json({ error: "No se pudo actualizar la nota" });
+  }
+});
+
+/**
  * POST /api/material-notes/scan — OCR de notas de mostrador con IA.
  *
  * Body: { image: "data:image/jpeg;base64,..." }
