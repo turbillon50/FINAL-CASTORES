@@ -168,10 +168,10 @@ export default function Materiales() {
   };
 
   const statCards = [
-    { label: "Total Gastado", value: fmt(stats?.totalMaterialCost), color: "#C8952A", icon: "💰" },
-    { label: "Pendientes", value: stats?.pendingRequests ?? 0, color: "#F59E0B", icon: "⏳" },
-    { label: "Aprobadas", value: stats?.approvedRequests ?? 0, color: "#10B981", icon: "✅" },
-    { label: "Total Solicitudes", value: stats?.totalMaterialRequests ?? 0, color: "#3B82F6", icon: "📦" },
+    { label: "Total Gastado", value: fmt(stats?.totalMaterialCost), color: "#C8952A", icon: "💰", onClick: undefined as (() => void) | undefined },
+    { label: "Pendientes", value: stats?.pendingRequests ?? 0, color: "#F59E0B", icon: "⏳", onClick: () => setView("kanban") },
+    { label: "Aprobadas", value: stats?.approvedRequests ?? 0, color: "#10B981", icon: "✅", onClick: () => setView("kanban") },
+    { label: "Total Solicitudes", value: stats?.totalMaterialRequests ?? 0, color: "#3B82F6", icon: "📦", onClick: undefined as (() => void) | undefined },
   ];
 
   return (
@@ -219,27 +219,42 @@ export default function Materiales() {
         {stats && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {statCards.map((s, i) => (
-              <motion.div key={s.label} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.06 }} className="bg-white rounded-2xl p-4"
-                style={{ border: "1px solid rgba(0,0,0,0.07)", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
+              <motion.div
+                key={s.label}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.06 }}
+                onClick={s.onClick}
+                className={`bg-white rounded-2xl p-4 ${s.onClick ? "cursor-pointer active:scale-95 transition-transform" : ""}`}
+                style={{ border: "1px solid rgba(0,0,0,0.07)", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}
+              >
                 <div className="flex items-center gap-2 mb-2">
                   <span className="text-lg">{s.icon}</span>
                   <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">{s.label}</p>
                 </div>
-                <p className="font-display text-3xl" style={{ color: s.color }}>{s.value}</p>
+                <div className="flex items-end justify-between">
+                  <p className="font-display text-3xl" style={{ color: s.color }}>{s.value}</p>
+                  {s.onClick && <span className="text-[10px] font-bold pb-1" style={{ color: s.color }}>Ver →</span>}
+                </div>
               </motion.div>
             ))}
           </div>
         )}
 
         {(stats?.pendingRequests ?? 0) > 0 && (
-          <div className="flex items-center gap-3 px-4 py-3 rounded-xl"
-            style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.25)" }}>
-            <div className="w-2 h-2 rounded-full animate-pulse" style={{ background: "#F59E0B" }} />
-            <p className="text-sm text-foreground/70">
-              <span className="font-bold" style={{ color: "#F59E0B" }}>{stats?.pendingRequests} solicitudes</span> esperando autorización
+          <button
+            onClick={() => setView("kanban")}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition active:scale-[0.98]"
+            style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.25)" }}
+          >
+            <div className="w-2 h-2 rounded-full animate-pulse flex-shrink-0" style={{ background: "#F59E0B" }} />
+            <p className="text-sm text-foreground/70 flex-1">
+              <span className="font-bold" style={{ color: "#F59E0B" }}>
+                {stats?.pendingRequests} solicitud{(stats?.pendingRequests ?? 0) === 1 ? "" : "es"}
+              </span> esperando autorización
             </p>
-          </div>
+            <span className="text-xs font-bold flex-shrink-0" style={{ color: "#F59E0B" }}>Ver solicitudes →</span>
+          </button>
         )}
 
         {view === "notes" ? (

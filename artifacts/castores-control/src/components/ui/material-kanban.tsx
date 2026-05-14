@@ -33,7 +33,7 @@ export function MaterialKanban({ materials, onApprove, onReject, onEdit, onDelet
   };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pb-28 md:pb-6">
       {columns.map((col) => (
         <div key={col.id} className="flex flex-col bg-sidebar/50 rounded-xl border border-card-border overflow-hidden">
           <div className={`p-4 border-b border-card-border border-t-2 ${col.color} bg-card/80`}>
@@ -45,7 +45,7 @@ export function MaterialKanban({ materials, onApprove, onReject, onEdit, onDelet
             </div>
           </div>
 
-          <div className="flex-1 p-4 space-y-4 overflow-y-auto min-h-[500px]">
+          <div className="flex-1 p-4 space-y-4 overflow-y-auto min-h-[200px] md:min-h-[500px]">
             {getMaterialsByStatus(col.status).map((material, idx) => (
               <motion.div
                 key={material.id}
@@ -53,7 +53,7 @@ export function MaterialKanban({ materials, onApprove, onReject, onEdit, onDelet
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: idx * 0.05 }}
-                className="bg-card border border-card-border rounded-lg p-4 cursor-grab hover:border-primary/50 transition-colors shadow-sm group relative"
+                className="bg-card border border-card-border rounded-lg p-4 transition-colors shadow-sm"
               >
                 <div className="flex justify-between items-start mb-2">
                   <h4 className="font-semibold text-sm text-foreground line-clamp-1" title={material.name}>{material.name}</h4>
@@ -83,18 +83,18 @@ export function MaterialKanban({ materials, onApprove, onReject, onEdit, onDelet
                 </div>
 
                 {col.status === "pending" && showApprovalActions && (
-                  <div className="absolute inset-0 bg-card/90 backdrop-blur-[2px] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3 p-4">
+                  <div className="mt-3 pt-3 border-t border-card-border/40 flex gap-2">
                     <button
                       onClick={() => onApprove?.(material.id)}
-                      className="flex-1 bg-[#2ECC71]/20 text-[#2ECC71] hover:bg-[#2ECC71] hover:text-white border border-[#2ECC71]/50 transition-colors py-2 rounded-md font-bold text-sm"
+                      className="flex-1 bg-[#2ECC71]/15 text-[#2ECC71] active:bg-[#2ECC71] active:text-white border border-[#2ECC71]/40 transition-colors py-2.5 rounded-lg font-bold text-sm"
                     >
-                      Aprobar
+                      ✓ Aprobar
                     </button>
                     <button
                       onClick={() => onReject?.(material.id)}
-                      className="flex-1 bg-destructive/20 text-destructive hover:bg-destructive hover:text-white border border-destructive/50 transition-colors py-2 rounded-md font-bold text-sm"
+                      className="flex-1 bg-destructive/10 text-destructive active:bg-destructive active:text-white border border-destructive/30 transition-colors py-2.5 rounded-lg font-bold text-sm"
                     >
-                      Rechazar
+                      ✕ Rechazar
                     </button>
                   </div>
                 )}
@@ -104,7 +104,7 @@ export function MaterialKanban({ materials, onApprove, onReject, onEdit, onDelet
                     {onEdit && (
                       <button
                         onClick={() => onEdit(material)}
-                        className="flex-1 bg-foreground/5 hover:bg-foreground/10 text-foreground/70 transition-colors py-1.5 rounded-md font-semibold text-xs flex items-center justify-center gap-1.5"
+                        className="flex-1 bg-foreground/5 active:bg-foreground/10 text-foreground/70 transition-colors py-2 rounded-lg font-semibold text-xs flex items-center justify-center gap-1.5"
                       >
                         <Icons.Edit className="w-3 h-3" /> Editar
                       </button>
@@ -112,7 +112,7 @@ export function MaterialKanban({ materials, onApprove, onReject, onEdit, onDelet
                     {onDelete && (
                       <button
                         onClick={() => onDelete(material)}
-                        className="bg-destructive/10 hover:bg-destructive/20 text-destructive transition-colors px-2.5 py-1.5 rounded-md font-semibold text-xs flex items-center justify-center"
+                        className="bg-destructive/10 active:bg-destructive/20 text-destructive transition-colors px-3 py-2 rounded-lg font-semibold text-xs flex items-center justify-center"
                         title="Eliminar"
                       >
                         <Icons.Delete className="w-3 h-3" />
@@ -124,7 +124,7 @@ export function MaterialKanban({ materials, onApprove, onReject, onEdit, onDelet
             ))}
 
             {getMaterialsByStatus(col.status).length === 0 && (
-              <div className="h-full flex items-center justify-center opacity-30">
+              <div className="h-32 flex items-center justify-center opacity-30">
                 <p className="text-sm font-medium">Vacío</p>
               </div>
             )}
