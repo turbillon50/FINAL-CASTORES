@@ -8,7 +8,7 @@ import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
 import { SignaturePad } from "@/components/ui/signature-pad";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth";
 import { apiUrl } from "@/lib/api-url";
 import { PhotoUploadButtons } from "@/components/ui/photo-upload-buttons";
@@ -22,10 +22,13 @@ export default function BitacoraDetail() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
   const isAdmin = user?.role === "admin";
+  const canEditLog = user?.role === "admin" || user?.role === "supervisor";
   const [deleting, setDeleting] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editForm, setEditForm] = useState<any>({});
   const [editSaving, setEditSaving] = useState(false);
+
+  useEffect(() => { window.scrollTo(0, 0); }, [logId]);
 
   const { data: log, isLoading, refetch } = useGetLog(logId, {
     query: { queryKey: ["get-log", logId], enabled: !!logId }
@@ -207,26 +210,26 @@ export default function BitacoraDetail() {
             <Button variant="outline" className="gap-2 print:hidden" onClick={() => window.print()}>
               <Icons.Download className="w-4 h-4" /> PDF
             </Button>
+            {canEditLog && (
+              <Button
+                variant="outline"
+                className="gap-2 print:hidden"
+                onClick={openEdit}
+                title="Editar campos de la bitácora"
+              >
+                <Icons.Edit className="w-4 h-4" /> Editar
+              </Button>
+            )}
             {isAdmin && (
-              <>
-                <Button
-                  variant="outline"
-                  className="gap-2 print:hidden"
-                  onClick={openEdit}
-                  title="Editar todos los campos (admin)"
-                >
-                  <Icons.Edit className="w-4 h-4" /> Editar
-                </Button>
-                <Button
-                  variant="outline"
-                  className="gap-2 print:hidden border-red-300 text-red-700 hover:bg-red-50"
-                  onClick={handleAdminDelete}
-                  disabled={deleting}
-                  title="Solo el administrador puede eliminar"
-                >
-                  <Icons.Delete className="w-4 h-4" /> {deleting ? "Eliminando..." : "Eliminar"}
-                </Button>
-              </>
+              <Button
+                variant="outline"
+                className="gap-2 print:hidden border-red-300 text-red-700 hover:bg-red-50"
+                onClick={handleAdminDelete}
+                disabled={deleting}
+                title="Solo el administrador puede eliminar"
+              >
+                <Icons.Delete className="w-4 h-4" /> {deleting ? "Eliminando..." : "Eliminar"}
+              </Button>
             )}
           </div>
         </header>
@@ -466,7 +469,7 @@ export default function BitacoraDetail() {
         los botones estaban en el header. Aparece SOLO para admin y SOLO
         cuando el modal de edición está cerrado.
       */}
-      {isAdmin && !editOpen && (
+      {canEditLog && !editOpen && (
         <div className="fixed bottom-0 inset-x-0 z-30 border-t border-border bg-background/95 backdrop-blur-md print:hidden">
           <div className="max-w-5xl mx-auto px-4 py-3 flex gap-2">
             <Button
@@ -475,21 +478,23 @@ export default function BitacoraDetail() {
             >
               <Icons.Edit className="w-4 h-4" /> Editar bitácora
             </Button>
-            <Button
-              variant="outline"
-              onClick={handleAdminDelete}
-              disabled={deleting}
-              className="flex-1 gap-2 border-red-300 text-red-700 hover:bg-red-50 font-semibold"
-            >
-              <Icons.Delete className="w-4 h-4" /> {deleting ? "Eliminando..." : "Eliminar"}
-            </Button>
+            {isAdmin && (
+              <Button
+                variant="outline"
+                onClick={handleAdminDelete}
+                disabled={deleting}
+                className="flex-1 gap-2 border-red-300 text-red-700 hover:bg-red-50 font-semibold"
+              >
+                <Icons.Delete className="w-4 h-4" /> {deleting ? "Eliminando..." : "Eliminar"}
+              </Button>
+            )}
           </div>
           {/* Espacio extra para que el FAB de + nueva entrada no choque */}
           <div className="h-[env(safe-area-inset-bottom)]" />
         </div>
       )}
       {/* Padding extra al final del contenido para que la barra flotante no tape la última fila */}
-      {isAdmin && <div className="h-24" aria-hidden="true" />}
+      {canEditLog && <div className="h-24" aria-hidden="true" />}
     </MainLayout>
   );
 }
