@@ -205,6 +205,7 @@ router.post("/auth/invite-login", inviteLoginLimiter, async (req, res): Promise<
   // Adicionalmente, cruzamos contra nuestra DB: si el email matchea un
   // registro local con clerk_id, ése es el dueño canónico.
   let clerkUserId: string | null = null;
+  let clerkFoundByEmail = false; // true when Clerk returned a live user for this email
   try {
     const list = await clerkApi(`/users?email_address[]=${encodeURIComponent(email)}&limit=5`);
     const arr = Array.isArray(list) ? list : (list?.data ?? []);
@@ -215,6 +216,7 @@ router.post("/auth/invite-login", inviteLoginLimiter, async (req, res): Promise<
       };
       const primaryMatch = arr.find(findPrimaryMatch);
       clerkUserId = primaryMatch?.id ?? arr[0].id;
+      clerkFoundByEmail = true;
     }
 
     // Cross-check con nuestra DB: si nuestro registro local tiene un clerk_id,
@@ -231,6 +233,18 @@ router.post("/auth/invite-login", inviteLoginLimiter, async (req, res): Promise<
   }
   if (!clerkUserId) {
     res.status(401).json({ error: "Correo o contraseña incorrectos" });
+    return;
+  }
+
+  // Si la DB tiene un clerkId pero Clerk ya no conoce ese email, el usuario
+  // fue borrado de Clerk (por un admin) y necesita re-registrarse con su
+  // código de invitación. Devolvemos un error accionable en vez del 503
+  // genérico que causaba confusión.
+  if (!clerkFoundByEmail) {
+    res.status(403).json({
+      error: "Tu cuenta fue reiniciada. Usa el código de invitación que te enviaron para registrarte de nuevo.",
+      code: "account_reset",
+    });
     return;
   }
 
@@ -251,6 +265,15 @@ router.post("/auth/invite-login", inviteLoginLimiter, async (req, res): Promise<
       // no password set. Either way the safe answer for the user is the
       // same — generic "wrong creds" — so we don't leak which case it is.
       res.status(401).json({ error: "Correo o contraseña incorrectos" });
+      return;
+    }
+    if (e.status === 404) {
+      // El clerkId en nuestra DB ya no existe en Clerk — el usuario fue
+      // borrado directamente por ID desde el dashboard de Clerk.
+      res.status(403).json({
+        error: "Tu cuenta fue reiniciada. Usa el código de invitación que te enviaron para registrarte de nuevo.",
+        code: "account_reset",
+      });
       return;
     }
     logger.error({ err: e, status: e.status }, "invite-login: verify_password call failed");
