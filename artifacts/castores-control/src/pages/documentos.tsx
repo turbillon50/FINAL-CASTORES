@@ -30,6 +30,11 @@ function isImageUrl(url?: string | null): boolean {
   return url.startsWith("data:image/") || /\.(jpe?g|png|gif|webp|avif|svg)(\?|$)/i.test(url);
 }
 
+function isPdfUrl(url?: string | null): boolean {
+  if (!url) return false;
+  return url.startsWith("data:application/pdf") || /\.pdf(\?|$)/i.test(url);
+}
+
 export default function Documentos() {
   const permissions = usePermissions();
   const canManage = permissions.has("documentsLegalManage");
@@ -260,12 +265,30 @@ export default function Documentos() {
               </div>
 
               {/* Content */}
-              <div className="flex-1 overflow-auto flex flex-col">
+              <div className="flex-1 overflow-auto flex flex-col min-h-0">
                 {isImageUrl(previewDoc.fileUrl) ? (
                   <div className="flex-1 flex items-center justify-center p-4 bg-gray-50">
                     <img src={previewDoc.fileUrl} alt={previewDoc.title}
                       className="max-w-full max-h-full object-contain rounded-lg"
                       style={{ maxHeight: "calc(100vh - 240px)" }} />
+                  </div>
+                ) : isPdfUrl(previewDoc.fileUrl) ? (
+                  <div className="flex-1 flex flex-col min-h-0">
+                    <iframe
+                      src={previewDoc.fileUrl ?? undefined}
+                      title={previewDoc.title}
+                      className="flex-1 w-full border-0"
+                      style={{ minHeight: "300px" }}
+                    />
+                    <div className="shrink-0 py-2 px-4 bg-gray-50 border-t border-black/[0.07] text-center">
+                      <button
+                        onClick={() => window.open(previewDoc.fileUrl!, "_blank")}
+                        className="text-xs font-semibold underline"
+                        style={{ color: "#3B82F6" }}
+                      >
+                        Abrir PDF en nueva pestaña →
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <div className="flex-1 flex flex-col items-center justify-center gap-4 p-8 text-center bg-gray-50">
@@ -314,7 +337,7 @@ export default function Documentos() {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.94, y: 16 }}
               transition={{ type: "spring", stiffness: 380, damping: 30 }}
-              className="fixed inset-x-4 top-[10%] z-50 rounded-2xl md:inset-x-auto md:left-1/2 md:-translate-x-1/2 md:w-[480px]"
+              className="fixed inset-x-4 top-[10%] bottom-[5%] overflow-y-auto z-50 rounded-2xl md:inset-x-auto md:left-1/2 md:-translate-x-1/2 md:w-[480px] md:bottom-auto md:max-h-[92vh]"
               style={{ background: "#fff", boxShadow: "0 24px 64px rgba(0,0,0,0.2)" }}
               onClick={e => e.stopPropagation()}
             >

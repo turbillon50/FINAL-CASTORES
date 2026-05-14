@@ -53,7 +53,7 @@ export default function Bitacora() {
           <div className="space-y-12">
             {sortedDates.map((date) => (
               <div key={date} className="relative">
-                <div className="sticky top-0 z-10 bg-background/90 backdrop-blur-md py-4 mb-6 border-b border-card-border flex items-center gap-4">
+                <div className="sticky z-10 bg-background/90 backdrop-blur-md py-4 mb-6 border-b border-card-border flex items-center gap-4" style={{ top: "calc(56px + env(safe-area-inset-top))" }}>
                   <div className="bg-sidebar border border-sidebar-border px-4 py-2 rounded-lg font-mono font-bold text-primary">
                     {format(new Date(date), "dd 'de' MMMM, yyyy", { locale: es })}
                   </div>
