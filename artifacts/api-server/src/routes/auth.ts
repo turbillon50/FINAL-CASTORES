@@ -391,12 +391,27 @@ router.post("/auth/invite-register", async (req, res): Promise<void> => {
     }
   }
 
-  // Pre-check: refuse if a row with the same email already exists in our DB
-  // (we won't try to merge on top of someone else's account).
+  // Pre-check: refuse if a row with the same email already exists in our DB.
+  // Exception: if the Clerk user behind that row was deleted from the Clerk
+  // dashboard (admin wiped them), the DB row is stale — delete it and let the
+  // person re-register with their new invitation code.
   const [existingByEmail] = await db.select().from(usersTable).where(eq(usersTable.email, email));
   if (existingByEmail) {
-    res.status(409).json({ error: "Este correo ya está registrado. Si eres tú, usa Iniciar sesión." });
-    return;
+    let clerkUserGone = false;
+    if (existingByEmail.clerkId) {
+      try {
+        await clerkApi(`/users/${existingByEmail.clerkId}`);
+      } catch (err: unknown) {
+        if ((err as { status?: number }).status === 404) {
+          await db.delete(usersTable).where(eq(usersTable.id, existingByEmail.id)).catch(() => {});
+          clerkUserGone = true;
+        }
+      }
+    }
+    if (!clerkUserGone) {
+      res.status(409).json({ error: "Este correo ya está registrado. Si eres tú, usa Iniciar sesión." });
+      return;
+    }
   }
 
   // Generate a Clerk-friendly username from the email's local part. Clerk's
