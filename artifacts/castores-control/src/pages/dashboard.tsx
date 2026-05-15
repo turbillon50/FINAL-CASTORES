@@ -50,7 +50,7 @@ export default function Dashboard() {
 
   const role = user?.role ?? "worker";
   const roleColor = ROLE_COLORS[role];
-  const fmt = (n: number) => new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", maximumFractionDigits: 0, notation: "compact" }).format(n);
+  const fmt = (n: number) => new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", maximumFractionDigits: 0 }).format(n);
   const budgetPct = summary?.totalBudget ? Math.round((summary.totalSpent / summary.totalBudget) * 100) : 0;
 
   const stats = [
