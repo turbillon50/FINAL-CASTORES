@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, sql, and } from "drizzle-orm";
+import { eq, sql, and, inArray, or } from "drizzle-orm";
 import { db, projectsTable, usersTable, workLogsTable, materialsTable, projectAssignmentsTable, documentsTable, reportsTable } from "@workspace/db";
 import { getRequestUser, getRequestUserStrict } from "../lib/getRequestUser";
 import { getAccessibleProjectIds, canAccessProject } from "../lib/projectAccess";
@@ -52,7 +52,35 @@ router.get("/projects", async (req, res): Promise<void> => {
   }
 
   const enriched = await Promise.all(projects.map(enrichProject));
-  res.json(enriched);
+
+  // Overlay effective spentAmount: use the stored value only when manually set
+  // (> 0); otherwise sum approved+delivered material costs so the budget chart
+  // always shows real numbers even when spentAmount was never written back.
+  const pIds = enriched.map((p) => p.id);
+  const approvedMats = pIds.length > 0
+    ? await db
+        .select({
+          projectId: materialsTable.projectId,
+          totalCost: materialsTable.totalCost,
+          costPerUnit: materialsTable.costPerUnit,
+          quantityRequested: materialsTable.quantityRequested,
+        })
+        .from(materialsTable)
+        .where(and(
+          inArray(materialsTable.projectId, pIds),
+          or(eq(materialsTable.status, "approved"), eq(materialsTable.status, "delivered")),
+        ))
+    : [];
+  const matSpentMap = new Map<number, number>();
+  for (const m of approvedMats) {
+    const prev = matSpentMap.get(m.projectId) ?? 0;
+    matSpentMap.set(m.projectId, prev + (m.totalCost ?? (m.costPerUnit ?? 0) * m.quantityRequested));
+  }
+
+  res.json(enriched.map((p) => ({
+    ...p,
+    spentAmount: (p.spentAmount && p.spentAmount > 0) ? p.spentAmount : (matSpentMap.get(p.id) ?? 0),
+  })));
 });
 
 router.post("/projects", async (req, res): Promise<void> => {

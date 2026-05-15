@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, and, inArray } from "drizzle-orm";
+import { eq, and, inArray, or } from "drizzle-orm";
 import {
   db,
   projectsTable,
@@ -24,13 +24,13 @@ router.get("/dashboard/summary", async (req, res): Promise<void> => {
 
   const accessibleIds = await getAccessibleProjectIds(user);
 
-  let projects: { status: string | null; budget: number | null; spentAmount: number | null }[];
+  let projects: { id: number; status: string | null; budget: number | null; spentAmount: number | null }[];
   let materials: { status: string | null }[];
   let usersForRoles: { role: string }[];
 
   if (accessibleIds === null) {
     projects = await db
-      .select({ status: projectsTable.status, budget: projectsTable.budget, spentAmount: projectsTable.spentAmount })
+      .select({ id: projectsTable.id, status: projectsTable.status, budget: projectsTable.budget, spentAmount: projectsTable.spentAmount })
       .from(projectsTable);
     materials = await db.select({ status: materialsTable.status }).from(materialsTable);
     usersForRoles = await db.select({ role: usersTable.role }).from(usersTable).where(eq(usersTable.isActive, true));
@@ -40,7 +40,7 @@ router.get("/dashboard/summary", async (req, res): Promise<void> => {
     usersForRoles = [];
   } else {
     projects = await db
-      .select({ status: projectsTable.status, budget: projectsTable.budget, spentAmount: projectsTable.spentAmount })
+      .select({ id: projectsTable.id, status: projectsTable.status, budget: projectsTable.budget, spentAmount: projectsTable.spentAmount })
       .from(projectsTable)
       .where(inArray(projectsTable.id, accessibleIds));
     materials = await db
@@ -88,10 +88,38 @@ router.get("/dashboard/summary", async (req, res): Promise<void> => {
       .where(and(eq(workLogsTable.logDate, today), inArray(workLogsTable.projectId, accessibleIds)));
   }
 
+  // Compute effective spent: use spentAmount from DB if manually set (>0),
+  // otherwise fall back to sum of approved+delivered material costs.
+  const projectIds = projects.map((p) => p.id);
+  const approvedMats = projectIds.length > 0
+    ? await db
+        .select({
+          projectId: materialsTable.projectId,
+          totalCost: materialsTable.totalCost,
+          costPerUnit: materialsTable.costPerUnit,
+          quantityRequested: materialsTable.quantityRequested,
+        })
+        .from(materialsTable)
+        .where(and(
+          inArray(materialsTable.projectId, projectIds),
+          or(eq(materialsTable.status, "approved"), eq(materialsTable.status, "delivered")),
+        ))
+    : [];
+  const matSpentMap = new Map<number, number>();
+  for (const m of approvedMats) {
+    const prev = matSpentMap.get(m.projectId) ?? 0;
+    matSpentMap.set(m.projectId, prev + (m.totalCost ?? (m.costPerUnit ?? 0) * m.quantityRequested));
+  }
+
   const activeProjects = projects.filter((p) => p.status === "active").length;
   const completedProjects = projects.filter((p) => p.status === "completed").length;
   const totalBudget = projects.reduce((sum, p) => sum + (p.budget ?? 0), 0);
-  const totalSpent = projects.reduce((sum, p) => sum + (p.spentAmount ?? 0), 0);
+  const totalSpent = projects.reduce((sum, p) => {
+    const effectiveSpent = (p.spentAmount && p.spentAmount > 0)
+      ? p.spentAmount
+      : (matSpentMap.get(p.id) ?? 0);
+    return sum + effectiveSpent;
+  }, 0);
 
   res.json({
     activeProjects,
