@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq } from "drizzle-orm";
+import { eq, and, or } from "drizzle-orm";
 import { db, materialsTable, projectsTable, usersTable } from "@workspace/db";
 import { getRequestUser } from "../lib/getRequestUser";
 import { resolveAuthedUser } from "../lib/authContext";
@@ -307,6 +307,17 @@ router.post("/materials/:id/approve", async (req, res): Promise<void> => {
     description: `Usuario #${actor.id} (${actor.role}) aprobó "${material.name}" (${material.quantityRequested} ${material.unit}${material.totalCost ? `, $${material.totalCost} MXN` : ""})`,
     projectId: material.projectId,
   });
+
+  // Keep project.spentAmount in sync so dashboard/list reads are fast.
+  const allApproved = await db
+    .select({ totalCost: materialsTable.totalCost, costPerUnit: materialsTable.costPerUnit, quantityRequested: materialsTable.quantityRequested })
+    .from(materialsTable)
+    .where(and(
+      eq(materialsTable.projectId, material.projectId),
+      or(eq(materialsTable.status, "approved"), eq(materialsTable.status, "delivered")),
+    ));
+  const newSpent = allApproved.reduce((sum, m) => sum + (m.totalCost ?? (m.costPerUnit ?? 0) * m.quantityRequested), 0);
+  await db.update(projectsTable).set({ spentAmount: newSpent }).where(eq(projectsTable.id, material.projectId)).catch(() => {});
 
   res.json(await enrichMaterial(material));
 });
