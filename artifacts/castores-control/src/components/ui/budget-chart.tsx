@@ -14,7 +14,7 @@ export function BudgetChart({ projects }: BudgetChartProps) {
   const active = projects.filter(p => p.status === "active" && p.budget);
 
   const fmt = (n: number) =>
-    new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", maximumFractionDigits: 0, notation: "compact" }).format(n);
+    new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", maximumFractionDigits: 0 }).format(n);
 
   const maxBudget = Math.max(...active.map(p => p.budget ?? 0), 1);
 
