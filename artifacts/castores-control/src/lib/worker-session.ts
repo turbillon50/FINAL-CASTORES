@@ -14,6 +14,10 @@ export type WorkerSessionUser = {
   role: string;
   workerCode: string | null;
   avatarUrl: string | null;
+  // Flag tipo cajero: true cuando el admin creó/reseteó las credenciales.
+  // El primer login es válido pero la PWA debe mandarlo a /check/change-pin
+  // antes de mostrarle el check-in.
+  pinMustChange?: boolean;
 };
 
 export function getWorkerToken(): string | null {
@@ -76,4 +80,12 @@ export async function loginWorker(workerCode: string, pin: string): Promise<Work
   }
   setWorkerSession(data.token as string, data.user as WorkerSessionUser);
   return data.user as WorkerSessionUser;
+}
+
+/** Marca la sesión como "PIN ya cambiado" para que la PWA salga del modo
+ *  "cambio forzado" sin necesidad de reloguear. Actualiza el cache local. */
+export function markPinChanged(): void {
+  const u = getWorkerUser();
+  if (!u) return;
+  localStorage.setItem(USER_KEY, JSON.stringify({ ...u, pinMustChange: false }));
 }

@@ -901,6 +901,9 @@ router.post("/auth/worker-login", workerLoginLimiter, async (req, res): Promise<
       role: user.role,
       workerCode: user.workerCode,
       avatarUrl: user.avatarUrl,
+      // Si el admin acaba de crear o resetear sus credenciales, la PWA
+      // lo manda a /check/change-pin antes de poder marcar asistencia.
+      pinMustChange: user.pinMustChange === true,
     },
   });
 });

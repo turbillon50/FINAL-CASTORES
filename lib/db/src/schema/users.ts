@@ -23,6 +23,11 @@ export const usersTable = pgTable("users", {
   // workers operativos creados desde Admin → Equipo → "Sin correo".
   workerCode: text("worker_code").unique(),
   pinHash: text("pin_hash"),
+  // Bandera tipo "tarjeta de cajero": cuando el admin crea o resetea las
+  // credenciales del worker, se marca true. El primer login del worker es
+  // válido pero lo redirige inmediato a /check/change-pin para que ponga
+  // un PIN propio. Una vez cambiado, se baja a false.
+  pinMustChange: boolean("pin_must_change").notNull().default(false),
   role: text("role").notNull().default("worker"),
   phone: text("phone"),
   avatarUrl: text("avatar_url"),

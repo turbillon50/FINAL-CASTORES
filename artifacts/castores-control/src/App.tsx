@@ -42,6 +42,7 @@ const Privacidad = lazy(() => import("@/pages/legal-privacidad"));
 // Geocheck — PWA del worker (sin Clerk, usa worker token)
 const WorkerCheckLogin = lazy(() => import("@/pages/check/login"));
 const WorkerCheck = lazy(() => import("@/pages/check/index"));
+const WorkerChangePin = lazy(() => import("@/pages/check/change-pin"));
 // Geocheck — dashboard admin/supervisor + QR
 const AsistenciaDashboard = lazy(() => import("@/pages/asistencia/index"));
 const AsistenciaQr = lazy(() => import("@/pages/asistencia/qr"));
@@ -1705,6 +1706,7 @@ function Router() {
           Login con código + PIN, la sesión vive en localStorage como
           X-Worker-Token. Cualquiera con el código puede aterrizar aquí. */}
       <Route path="/check/login" component={WorkerCheckLogin} />
+      <Route path="/check/change-pin" component={WorkerChangePin} />
       <Route path="/check" component={WorkerCheck} />
       {/* Geocheck — admin/supervisor: sí usan Clerk + permisos */}
       <Route path="/asistencia">

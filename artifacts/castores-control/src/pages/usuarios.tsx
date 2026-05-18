@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { PageHero } from "@/components/ui/page-hero";
 import { motion, AnimatePresence } from "framer-motion";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
 import {
@@ -506,10 +506,16 @@ export default function Usuarios() {
 // ──────────────────────────────────────────────────────────────────────────
 // Alta de trabajador operativo sin correo (worker_code + PIN). Llama al
 // endpoint POST /attendance/workers y muestra el código + PIN UNA SOLA VEZ
-// al admin para que lo apunte o lo imprima. El PIN nunca vuelve a poder
-// leerse después de cerrar el modal.
+// al admin para que lo comparta (WhatsApp / link / PDF) o lo imprima.
+// El PIN no se puede volver a leer una vez cerrado el modal — pero el
+// admin puede resetearlo desde el detalle del worker si lo pierde.
 // ──────────────────────────────────────────────────────────────────────────
-type WorkerCreated = { id: number; name: string; workerCode: string; pin: string };
+// jspdf + qrcode juntos pesan ~200 KB. Los cargamos bajo demanda al tocar
+// un botón de share — la página de usuarios no debería pagar ese costo
+// solo por estar montada.
+import type { WorkerCredentials } from "@/lib/worker-share";
+
+type WorkerCreated = WorkerCredentials & { id: number };
 
 function AddWorkerNoEmailModal({
   open, onClose, onCreated,
@@ -552,7 +558,10 @@ function AddWorkerNoEmailModal({
         setBusy(false);
         return;
       }
-      setResult(data as WorkerCreated);
+      // El backend nos devuelve {id, name, workerCode, pin}. El teléfono
+      // lo metimos nosotros — lo incluimos en el resultado para que
+      // el botón de WhatsApp pueda usarlo directamente.
+      setResult({ ...(data as WorkerCreated), phone: phone.trim() || null });
       onCreated();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Error de red");
@@ -570,39 +579,7 @@ function AddWorkerNoEmailModal({
       <div className="w-full max-w-md rounded-2xl bg-white p-6 space-y-4"
         onClick={(e) => e.stopPropagation()}>
         {result ? (
-          <>
-            <div className="text-center">
-              <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl mb-3"
-                style={{ background: "rgba(34,197,94,0.15)", border: "1px solid rgba(34,197,94,0.4)" }}>
-                <span className="text-3xl">✓</span>
-              </div>
-              <h2 className="text-xl font-bold text-gray-900">Trabajador creado</h2>
-              <p className="text-sm text-gray-500 mt-1">{result.name}</p>
-            </div>
-            <div className="rounded-2xl p-4 space-y-2 text-center"
-              style={{ background: "#1a1612" }}>
-              <p className="text-[10px] uppercase tracking-widest font-bold text-amber-300">
-                Código de trabajador
-              </p>
-              <p className="text-3xl font-mono font-black text-white tracking-[0.15em]">
-                {result.workerCode}
-              </p>
-              <p className="text-[10px] uppercase tracking-widest font-bold text-amber-300 mt-3">
-                PIN
-              </p>
-              <p className="text-4xl font-mono font-black text-white tracking-[0.5em]">
-                {result.pin}
-              </p>
-            </div>
-            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3 text-center">
-              ⚠ Anota o imprime estas credenciales ahora. Una vez cerrado el modal el PIN no se puede recuperar (sí se puede resetear).
-            </p>
-            <button onClick={dismiss}
-              className="w-full py-3 rounded-xl font-bold text-white"
-              style={{ background: "#1a1612" }}>
-              Listo, ya las anoté
-            </button>
-          </>
+          <CredentialsShareView result={result} onClose={dismiss} />
         ) : (
           <>
             <div>
@@ -677,5 +654,125 @@ function AddWorkerNoEmailModal({
         )}
       </div>
     </div>
+  );
+}
+
+/**
+ * Vista de éxito: muestra las credenciales una sola vez y los 3 canales
+ * para entregárselas al worker. Aislado en su propio componente para tener
+ * su propio `copied` / `pdfBusy` y no contaminar el modal padre.
+ */
+function CredentialsShareView({
+  result, onClose,
+}: { result: WorkerCreated; onClose: () => void }) {
+  const [copied, setCopied] = useState(false);
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const [linkState, setLinkState] = useState<{ share: string; whatsapp: string } | null>(null);
+
+  // El módulo de share es dynamic import: solo se baja al primer render
+  // de este componente (no al cargar /usuarios). Resuelve los links y los
+  // guarda en state. El "abrir WhatsApp" usa esos links pre-resueltos.
+  useEffect(() => {
+    let alive = true;
+    import("@/lib/worker-share").then((mod) => {
+      if (!alive) return;
+      const share = mod.buildShareLink(result);
+      const whatsapp = mod.buildWhatsAppLink(result, share);
+      setLinkState({ share, whatsapp });
+    });
+    return () => { alive = false; };
+  }, [result]);
+
+  const onCopy = async () => {
+    const mod = await import("@/lib/worker-share");
+    const ok = await mod.copyShareLink(result);
+    setCopied(ok);
+    if (ok) setTimeout(() => setCopied(false), 2500);
+  };
+  const onPdf = async () => {
+    if (pdfBusy) return;
+    setPdfBusy(true);
+    try {
+      const mod = await import("@/lib/worker-share");
+      await mod.downloadCredentialPdf(result);
+    } finally {
+      setPdfBusy(false);
+    }
+  };
+
+  return (
+    <>
+      <div className="text-center">
+        <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl mb-3"
+          style={{ background: "rgba(34,197,94,0.15)", border: "1px solid rgba(34,197,94,0.4)" }}>
+          <span className="text-3xl">✓</span>
+        </div>
+        <h2 className="text-xl font-bold text-gray-900">Trabajador creado</h2>
+        <p className="text-sm text-gray-500 mt-1">{result.name}</p>
+      </div>
+
+      <div className="rounded-2xl p-4 space-y-2 text-center" style={{ background: "#1a1612" }}>
+        <p className="text-[10px] uppercase tracking-widest font-bold text-amber-300">
+          Código de trabajador
+        </p>
+        <p className="text-3xl font-mono font-black text-white tracking-[0.15em]">
+          {result.workerCode}
+        </p>
+        <p className="text-[10px] uppercase tracking-widest font-bold text-amber-300 mt-3">
+          PIN inicial
+        </p>
+        <p className="text-4xl font-mono font-black text-white tracking-[0.5em]">
+          {result.pin}
+        </p>
+      </div>
+
+      {/* Canales de entrega — el admin elige uno. Pueden combinarse. */}
+      <div className="space-y-2">
+        <p className="text-[10px] uppercase tracking-widest font-bold text-gray-400">
+          Compartir credenciales
+        </p>
+        <a href={linkState?.whatsapp ?? "#"} target="_blank" rel="noopener noreferrer"
+          onClick={(e) => { if (!linkState) e.preventDefault(); }}
+          className="flex items-center gap-3 w-full px-4 py-3 rounded-xl font-bold text-white"
+          style={{ background: "#25D366", opacity: linkState ? 1 : 0.5 }}
+          data-testid="button-share-whatsapp">
+          <span className="text-xl">📱</span>
+          <span className="flex-1 text-left">WhatsApp</span>
+          <span className="text-[11px] opacity-80">
+            {result.phone ? "→ contacto" : "→ elegir contacto"}
+          </span>
+        </a>
+        <button onClick={onCopy} disabled={!linkState}
+          className="flex items-center gap-3 w-full px-4 py-3 rounded-xl font-bold text-gray-800 disabled:opacity-50"
+          style={{ background: copied ? "rgba(34,197,94,0.18)" : "rgba(0,0,0,0.05)", border: "1px solid rgba(0,0,0,0.08)" }}
+          data-testid="button-share-copy">
+          <span className="text-xl">📋</span>
+          <span className="flex-1 text-left">{copied ? "¡Copiado!" : "Copiar link"}</span>
+          <span className="text-[10px] opacity-60 font-mono truncate max-w-[140px]">
+            {linkState ? linkState.share.replace(/^https?:\/\//, "") : "..."}
+          </span>
+        </button>
+        <button onClick={onPdf} disabled={pdfBusy}
+          className="flex items-center gap-3 w-full px-4 py-3 rounded-xl font-bold text-white disabled:opacity-50"
+          style={{ background: "#C8952A" }}
+          data-testid="button-share-pdf">
+          <span className="text-xl">🖨️</span>
+          <span className="flex-1 text-left">
+            {pdfBusy ? "Generando PDF..." : "Imprimir tarjeta (PDF)"}
+          </span>
+        </button>
+      </div>
+
+      <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3">
+        El PIN solo se ve una vez. El trabajador deberá cambiarlo en su primer login — si lo pierde antes, puedes resetearlo desde su detalle.
+      </p>
+
+      <button onClick={onClose}
+        className="w-full py-3 rounded-xl font-bold text-white"
+        style={{ background: "#1a1612" }}
+        data-testid="button-credentials-done">
+        Listo
+      </button>
+    </>
   );
 }

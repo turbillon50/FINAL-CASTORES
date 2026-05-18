@@ -105,9 +105,16 @@ export default function WorkerCheckPage() {
     return () => clearInterval(id);
   }, []);
 
-  // Si no hay sesión worker → al login
+  // Si no hay sesión worker → al login.
+  // Si la sesión arrastra pinMustChange=true (alta/reset reciente),
+  // forzar paso por /check/change-pin antes de cualquier check-in.
   useEffect(() => {
-    if (!getWorkerToken() || !getWorkerUser()) setLocation("/check/login");
+    if (!getWorkerToken() || !getWorkerUser()) {
+      setLocation("/check/login");
+      return;
+    }
+    const u = getWorkerUser();
+    if (u?.pinMustChange) setLocation("/check/change-pin");
   }, [setLocation]);
 
   // Si llegamos con ?qr=TOKEN (link generado por el supervisor),
@@ -337,14 +344,24 @@ export default function WorkerCheckPage() {
             <p className="text-white font-bold text-base leading-tight">{me.user.name}</p>
           </div>
         </div>
-        <button
-          onClick={() => { clearWorkerSession(); setLocation("/check/login"); }}
-          className="text-[10px] font-bold uppercase tracking-widest px-3 py-2 rounded-full"
-          style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.55)" }}
-          data-testid="button-worker-logout"
-        >
-          Salir
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setLocation("/check/change-pin")}
+            className="text-[10px] font-bold uppercase tracking-widest px-3 py-2 rounded-full"
+            style={{ background: "rgba(200,149,42,0.18)", border: "1px solid rgba(200,149,42,0.4)", color: "#fde68a" }}
+            data-testid="button-go-change-pin"
+          >
+            🔐 PIN
+          </button>
+          <button
+            onClick={() => { clearWorkerSession(); setLocation("/check/login"); }}
+            className="text-[10px] font-bold uppercase tracking-widest px-3 py-2 rounded-full"
+            style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.55)" }}
+            data-testid="button-worker-logout"
+          >
+            Salir
+          </button>
+        </div>
       </header>
 
       <div className="px-5 max-w-md mx-auto space-y-4">

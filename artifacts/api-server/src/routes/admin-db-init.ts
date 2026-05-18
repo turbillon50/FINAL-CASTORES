@@ -266,6 +266,9 @@ CREATE UNIQUE INDEX IF NOT EXISTS "push_subscriptions_endpoint_unique"
 ALTER TABLE "users" ALTER COLUMN "email" DROP NOT NULL;
 ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "worker_code" text;
 ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "pin_hash" text;
+-- Forzar cambio en primer login (tipo cajero): true cuando admin crea
+-- o resetea credenciales; baja a false cuando el worker cambia su PIN.
+ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "pin_must_change" boolean NOT NULL DEFAULT false;
 -- UNIQUE en worker_code: Postgres permite múltiples NULLs en columnas UNIQUE,
 -- así que los users Clerk (sin worker_code) coexisten con los operativos.
 CREATE UNIQUE INDEX IF NOT EXISTS "users_worker_code_unique" ON "users" ("worker_code");

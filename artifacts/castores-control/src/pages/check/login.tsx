@@ -15,9 +15,19 @@ export default function WorkerLoginPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Si ya hay token, saltar directo al check-in.
+  // Auto-llenado vía deeplink: el admin manda
+  //   /check/login?code=CAS-7421&pin=4829
+  // por WhatsApp; al abrir, ambos campos quedan listos para tap.
   useEffect(() => {
-    if (getWorkerToken()) setLocation("/check");
+    if (getWorkerToken()) {
+      setLocation("/check");
+      return;
+    }
+    const params = new URLSearchParams(window.location.search);
+    const qCode = params.get("code");
+    const qPin = params.get("pin");
+    if (qCode) setCode(qCode.toUpperCase().replace(/[^A-Z0-9-]/g, ""));
+    if (qPin) setPin(qPin.replace(/\D/g, "").slice(0, 4));
   }, [setLocation]);
 
   const onSubmit = async (e: FormEvent<HTMLFormElement>) => {
@@ -31,8 +41,9 @@ export default function WorkerLoginPage() {
     setBusy(true);
     setError(null);
     try {
-      await loginWorker(normalized, pin);
-      setLocation("/check");
+      const u = await loginWorker(normalized, pin);
+      // Si el admin acaba de crear/resetear, primero cambia tu PIN.
+      setLocation(u.pinMustChange ? "/check/change-pin" : "/check");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "No pudimos iniciar sesión.");
       setBusy(false);

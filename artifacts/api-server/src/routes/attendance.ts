@@ -15,6 +15,7 @@ import { hasPermission } from "../lib/permissions";
 import { checkGeofence } from "../lib/geofence";
 import {
   hashPin,
+  verifyPin,
 } from "../lib/worker-auth";
 import { logger } from "../lib/logger";
 import { formatZodError } from "../lib/zodError";
@@ -85,6 +86,10 @@ router.post("/attendance/workers", async (req, res): Promise<void> => {
       // email queda NULL — workers operativos no tienen correo
       workerCode,
       pinHash,
+      // PIN inicial de un solo uso: en el primer login lo obligamos a
+      // cambiarlo. Esto vuelve seguro mandar el PIN por WhatsApp:
+      // si el mensaje fuera leído después, el PIN inicial ya no abre nada.
+      pinMustChange: true,
       role: "worker",
       phone: phone?.trim() || undefined,
       company: company?.trim() || undefined,
@@ -156,10 +161,110 @@ router.put("/attendance/workers/:id/credentials", async (req, res): Promise<void
   }
   await db
     .update(usersTable)
-    .set({ pinHash: newHash, workerCode: newCode, updatedAt: new Date() })
+    .set({
+      pinHash: newHash,
+      workerCode: newCode,
+      // El reset también es PIN de un solo uso: el worker entrará y
+      // tendrá que cambiarlo. Mismo principio que en el alta.
+      pinMustChange: true,
+      updatedAt: new Date(),
+    })
     .where(eq(usersTable.id, userId));
 
   res.json({ id: userId, workerCode: newCode, pin: parsed.data.newPin });
+});
+
+// ──────────────────────────────────────────────────────────────────────────
+// CAMBIO DE PIN (estilo cajero): el worker pone PIN actual + nuevo.
+// Si `pinMustChange=true` (primer login después de alta/reset), no se
+// requiere el PIN actual — acaba de entrar con él y la UI tampoco lo pide.
+// Throttle in-memory: 3 fallos en 15 min bloquean el endpoint (no el login)
+// del usuario por 15 min más.
+// ──────────────────────────────────────────────────────────────────────────
+const changePinFailures = new Map<number, { count: number; blockedUntil: number }>();
+const MAX_PIN_FAILURES = 3;
+const PIN_BLOCK_MS = 15 * 60 * 1000;
+
+const ChangePinBody = z.object({
+  currentPin: z.string().regex(/^\d{4}$/).optional(),
+  newPin: z.string().regex(/^\d{4}$/, "PIN debe ser 4 dígitos"),
+});
+
+router.post("/attendance/me/change-pin", async (req, res): Promise<void> => {
+  const user = await getRequestUser(req);
+  if (!user) { res.status(401).json({ error: "No autenticado" }); return; }
+  if (user.role !== "worker") {
+    res.status(403).json({ error: "Solo trabajadores cambian PIN aquí" });
+    return;
+  }
+
+  const now = Date.now();
+  const throttle = changePinFailures.get(user.id);
+  if (throttle && throttle.blockedUntil > now) {
+    const seconds = Math.ceil((throttle.blockedUntil - now) / 1000);
+    res.status(429).json({
+      error: `Demasiados intentos. Vuelve a intentarlo en ${Math.ceil(seconds / 60)} min.`,
+    });
+    return;
+  }
+
+  const parsed = ChangePinBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: formatZodError(parsed.error) });
+    return;
+  }
+  const { currentPin, newPin } = parsed.data;
+
+  const [me] = await db.select().from(usersTable).where(eq(usersTable.id, user.id));
+  if (!me || !me.pinHash) {
+    res.status(404).json({ error: "Cuenta no encontrada" });
+    return;
+  }
+
+  // Si la cuenta NO está en estado "forzar cambio", el PIN actual es obligatorio.
+  const skipCurrent = me.pinMustChange === true;
+  if (!skipCurrent) {
+    if (!currentPin) {
+      res.status(400).json({ error: "Captura tu PIN actual" });
+      return;
+    }
+    const ok = await verifyPin(currentPin, me.pinHash);
+    if (!ok) {
+      const prev = changePinFailures.get(user.id) ?? { count: 0, blockedUntil: 0 };
+      const next = { count: prev.count + 1, blockedUntil: 0 };
+      if (next.count >= MAX_PIN_FAILURES) {
+        next.blockedUntil = now + PIN_BLOCK_MS;
+        next.count = 0;
+      }
+      changePinFailures.set(user.id, next);
+      res.status(401).json({ error: "PIN actual incorrecto" });
+      return;
+    }
+  }
+
+  // El PIN nuevo no puede ser el mismo (forzar cambio real).
+  if (currentPin && newPin === currentPin) {
+    res.status(400).json({ error: "El nuevo PIN debe ser distinto del actual" });
+    return;
+  }
+  if (skipCurrent) {
+    // En el caso "forzar cambio" tampoco aceptamos volver a poner el PIN
+    // inicial — la idea del cambio es que el admin deje de saberlo.
+    const same = await verifyPin(newPin, me.pinHash);
+    if (same) {
+      res.status(400).json({ error: "Elige un PIN distinto al que te dio el admin" });
+      return;
+    }
+  }
+
+  const newHash = await hashPin(newPin);
+  await db
+    .update(usersTable)
+    .set({ pinHash: newHash, pinMustChange: false, updatedAt: new Date() })
+    .where(eq(usersTable.id, user.id));
+  changePinFailures.delete(user.id);
+
+  res.json({ ok: true });
 });
 
 // ──────────────────────────────────────────────────────────────────────────
