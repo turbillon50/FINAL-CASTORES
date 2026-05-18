@@ -226,7 +226,11 @@ const CheckInBody = z.object({
   latitude: z.number().min(-90).max(90),
   longitude: z.number().min(-180).max(180),
   accuracy: z.number().nonnegative().optional(),
-  photoUrl: z.string().url().optional().or(z.literal("")),
+  // Acepta tanto URL pública como data URL base64 (la PWA del worker
+  // comprime con `compressImageFile` y manda data:image/jpeg;base64,...
+  // — el proyecto persiste imágenes de obra de la misma forma). Tope
+  // 1 MB de string para no inflar la columna ni el body del POST.
+  photoUrl: z.string().max(1_400_000).optional().or(z.literal("")),
   notes: z.string().max(500).optional(),
 });
 
@@ -321,7 +325,11 @@ const CheckOutBody = z.object({
   latitude: z.number().min(-90).max(90),
   longitude: z.number().min(-180).max(180),
   accuracy: z.number().nonnegative().optional(),
-  photoUrl: z.string().url().optional().or(z.literal("")),
+  // Acepta tanto URL pública como data URL base64 (la PWA del worker
+  // comprime con `compressImageFile` y manda data:image/jpeg;base64,...
+  // — el proyecto persiste imágenes de obra de la misma forma). Tope
+  // 1 MB de string para no inflar la columna ni el body del POST.
+  photoUrl: z.string().max(1_400_000).optional().or(z.literal("")),
   notes: z.string().max(500).optional(),
   qrToken: z.string().optional(),
 });
