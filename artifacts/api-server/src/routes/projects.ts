@@ -1,5 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, sql, and, inArray, or } from "drizzle-orm";
+import { z } from "zod/v4";
 import { db, projectsTable, usersTable, workLogsTable, materialsTable, projectAssignmentsTable, documentsTable, reportsTable } from "@workspace/db";
 import { getRequestUser, getRequestUserStrict } from "../lib/getRequestUser";
 import { getAccessibleProjectIds, canAccessProject } from "../lib/projectAccess";
@@ -15,6 +16,19 @@ import {
   ListProjectsQueryParams,
   GetProjectProgressParams,
 } from "@workspace/api-zod";
+
+// Campos que el schema generado de OpenAPI (UpdateProjectBody) no incluye
+// y que la UI ya manda: lat/lng/milestones/galleryImages estaban siendo
+// silenciosamente descartados al hacer PATCH /projects/:id. Aquí los
+// volvemos a aceptar y agregamos los del módulo de asistencia (geofence).
+const PatchProjectExtras = z.object({
+  latitude: z.number().nullable().optional(),
+  longitude: z.number().nullable().optional(),
+  milestones: z.array(z.any()).optional(),
+  galleryImages: z.array(z.string()).optional(),
+  geofenceRadiusMeters: z.number().int().min(10).max(5000).optional(),
+  geofenceMode: z.enum(["strict", "tolerant", "off"]).optional(),
+}).passthrough();
 
 const router: IRouter = Router();
 
@@ -245,10 +259,29 @@ router.patch("/projects/:id", async (req, res): Promise<void> => {
     res.status(400).json({ error: formatZodError(parsed.error) });
     return;
   }
+  // Segundo parse para campos que el OpenAPI generado no incluye —
+  // ver comentario en `PatchProjectExtras`.
+  const extras = PatchProjectExtras.safeParse(req.body);
+  if (!extras.success) {
+    res.status(400).json({ error: formatZodError(extras.error) });
+    return;
+  }
 
   const data: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(parsed.data)) {
     if (v !== null && v !== undefined) data[k] = v;
+  }
+  // Whitelist sólo los keys conocidos de extras para no abrir un agujero
+  // (PatchProjectExtras.passthrough() acepta cualquier key extra para que
+  // zod no falle, pero no queremos que cualquier campo random caiga en la
+  // tabla — solo los que el form admite enviar).
+  const ALLOWED_EXTRAS = [
+    "latitude", "longitude", "milestones", "galleryImages",
+    "geofenceRadiusMeters", "geofenceMode",
+  ] as const;
+  for (const k of ALLOWED_EXTRAS) {
+    const v = (extras.data as Record<string, unknown>)[k];
+    if (v !== undefined) data[k] = v;
   }
 
   const [project] = await db
