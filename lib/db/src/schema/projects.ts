@@ -10,6 +10,12 @@ export type ProjectMilestone = {
   notes?: string | null;
 };
 
+// Modos de geocerca para asistencia. `strict` bloquea el check-in fuera del
+// radio; `tolerant` lo permite pero lo marca como `flagged` (queda visible
+// en el reporte para revisión del admin); `off` no valida ubicación.
+export const GEOFENCE_MODES = ["strict", "tolerant", "off"] as const;
+export type GeofenceMode = (typeof GEOFENCE_MODES)[number];
+
 export const projectsTable = pgTable("projects", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
@@ -19,6 +25,11 @@ export const projectsTable = pgTable("projects", {
   location: text("location"),
   latitude: real("latitude"),
   longitude: real("longitude"),
+  // Radio en metros para considerar al trabajador "dentro de obra".
+  // Default 100 m: cubre frente de obra típico sin volverse permisivo.
+  // El modo determina si fuera-del-radio bloquea o solo se marca.
+  geofenceRadiusMeters: integer("geofence_radius_meters").notNull().default(100),
+  geofenceMode: text("geofence_mode").notNull().default("strict").$type<GeofenceMode>(),
   startDate: text("start_date"),
   endDate: text("end_date"),
   // Dinero en doublePrecision: ~15 dígitos exactos, alcanza para

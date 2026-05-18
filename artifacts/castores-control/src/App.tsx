@@ -39,6 +39,13 @@ const Cuenta = lazy(() => import("@/pages/cuenta"));
 const FAQ = lazy(() => import("@/pages/faq"));
 const Terminos = lazy(() => import("@/pages/legal-terminos"));
 const Privacidad = lazy(() => import("@/pages/legal-privacidad"));
+// Geocheck — PWA del worker (sin Clerk, usa worker token)
+const WorkerCheckLogin = lazy(() => import("@/pages/check/login"));
+const WorkerCheck = lazy(() => import("@/pages/check/index"));
+const WorkerChangePin = lazy(() => import("@/pages/check/change-pin"));
+// Geocheck — dashboard admin/supervisor + QR
+const AsistenciaDashboard = lazy(() => import("@/pages/asistencia/index"));
+const AsistenciaQr = lazy(() => import("@/pages/asistencia/qr"));
 
 function RouteFallback() {
   return (
@@ -1617,7 +1624,10 @@ function SignUpGuard() {
       location === "/faq" ||
       location === "/explorar" ||
       location.startsWith("/invite/") ||
-      location.startsWith("/api/invite/");
+      location.startsWith("/api/invite/") ||
+      // Worker PWA: flujo paralelo a Clerk. Si llega aquí con una sesión
+      // Clerk pendiente atrás, NO debemos secuestrarlo al sign-up.
+      location.startsWith("/check");
     if (clerkPending && !isPublicReadOnlyPath) {
       navigate("/sign-up", { replace: true });
     }
@@ -1692,6 +1702,19 @@ function Router() {
       <Route path="/faq" component={FAQ} />
       <Route path="/legal/terminos" component={Terminos} />
       <Route path="/legal/privacidad" component={Privacidad} />
+      {/* Geocheck: rutas del worker — NO usan ClerkGate ni Clerk para nada.
+          Login con código + PIN, la sesión vive en localStorage como
+          X-Worker-Token. Cualquiera con el código puede aterrizar aquí. */}
+      <Route path="/check/login" component={WorkerCheckLogin} />
+      <Route path="/check/change-pin" component={WorkerChangePin} />
+      <Route path="/check" component={WorkerCheck} />
+      {/* Geocheck — admin/supervisor: sí usan Clerk + permisos */}
+      <Route path="/asistencia">
+        {() => <ProtectedRoute component={AsistenciaDashboard} />}
+      </Route>
+      <Route path="/asistencia/qr">
+        {() => <ProtectedRoute component={AsistenciaQr} />}
+      </Route>
       <Route component={NotFound} />
     </Switch>
     </Suspense>

@@ -17,6 +17,7 @@ import rolesRouter from "./roles";
 import adminDbInitRouter from "./admin-db-init";
 import pushRouter from "./push";
 import auditRouter from "./audit";
+import attendanceRouter from "./attendance";
 
 const router: IRouter = Router();
 
@@ -32,6 +33,10 @@ router.use(contentRouter);
 // Safe to keep registered: rejects without the master phrase.
 router.use(adminDbInitRouter);
 
+// Worker login (POST /auth/worker-login) ya está montado vía authRouter
+// arriba — devuelve el X-Worker-Token que la PWA usa para autenticarse.
+// El resto de endpoints de asistencia se monta abajo con requireAuth.
+
 // Protected routes — require Clerk JWT or demo mode header
 router.use(requireAuth);
 router.use(usersRouter);
@@ -45,5 +50,6 @@ router.use(notificationsRouter);
 router.use(dashboardRouter);
 router.use(pushRouter);
 router.use(auditRouter);
+router.use(attendanceRouter);
 
 export default router;

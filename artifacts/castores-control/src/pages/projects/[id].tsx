@@ -384,6 +384,8 @@ export default function ProjectDetail() {
       location: project.location ?? "",
       latitude: project.latitude ?? "",
       longitude: project.longitude ?? "",
+      geofenceRadiusMeters: (project as any).geofenceRadiusMeters ?? 100,
+      geofenceMode: (project as any).geofenceMode ?? "strict",
       startDate: project.startDate ?? "",
       endDate: project.endDate ?? "",
       budget: project.budget ?? "",
@@ -452,6 +454,12 @@ export default function ProjectDetail() {
       if (f.location !== (project.location ?? "")) payload.location = f.location || null;
       if (String(f.latitude) !== String(project.latitude ?? "")) payload.latitude = f.latitude === "" ? null : Number(f.latitude);
       if (String(f.longitude) !== String(project.longitude ?? "")) payload.longitude = f.longitude === "" ? null : Number(f.longitude);
+      if (Number(f.geofenceRadiusMeters) !== ((project as any).geofenceRadiusMeters ?? 100)) {
+        payload.geofenceRadiusMeters = Number(f.geofenceRadiusMeters);
+      }
+      if (f.geofenceMode !== ((project as any).geofenceMode ?? "strict")) {
+        payload.geofenceMode = f.geofenceMode;
+      }
       if (f.startDate !== (project.startDate ?? "")) payload.startDate = f.startDate || null;
       if (f.endDate !== (project.endDate ?? "")) payload.endDate = f.endDate || null;
       if (String(f.budget) !== String(project.budget ?? "")) payload.budget = f.budget === "" ? null : Number(f.budget);
@@ -915,6 +923,41 @@ export default function ProjectDetail() {
                 <Field label="Longitud">
                   <input className="edit-input" inputMode="decimal" placeholder="-99.1332" value={editForm.longitude ?? ""} onChange={e => setEditForm({ ...editForm, longitude: e.target.value })} />
                 </Field>
+              </div>
+
+              {/* Asistencia — geocerca de check-in/out por GPS */}
+              <div className="rounded-xl border border-amber-200/60 bg-amber-50/40 p-3 space-y-3">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-amber-800">
+                  Asistencia con geocerca
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Radio (m)">
+                    <input
+                      className="edit-input"
+                      type="number"
+                      inputMode="numeric"
+                      min={10}
+                      max={5000}
+                      step={10}
+                      value={editForm.geofenceRadiusMeters ?? 100}
+                      onChange={e => setEditForm({ ...editForm, geofenceRadiusMeters: e.target.value })}
+                    />
+                  </Field>
+                  <Field label="Modo">
+                    <select
+                      className="edit-input"
+                      value={editForm.geofenceMode ?? "strict"}
+                      onChange={e => setEditForm({ ...editForm, geofenceMode: e.target.value })}
+                    >
+                      <option value="strict">Estricto — bloquea fuera</option>
+                      <option value="tolerant">Tolerante — marca fuera</option>
+                      <option value="off">Apagado — sin geofence</option>
+                    </select>
+                  </Field>
+                </div>
+                <p className="text-[11px] text-amber-700 leading-snug">
+                  El radio se mide desde la latitud/longitud de arriba. Si la obra no tiene coordenadas, el geofence queda inactivo aunque pongas un radio.
+                </p>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <Field label="Inicio">

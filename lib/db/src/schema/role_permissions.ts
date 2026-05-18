@@ -23,6 +23,11 @@ export const PERMISSION_KEYS = [
   "documentsLegalView",
   "documentsLegalManage",
   "adminPanelAccess",
+  // Asistencia / Geocheck
+  "attendanceCheckIn",      // worker: puede registrar su entrada/salida
+  "attendanceGenerateQr",   // supervisor: muestra el QR para validar salidas
+  "attendanceViewAll",      // admin/supervisor: ve el dashboard global
+  "attendanceExport",       // admin: descarga CSV / reporte de nómina
 ] as const;
 
 export type PermissionKey = (typeof PERMISSION_KEYS)[number];
@@ -42,6 +47,10 @@ export const PERMISSION_LABELS: Record<PermissionKey, { label: string; descripti
   documentsLegalView: { label: "Ver documentos legales", description: "Consultar contratos, permisos, licencias", group: "Documentos" },
   documentsLegalManage: { label: "Gestionar documentos legales", description: "Subir, reemplazar y eliminar documentos", group: "Documentos" },
   adminPanelAccess: { label: "Acceso al panel admin", description: "Entrar al panel administrativo de control", group: "Sistema" },
+  attendanceCheckIn: { label: "Registrar mi asistencia", description: "Marcar entrada y salida de obra (PWA del trabajador)", group: "Asistencia" },
+  attendanceGenerateQr: { label: "Generar QR de salida", description: "Mostrar el código QR que los trabajadores escanean para validar su salida", group: "Asistencia" },
+  attendanceViewAll: { label: "Ver asistencia de todos", description: "Ver dashboard de quién está en obra ahora mismo", group: "Asistencia" },
+  attendanceExport: { label: "Exportar reporte de asistencia", description: "Descargar CSV para nómina y filtrar por fechas/obras", group: "Asistencia" },
 };
 
 export const ROLE_DEFAULTS: Record<string, Record<PermissionKey, boolean>> = {
@@ -51,6 +60,8 @@ export const ROLE_DEFAULTS: Record<string, Record<PermissionKey, boolean>> = {
     materialsApprove: true, materialsRequest: true, materialsSupply: true,
     workersView: true, workersManage: true,
     documentsLegalView: true, documentsLegalManage: true, adminPanelAccess: true,
+    attendanceCheckIn: false, attendanceGenerateQr: true,
+    attendanceViewAll: true, attendanceExport: true,
   },
   supervisor: {
     dashboardFull: true, projectsViewAll: true, projectsCreateEdit: false,
@@ -58,6 +69,8 @@ export const ROLE_DEFAULTS: Record<string, Record<PermissionKey, boolean>> = {
     materialsApprove: false, materialsRequest: true, materialsSupply: false,
     workersView: true, workersManage: false,
     documentsLegalView: true, documentsLegalManage: false, adminPanelAccess: false,
+    attendanceCheckIn: false, attendanceGenerateQr: true,
+    attendanceViewAll: true, attendanceExport: false,
   },
   client: {
     dashboardFull: false, projectsViewAll: false, projectsCreateEdit: false,
@@ -65,6 +78,8 @@ export const ROLE_DEFAULTS: Record<string, Record<PermissionKey, boolean>> = {
     materialsApprove: false, materialsRequest: false, materialsSupply: false,
     workersView: false, workersManage: false,
     documentsLegalView: true, documentsLegalManage: false, adminPanelAccess: false,
+    attendanceCheckIn: false, attendanceGenerateQr: false,
+    attendanceViewAll: false, attendanceExport: false,
   },
   worker: {
     dashboardFull: false, projectsViewAll: false, projectsCreateEdit: false,
@@ -72,6 +87,8 @@ export const ROLE_DEFAULTS: Record<string, Record<PermissionKey, boolean>> = {
     materialsApprove: false, materialsRequest: false, materialsSupply: false,
     workersView: false, workersManage: false,
     documentsLegalView: false, documentsLegalManage: false, adminPanelAccess: false,
+    attendanceCheckIn: true, attendanceGenerateQr: false,
+    attendanceViewAll: false, attendanceExport: false,
   },
   proveedor: {
     dashboardFull: false, projectsViewAll: false, projectsCreateEdit: false,
@@ -79,5 +96,7 @@ export const ROLE_DEFAULTS: Record<string, Record<PermissionKey, boolean>> = {
     materialsApprove: false, materialsRequest: false, materialsSupply: true,
     workersView: false, workersManage: false,
     documentsLegalView: true, documentsLegalManage: false, adminPanelAccess: false,
+    attendanceCheckIn: false, attendanceGenerateQr: false,
+    attendanceViewAll: false, attendanceExport: false,
   },
 };

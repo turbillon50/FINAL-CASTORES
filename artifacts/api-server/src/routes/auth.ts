@@ -7,10 +7,12 @@ import { logger } from "../lib/logger";
 import { sendNewRegistrationEmail, sendWelcomeEmail, sendPasswordResetEmail } from "../lib/email";
 import { and } from "drizzle-orm";
 import { rateLimit } from "../middlewares/rateLimit";
+import { verifyPin, isValidPinFormat, signWorkerToken } from "../lib/worker-auth";
 
 const inviteLoginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10, keyPrefix: "invite-login" });
 const forgotPasswordLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 5, keyPrefix: "forgot-password" });
 const resetPasswordLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10, keyPrefix: "reset-password" });
+const workerLoginLimiter = rateLimit({ windowMs: 5 * 60 * 1000, max: 20, keyPrefix: "worker-login" });
 
 const ADMIN_MASTER_KEY = (process.env["ADMIN_ACCESS_PHRASE"] || process.env["ADMIN_MASTER_KEY"] || "").trim().toUpperCase();
 const LEGACY_MASTER_KEY = "CASTORES";
@@ -685,17 +687,21 @@ router.post("/auth/clerk-register", async (req, res): Promise<void> => {
       .where(eq(invitationCodesTable.id, invitationRecord.id));
   }
 
-  // Notify admins only if pending approval
-  if (approvalStatus === "pending") {
+  // Notify admins only if pending approval. Workers operativos sin email
+  // se dan de alta solo desde Admin → Equipo (nunca pasan por este flow),
+  // pero el guard hace el código robusto al cambio de schema.
+  if (approvalStatus === "pending" && safeUser.email) {
+    const newUserEmail: string = safeUser.email;
     db.select({ email: usersTable.email })
       .from(usersTable)
       .where(eq(usersTable.role, "admin"))
       .then((admins) => {
         admins.forEach((admin) => {
+          if (!admin.email) return;
           sendNewRegistrationEmail({
             adminEmail: admin.email,
             userName: safeUser.name,
-            userEmail: safeUser.email,
+            userEmail: newUserEmail,
             role: safeUser.role,
             company: safeUser.company,
             userId: safeUser.id,
@@ -843,6 +849,63 @@ router.get("/auth/clerk-me", async (req, res): Promise<void> => {
 
   const { passwordHash: _, ...safeUser } = user;
   res.json(safeUser);
+});
+
+/**
+ * Login del trabajador operativo (sin email) con worker_code + PIN.
+ * Devuelve un token portable que la PWA debe guardar y mandar como
+ * header `X-Worker-Token` en cada request siguiente. No usa Clerk.
+ *
+ * Public endpoint. Rate-limited a 20 intentos / 5 min por IP.
+ * Body: { workerCode, pin }
+ * Response 200: { token, user }
+ */
+router.post("/auth/worker-login", workerLoginLimiter, async (req, res): Promise<void> => {
+  const { workerCode: rawCode, pin: rawPin } = req.body as { workerCode?: string; pin?: string };
+  if (!rawCode || !rawPin) {
+    res.status(400).json({ error: "Código y PIN requeridos" });
+    return;
+  }
+  const code = rawCode.trim().toUpperCase();
+  const pin = rawPin.trim();
+
+  if (!isValidPinFormat(pin)) {
+    res.status(401).json({ error: "Código o PIN incorrectos" });
+    return;
+  }
+
+  let user;
+  try {
+    [user] = await db.select().from(usersTable).where(eq(usersTable.workerCode, code));
+  } catch (err) {
+    logger.error({ err }, "worker-login: lookup failed");
+    res.status(503).json({ error: "Sin conexión. Intenta de nuevo." });
+    return;
+  }
+  // Respuesta uniforme para no revelar si el código existe o no.
+  if (!user || !user.pinHash || !user.isActive) {
+    res.status(401).json({ error: "Código o PIN incorrectos" });
+    return;
+  }
+  const ok = await verifyPin(pin, user.pinHash);
+  if (!ok) {
+    res.status(401).json({ error: "Código o PIN incorrectos" });
+    return;
+  }
+  const token = signWorkerToken({ userId: user.id, role: user.role });
+  res.json({
+    token,
+    user: {
+      id: user.id,
+      name: user.name,
+      role: user.role,
+      workerCode: user.workerCode,
+      avatarUrl: user.avatarUrl,
+      // Si el admin acaba de crear o resetear sus credenciales, la PWA
+      // lo manda a /check/change-pin antes de poder marcar asistencia.
+      pinMustChange: user.pinMustChange === true,
+    },
+  });
 });
 
 router.post("/auth/logout", async (req, res): Promise<void> => {
@@ -1050,6 +1113,11 @@ router.post("/auth/reset-password", resetPasswordLimiter, async (req, res): Prom
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, verified.userId));
   if (!user || !user.isActive) {
     res.status(400).json({ error: "Cuenta no encontrada o inactiva" });
+    return;
+  }
+  // Workers operativos sin email no pueden resetear contraseña por este flujo.
+  if (!user.email) {
+    res.status(400).json({ error: "Esta cuenta no tiene correo. Pide al admin que te resetee el PIN." });
     return;
   }
   if (user.email.toLowerCase() !== verified.email.toLowerCase()) {

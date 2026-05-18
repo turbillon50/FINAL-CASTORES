@@ -16,7 +16,11 @@ export type PermissionKey =
   | "workersManage"
   | "documentsLegalView"
   | "documentsLegalManage"
-  | "adminPanelAccess";
+  | "adminPanelAccess"
+  | "attendanceCheckIn"
+  | "attendanceGenerateQr"
+  | "attendanceViewAll"
+  | "attendanceExport";
 
 export type Role = "admin" | "supervisor" | "client" | "worker" | "proveedor";
 

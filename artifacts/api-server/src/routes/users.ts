@@ -239,8 +239,11 @@ router.patch("/users/:id/approve", async (req, res): Promise<void> => {
 
   if (!user) { res.status(404).json({ error: "Usuario no encontrado" }); return; }
 
-  // Notify user of approval (fire and forget)
-  sendApprovalEmail({ to: user.email, name: user.name, role: user.role }).catch(() => {});
+  // Notify user of approval (fire and forget). Workers operativos no tienen
+  // email y este endpoint no aplica para ellos — el guard evita un crash.
+  if (user.email) {
+    sendApprovalEmail({ to: user.email, name: user.name, role: user.role }).catch(() => {});
+  }
 
   const { passwordHash: _, ...safe } = user;
   res.json(safe);
@@ -270,8 +273,10 @@ router.patch("/users/:id/reject", async (req, res): Promise<void> => {
 
   if (!user) { res.status(404).json({ error: "Usuario no encontrado" }); return; }
 
-  // Notify user of rejection (fire and forget)
-  sendRejectionEmail({ to: user.email, name: user.name }).catch(() => {});
+  // Notify user of rejection (fire and forget). Skip cuando no hay email.
+  if (user.email) {
+    sendRejectionEmail({ to: user.email, name: user.name }).catch(() => {});
+  }
 
   const { passwordHash: _, ...safe } = user;
   res.json(safe);
@@ -368,6 +373,12 @@ router.post("/users/:id/send-password-reset", async (req, res): Promise<void> =>
   const [target] = await db.select().from(usersTable).where(eq(usersTable.id, id));
   if (!target) { res.status(404).json({ error: "Usuario no encontrado" }); return; }
   if (!target.isActive) { res.status(400).json({ error: "El usuario está inactivo" }); return; }
+  // Workers operativos no tienen email — el reset por correo no aplica
+  // y debe explicarse al admin para que use la opción de "Reset PIN" en su lugar.
+  if (!target.email) {
+    res.status(400).json({ error: "Este usuario no tiene correo. Si es un trabajador operativo, usa Reset PIN." });
+    return;
+  }
 
   const RESET_TTL_MIN = 30;
   const exp = Date.now() + RESET_TTL_MIN * 60 * 1000;
@@ -375,7 +386,8 @@ router.post("/users/:id/send-password-reset", async (req, res): Promise<void> =>
     process.env["SESSION_SECRET"] ||
     process.env["CLERK_SECRET_KEY"] ||
     "castores-reset-fallback-only-for-dev";
-  const payload = { userId: target.id, email: target.email.toLowerCase(), exp };
+  const targetEmail: string = target.email;
+  const payload = { userId: target.id, email: targetEmail.toLowerCase(), exp };
   const body = Buffer.from(JSON.stringify(payload)).toString("base64url");
   const sig = createHmac("sha256", secret).update(body).digest("base64url");
   const token = `${body}.${sig}`;
@@ -383,7 +395,7 @@ router.post("/users/:id/send-password-reset", async (req, res): Promise<void> =>
 
   try {
     await sendPasswordResetEmail({
-      to: target.email,
+      to: targetEmail,
       name: target.name || "Usuario",
       resetUrl,
       expiresInMinutes: RESET_TTL_MIN,
@@ -396,10 +408,10 @@ router.post("/users/:id/send-password-reset", async (req, res): Promise<void> =>
   await logAdminOverride({
     actorId: actor.id,
     action: "user.password_reset_sent",
-    description: `Admin (usuario #${actor.id}) envió correo de reset a ${target.name} <${target.email}>`,
+    description: `Admin (usuario #${actor.id}) envió correo de reset a ${target.name} <${targetEmail}>`,
   });
 
-  res.json({ ok: true, message: `Enlace de recuperación enviado a ${target.email}` });
+  res.json({ ok: true, message: `Enlace de recuperación enviado a ${targetEmail}` });
 });
 
 export default router;
