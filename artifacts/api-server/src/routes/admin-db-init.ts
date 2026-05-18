@@ -254,17 +254,103 @@ CREATE TABLE IF NOT EXISTS "push_subscriptions" (
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS "push_subscriptions_endpoint_unique"
-  ON "push_subscriptions" ("endpoint");`;
+  ON "push_subscriptions" ("endpoint");
+
+-- ============================================================
+-- ASISTENCIA (Geocheck) — columnas y tablas nuevas
+-- ============================================================
+-- Workers operativos pueden entrar sin correo electrónico: se identifican
+-- con worker_code + PIN. Hacemos email NULLable y agregamos las columnas
+-- nuevas (sin DEFAULT — los workers Clerk legacy ya tienen email, y los
+-- workers operativos se crean con worker_code desde Admin → Equipo).
+ALTER TABLE "users" ALTER COLUMN "email" DROP NOT NULL;
+ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "worker_code" text;
+ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "pin_hash" text;
+-- UNIQUE en worker_code: Postgres permite múltiples NULLs en columnas UNIQUE,
+-- así que los users Clerk (sin worker_code) coexisten con los operativos.
+CREATE UNIQUE INDEX IF NOT EXISTS "users_worker_code_unique" ON "users" ("worker_code");
+
+-- Geocerca por obra. Default 100 m + modo 'strict' replicado del schema.
+ALTER TABLE "projects" ADD COLUMN IF NOT EXISTS "geofence_radius_meters" integer NOT NULL DEFAULT 100;
+ALTER TABLE "projects" ADD COLUMN IF NOT EXISTS "geofence_mode" text NOT NULL DEFAULT 'strict';
+
+CREATE TABLE IF NOT EXISTS "check_ins" (
+  "id" serial PRIMARY KEY,
+  "user_id" integer NOT NULL,
+  "project_id" integer NOT NULL,
+  "check_in_at" timestamptz NOT NULL DEFAULT NOW(),
+  "check_in_latitude" real,
+  "check_in_longitude" real,
+  "check_in_accuracy" real,
+  "check_in_distance_meters" real,
+  "check_in_photo_url" text,
+  "check_in_status" text NOT NULL DEFAULT 'ok',
+  "check_in_notes" text,
+  "check_out_at" timestamptz,
+  "check_out_latitude" real,
+  "check_out_longitude" real,
+  "check_out_accuracy" real,
+  "check_out_distance_meters" real,
+  "check_out_photo_url" text,
+  "check_out_status" text,
+  "check_out_notes" text,
+  "check_out_validated_by" integer,
+  "total_minutes" integer,
+  "created_at" timestamptz NOT NULL DEFAULT NOW(),
+  "updated_at" timestamptz NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS "check_ins_user_open_idx" ON "check_ins" ("user_id", "check_out_at");
+CREATE INDEX IF NOT EXISTS "check_ins_project_date_idx" ON "check_ins" ("project_id", "check_in_at");
+
+CREATE TABLE IF NOT EXISTS "check_in_qr_tokens" (
+  "id" serial PRIMARY KEY,
+  "token" text NOT NULL UNIQUE,
+  "project_id" integer NOT NULL,
+  "issued_by" integer NOT NULL,
+  "purpose" text NOT NULL DEFAULT 'checkout',
+  "expires_at" timestamptz NOT NULL,
+  "redeemed_at" timestamptz,
+  "redeemed_by" integer,
+  "created_at" timestamptz NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS "qr_tokens_project_idx" ON "check_in_qr_tokens" ("project_id");
+CREATE INDEX IF NOT EXISTS "qr_tokens_expiry_idx" ON "check_in_qr_tokens" ("expires_at");`;
 
 // Seed: matriz de permisos por defecto para los 5 roles. Idempotente.
+//
+// ON CONFLICT DO NOTHING preserva los permisos que el admin haya editado en
+// runtime — pero los roles ya existentes no recibirán los flags NUEVOS que
+// agreguemos en deploys posteriores (attendance*, futuros). Para evitar
+// "rol con permisos viejos sin attendance*", hacemos un segundo UPDATE que
+// hace merge: solo añade los keys faltantes, nunca pisa los true/false que
+// el admin ya configuró. Es idempotente: re-ejecutarlo no cambia nada.
 export const SEED_ROLE_PERMISSIONS_SQL = `
 INSERT INTO role_permissions (role, permissions) VALUES
-  ('admin', '{"dashboardFull":true,"projectsViewAll":true,"projectsCreateEdit":true,"bitacoraView":true,"bitacoraCreate":true,"budgetViewAmounts":true,"materialsApprove":true,"materialsRequest":true,"materialsSupply":true,"workersView":true,"workersManage":true,"documentsLegalView":true,"documentsLegalManage":true,"adminPanelAccess":true}'::jsonb),
-  ('supervisor', '{"dashboardFull":true,"projectsViewAll":true,"projectsCreateEdit":false,"bitacoraView":true,"bitacoraCreate":true,"budgetViewAmounts":true,"materialsApprove":false,"materialsRequest":true,"materialsSupply":false,"workersView":true,"workersManage":false,"documentsLegalView":true,"documentsLegalManage":false,"adminPanelAccess":false}'::jsonb),
-  ('client', '{"dashboardFull":false,"projectsViewAll":false,"projectsCreateEdit":false,"bitacoraView":true,"bitacoraCreate":false,"budgetViewAmounts":true,"materialsApprove":false,"materialsRequest":false,"materialsSupply":false,"workersView":false,"workersManage":false,"documentsLegalView":true,"documentsLegalManage":false,"adminPanelAccess":false}'::jsonb),
-  ('worker', '{"dashboardFull":false,"projectsViewAll":false,"projectsCreateEdit":false,"bitacoraView":true,"bitacoraCreate":true,"budgetViewAmounts":false,"materialsApprove":false,"materialsRequest":false,"materialsSupply":false,"workersView":false,"workersManage":false,"documentsLegalView":false,"documentsLegalManage":false,"adminPanelAccess":false}'::jsonb),
-  ('proveedor', '{"dashboardFull":false,"projectsViewAll":false,"projectsCreateEdit":false,"bitacoraView":false,"bitacoraCreate":false,"budgetViewAmounts":false,"materialsApprove":false,"materialsRequest":false,"materialsSupply":true,"workersView":false,"workersManage":false,"documentsLegalView":true,"documentsLegalManage":false,"adminPanelAccess":false}'::jsonb)
+  ('admin', '{"dashboardFull":true,"projectsViewAll":true,"projectsCreateEdit":true,"bitacoraView":true,"bitacoraCreate":true,"budgetViewAmounts":true,"materialsApprove":true,"materialsRequest":true,"materialsSupply":true,"workersView":true,"workersManage":true,"documentsLegalView":true,"documentsLegalManage":true,"adminPanelAccess":true,"attendanceCheckIn":false,"attendanceGenerateQr":true,"attendanceViewAll":true,"attendanceExport":true}'::jsonb),
+  ('supervisor', '{"dashboardFull":true,"projectsViewAll":true,"projectsCreateEdit":false,"bitacoraView":true,"bitacoraCreate":true,"budgetViewAmounts":true,"materialsApprove":false,"materialsRequest":true,"materialsSupply":false,"workersView":true,"workersManage":false,"documentsLegalView":true,"documentsLegalManage":false,"adminPanelAccess":false,"attendanceCheckIn":false,"attendanceGenerateQr":true,"attendanceViewAll":true,"attendanceExport":false}'::jsonb),
+  ('client', '{"dashboardFull":false,"projectsViewAll":false,"projectsCreateEdit":false,"bitacoraView":true,"bitacoraCreate":false,"budgetViewAmounts":true,"materialsApprove":false,"materialsRequest":false,"materialsSupply":false,"workersView":false,"workersManage":false,"documentsLegalView":true,"documentsLegalManage":false,"adminPanelAccess":false,"attendanceCheckIn":false,"attendanceGenerateQr":false,"attendanceViewAll":false,"attendanceExport":false}'::jsonb),
+  ('worker', '{"dashboardFull":false,"projectsViewAll":false,"projectsCreateEdit":false,"bitacoraView":true,"bitacoraCreate":true,"budgetViewAmounts":false,"materialsApprove":false,"materialsRequest":false,"materialsSupply":false,"workersView":false,"workersManage":false,"documentsLegalView":false,"documentsLegalManage":false,"adminPanelAccess":false,"attendanceCheckIn":true,"attendanceGenerateQr":false,"attendanceViewAll":false,"attendanceExport":false}'::jsonb),
+  ('proveedor', '{"dashboardFull":false,"projectsViewAll":false,"projectsCreateEdit":false,"bitacoraView":false,"bitacoraCreate":false,"budgetViewAmounts":false,"materialsApprove":false,"materialsRequest":false,"materialsSupply":true,"workersView":false,"workersManage":false,"documentsLegalView":true,"documentsLegalManage":false,"adminPanelAccess":false,"attendanceCheckIn":false,"attendanceGenerateQr":false,"attendanceViewAll":false,"attendanceExport":false}'::jsonb)
 ON CONFLICT (role) DO NOTHING;
+
+-- Backfill: agrega los keys nuevos a cualquier rol que ya existía. jsonb ||
+-- hace merge con prioridad al lado derecho, así que las keys que el admin
+-- ya configuró sobreviven (las dejamos del lado derecho).
+UPDATE role_permissions SET permissions =
+  ('{"attendanceCheckIn":false,"attendanceGenerateQr":true,"attendanceViewAll":true,"attendanceExport":true}'::jsonb || permissions)
+  WHERE role = 'admin';
+UPDATE role_permissions SET permissions =
+  ('{"attendanceCheckIn":false,"attendanceGenerateQr":true,"attendanceViewAll":true,"attendanceExport":false}'::jsonb || permissions)
+  WHERE role = 'supervisor';
+UPDATE role_permissions SET permissions =
+  ('{"attendanceCheckIn":false,"attendanceGenerateQr":false,"attendanceViewAll":false,"attendanceExport":false}'::jsonb || permissions)
+  WHERE role = 'client';
+UPDATE role_permissions SET permissions =
+  ('{"attendanceCheckIn":true,"attendanceGenerateQr":false,"attendanceViewAll":false,"attendanceExport":false}'::jsonb || permissions)
+  WHERE role = 'worker';
+UPDATE role_permissions SET permissions =
+  ('{"attendanceCheckIn":false,"attendanceGenerateQr":false,"attendanceViewAll":false,"attendanceExport":false}'::jsonb || permissions)
+  WHERE role = 'proveedor';
 `;
 
 /**

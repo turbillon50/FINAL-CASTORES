@@ -12,3 +12,5 @@ export * from "./content_items";
 export * from "./project_assignments";
 export * from "./role_permissions";
 export * from "./push_subscriptions";
+export * from "./check_ins";
+export * from "./check_in_qr_tokens";

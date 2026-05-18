@@ -12,8 +12,17 @@ export const usersTable = pgTable("users", {
   id: serial("id").primaryKey(),
   clerkId: text("clerk_id").unique(),
   name: text("name").notNull(),
-  email: text("email").notNull().unique(),
+  // email es nullable: workers operativos se dan de alta sin correo,
+  // entran con worker_code + pin. Para usuarios Clerk sigue siendo
+  // obligatorio en la práctica (lo valida el flujo de invitación).
+  email: text("email").unique(),
   passwordHash: text("password_hash"),
+  // Identificadores para login de trabajador sin email (PWA en celular).
+  // worker_code es lo que tipea (ej. "CAS-1234"); pin_hash es bcrypt de
+  // un PIN numérico de 4 dígitos. Ambos opcionales — solo los usan los
+  // workers operativos creados desde Admin → Equipo → "Sin correo".
+  workerCode: text("worker_code").unique(),
+  pinHash: text("pin_hash"),
   role: text("role").notNull().default("worker"),
   phone: text("phone"),
   avatarUrl: text("avatar_url"),

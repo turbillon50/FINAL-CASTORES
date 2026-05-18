@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { db, usersTable } from "@workspace/db";
 import { getAuth } from "@clerk/express";
+import { getWorkerFromRequest } from "./worker-auth";
 
 /**
  * Resolves the current user from the request.
@@ -66,6 +67,12 @@ export async function getRequestUser(
     if (!u.isActive) return null;
     return { id: u.id, role: u.role };
   }
+
+  // 3. Worker token (X-Worker-Token) — para workers operativos sin email
+  //    que entran con código + PIN desde la PWA en su celular. No
+  //    interfiere con Clerk porque viaja en otro header.
+  const workerUser = await getWorkerFromRequest(req);
+  if (workerUser) return workerUser;
 
   return null;
 }
