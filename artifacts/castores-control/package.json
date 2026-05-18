@@ -75,6 +75,8 @@
     "zod": "catalog:"
   },
   "dependencies": {
-    "@clerk/react": "^6.2.0"
+    "@clerk/react": "^6.2.0",
+    "@types/qrcode": "^1.5.6",
+    "qrcode": "^1.5.4"
   }
 }

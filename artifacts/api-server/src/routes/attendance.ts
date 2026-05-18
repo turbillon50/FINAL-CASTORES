@@ -450,6 +450,17 @@ router.post("/attendance/check-out", async (req, res): Promise<void> => {
 // ──────────────────────────────────────────────────────────────────────────
 const QR_TTL_MS = 2 * 60 * 1000;
 
+// Alfabeto sin caracteres confundibles: sin 0/O, 1/I/L. 8 chars dan
+// 32^8 ≈ 1.1×10^12 combinaciones, más que suficiente para tokens efímeros
+// de 2 min. La UNIQUE constraint en la columna `token` hace de árbitro.
+const TOKEN_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+function generateShortToken(): string {
+  const bytes = randomBytes(8);
+  let s = "";
+  for (let i = 0; i < 8; i++) s += TOKEN_ALPHABET[bytes[i] % TOKEN_ALPHABET.length];
+  return s;
+}
+
 router.post("/attendance/qr", async (req, res): Promise<void> => {
   const user = await getRequestUser(req);
   if (!user) { res.status(401).json({ error: "No autenticado" }); return; }
@@ -467,12 +478,25 @@ router.post("/attendance/qr", async (req, res): Promise<void> => {
     .from(projectsTable).where(eq(projectsTable.id, parsed.data.projectId));
   if (!project) { res.status(404).json({ error: "Obra no encontrada" }); return; }
 
-  const token = randomBytes(24).toString("hex");
-  const expiresAt = new Date(Date.now() + QR_TTL_MS);
-  const [row] = await db
-    .insert(checkInQrTokensTable)
-    .values({ token, projectId: project.id, issuedBy: user.id, expiresAt })
-    .returning();
+  // Reintentamos si chocamos la UNIQUE constraint (espacio enorme, raro).
+  let row;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    try {
+      const token = generateShortToken();
+      const expiresAt = new Date(Date.now() + QR_TTL_MS);
+      [row] = await db
+        .insert(checkInQrTokensTable)
+        .values({ token, projectId: project.id, issuedBy: user.id, expiresAt })
+        .returning();
+      break;
+    } catch (err: unknown) {
+      if ((err as { code?: string }).code !== "23505") throw err;
+    }
+  }
+  if (!row) {
+    res.status(503).json({ error: "No se pudo generar el código. Intenta de nuevo." });
+    return;
+  }
 
   res.status(201).json({
     token: row.token,
