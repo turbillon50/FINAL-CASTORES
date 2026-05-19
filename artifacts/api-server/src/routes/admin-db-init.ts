@@ -15,7 +15,7 @@ function isMasterAdminKey(rawCode: string): boolean {
   return normalized === LEGACY_MASTER_KEY || (!!ADMIN_MASTER_KEY && normalized === ADMIN_MASTER_KEY);
 }
 
-export const INIT_SQL = `-- ============================================================
+export const INIT_SQL_BASE = `-- ============================================================
 -- CASTORES — Init schema (12 tablas)
 -- ============================================================
 
@@ -254,9 +254,12 @@ CREATE TABLE IF NOT EXISTS "push_subscriptions" (
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS "push_subscriptions_endpoint_unique"
-  ON "push_subscriptions" ("endpoint");
+  ON "push_subscriptions" ("endpoint");`;
 
--- ============================================================
+// Bloque separado para asistencia. Vive en su propia query para que un
+// fallo aquí (timeout, lock) no aborte la creación de las tablas base.
+// Todo idempotente (IF NOT EXISTS / ALTER COLUMN sin efecto si ya está).
+export const INIT_SQL_ATTENDANCE = `-- ============================================================
 -- ASISTENCIA (Geocheck) — columnas y tablas nuevas
 -- ============================================================
 -- Workers operativos pueden entrar sin correo electrónico: se identifican
@@ -319,6 +322,18 @@ CREATE TABLE IF NOT EXISTS "check_in_qr_tokens" (
 CREATE INDEX IF NOT EXISTS "qr_tokens_project_idx" ON "check_in_qr_tokens" ("project_id");
 CREATE INDEX IF NOT EXISTS "qr_tokens_expiry_idx" ON "check_in_qr_tokens" ("expires_at");`;
 
+// Compat: muchos callers ya importaban `INIT_SQL` como string monolítico
+// (incluido el endpoint manual /api/admin/db-init). Lo mantenemos como
+// concatenación de los dos chunks; los nuevos call-sites prefieren la
+// lista `INIT_SQL_CHUNKS` que permite ejecución resiliente (un fallo de
+// un chunk no aborta los demás).
+export const INIT_SQL = `${INIT_SQL_BASE}\n\n${INIT_SQL_ATTENDANCE}`;
+
+export const INIT_SQL_CHUNKS: Array<{ name: string; sql: string }> = [
+  { name: "base-schema", sql: INIT_SQL_BASE },
+  { name: "attendance-schema", sql: INIT_SQL_ATTENDANCE },
+];
+
 // Seed: matriz de permisos por defecto para los 5 roles. Idempotente.
 //
 // ON CONFLICT DO NOTHING preserva los permisos que el admin haya editado en
@@ -371,11 +386,27 @@ router.post("/admin/db-init", async (req, res): Promise<void> => {
 
   try {
     const client = await pool.connect();
+    const failed: Array<{ name: string; detail: string }> = [];
     try {
-      // 1. Create all tables
-      await client.query(INIT_SQL);
-      // 2. Seed default role permissions for the 5 roles
-      await client.query(SEED_ROLE_PERMISSIONS_SQL);
+      // 1. Schema en chunks: si uno falla, los demás siguen. Esto evita
+      //    el caso "una sola query gigante aborta TODO porque un ALTER
+      //    nuevo tuvo lock" que rompió el deploy de asistencia.
+      for (const chunk of INIT_SQL_CHUNKS) {
+        try {
+          await client.query(chunk.sql);
+        } catch (err) {
+          const detail = err instanceof Error ? err.message : String(err);
+          failed.push({ name: chunk.name, detail });
+        }
+      }
+      // 2. Seed default role permissions for the 5 roles (idempotente con
+      //    ON CONFLICT DO NOTHING + merge `||` que preserva ediciones del admin).
+      try {
+        await client.query(SEED_ROLE_PERMISSIONS_SQL);
+      } catch (err) {
+        const detail = err instanceof Error ? err.message : String(err);
+        failed.push({ name: "seed-role-permissions", detail });
+      }
       // 3. Report state
       const t = await client.query(
         "SELECT tablename FROM pg_tables WHERE schemaname='public' ORDER BY tablename"
@@ -384,11 +415,12 @@ router.post("/admin/db-init", async (req, res): Promise<void> => {
         "SELECT role, permissions FROM role_permissions ORDER BY role"
       );
       res.json({
-        ok: true,
+        ok: failed.length === 0,
         tablesCreated: t.rows.length,
         tables: t.rows.map((r: { tablename: string }) => r.tablename),
         rolesSeeded: r.rows.length,
         roles: r.rows.map((row: { role: string }) => row.role),
+        ...(failed.length > 0 ? { failedChunks: failed } : {}),
       });
     } finally {
       client.release();

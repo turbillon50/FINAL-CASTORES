@@ -10,12 +10,19 @@ import healthRouter from "./routes/health";
 import { logger } from "./lib/logger";
 import { runStartupMigrations } from "./lib/startupMigrations";
 
-// Auto-aplica migraciones en cada cold start (idempotente). Antes esto
-// solo corría manualmente vía POST /api/admin/db-init con master key,
-// lo que dejó la prod del cliente con material_notes inexistente tras
-// el deploy de PR #34 y los endpoints fallando silenciosamente.
-// Fire-and-forget: no bloquea boot; errores quedan en log.
-runStartupMigrations().catch(() => {});
+// Auto-aplica migraciones en cada cold start (idempotente). Disparamos
+// la promesa aquí para que arranque junto con el boot de Express; abajo
+// hay un middleware que la espera (con timeout corto) antes de que el
+// router toque la DB. El startup completo está pensado para no exceder
+// el cold-start de Vercel.
+//
+// Por qué importa el await: sin él (fire-and-forget puro), la primera
+// request del cold-start entraba mientras la migración seguía corriendo,
+// alcanzaba un SELECT que mencionaba una columna nueva y respondía 500.
+// Eso reventó el módulo de asistencia el día que se mergeó: los SELECTs
+// pedían `pin_must_change` antes de que el ALTER terminara.
+const migrationPromise = runStartupMigrations();
+migrationPromise.catch(() => {}); // evita unhandled-rejection en arranque
 
 const app: Express = express();
 
@@ -53,8 +60,23 @@ app.use(
 app.use(CLERK_PROXY_PATH, clerkProxyMiddleware());
 
 // Health check mounted before Clerk middleware so it works in production
-// even when Clerk keys are not yet configured
+// even when Clerk keys are not yet configured. Importante: el healthz
+// queda FUERA del gate de migración para que Vercel siga viendo la
+// función viva aunque la migración tarde / falle.
 app.use("/api", healthRouter);
+
+// Gate de migración: cualquier request que vaya al router principal espera
+// hasta `MIGRATION_GATE_TIMEOUT_MS` a que la promesa de `runStartupMigrations`
+// resuelva. Si ya está resuelta (cold start ya estabilizado), pasa instantáneo.
+// Si tarda más del timeout, pasa igual — preferimos degradado a un cold-start
+// que muere por exceso de tiempo. El timeout es corto a propósito.
+const MIGRATION_GATE_TIMEOUT_MS = 4000;
+app.use((_req, _res, next) => {
+  Promise.race([
+    migrationPromise.catch(() => undefined),
+    new Promise<void>((resolve) => setTimeout(resolve, MIGRATION_GATE_TIMEOUT_MS)),
+  ]).then(() => next());
+});
 
 // Public invite redirect — MUST be before any auth middleware.
 // Returns inline HTML that nukes service workers + caches, stores the
