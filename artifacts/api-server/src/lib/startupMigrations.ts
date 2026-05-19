@@ -1,26 +1,34 @@
 import { pool } from "@workspace/db";
-import { INIT_SQL, SEED_ROLE_PERMISSIONS_SQL } from "../routes/admin-db-init";
+import { INIT_SQL_CHUNKS, SEED_ROLE_PERMISSIONS_SQL } from "../routes/admin-db-init";
 import { logger } from "./logger";
 
 /**
  * Aplica el esquema y semillas en cada cold start.
  *
- * Por qué auto-migrar: los CREATE TABLE / ALTER son idempotentes
- * (IF NOT EXISTS / ALTER COLUMN TYPE ... USING). En cada deploy que
- * agrega columnas o tablas nuevas, los endpoints del código nuevo se
- * romperían contra una DB en el esquema viejo hasta que alguien
- * disparara manualmente /api/admin/db-init. Hacerlo automático nos
- * evita el modo "deploy + olvidar prender la migración" que dejó
- * notas, push y notas-de-mostrador rotos en la prod del cliente.
+ * Diseño:
+ *   - El INIT_SQL grande está partido en chunks lógicos (ver
+ *     `INIT_SQL_CHUNKS` en admin-db-init.ts). Si un chunk falla
+ *     (timeout, lock, statement nuevo con error), los demás siguen
+ *     ejecutándose. Antes todo iba en una sola `client.query()` y un
+ *     fallo de un statement abortaba la conexión, dejando la DB en
+ *     estado mixto y los endpoints que dependían de columnas nuevas
+ *     devolviendo 500 — exactamente lo que pasó al desplegar el módulo
+ *     de asistencia. Cada cold start reintenta lo que falló (todas las
+ *     cláusulas son IF NOT EXISTS / ON CONFLICT, sin riesgo a datos).
  *
- * Cualquier error se loguea pero NO crashea el server — preferimos
- * que la app suba degradada (con endpoints fallando) a quedarnos
- * sin Express respondiendo. Vercel reintenta cold start; si la DB
- * está caída habrá ruido pero no apocalipsis.
+ *   - Antes era fire-and-forget desde app.ts: la primera request entraba
+ *     antes de que la migración terminara y rompía con "column does not
+ *     exist". Ahora exponemos la promesa para que un middleware al frente
+ *     del router pueda await-la (con timeout corto) antes de procesar.
  *
- * Se ejecuta una sola vez por proceso (lifetime de la función
- * serverless de Vercel). La bandera local evita reentrada si por
- * alguna razón la importan dos veces.
+ *   - Si TODOS los chunks pasaron sin error, marcamos `migrated=true` y
+ *     el resto del lifetime del proceso no vuelve a tocar la DB. Si algún
+ *     chunk falla, el flag NO se levanta — el siguiente cold start
+ *     reintenta. Esto es seguro porque las cláusulas son idempotentes.
+ *
+ *   - Errores se loguean pero NO crashean el server: preferimos que la
+ *     app suba degradada (con endpoints fallando) a quedarnos sin Express
+ *     respondiendo.
  */
 let migrated = false;
 let migrating: Promise<void> | null = null;
@@ -30,18 +38,43 @@ export function runStartupMigrations(): Promise<void> {
   if (migrating) return migrating;
   migrating = (async () => {
     const started = Date.now();
+    const failed: Array<{ name: string; detail: string }> = [];
     try {
       const client = await pool.connect();
       try {
-        await client.query(INIT_SQL);
-        await client.query(SEED_ROLE_PERMISSIONS_SQL);
-        migrated = true;
-        logger.info({ ms: Date.now() - started }, "startup-migrations: applied");
+        for (const chunk of INIT_SQL_CHUNKS) {
+          try {
+            await client.query(chunk.sql);
+          } catch (err) {
+            const detail = err instanceof Error ? err.message : String(err);
+            failed.push({ name: chunk.name, detail });
+            logger.error({ chunk: chunk.name, detail }, "startup-migrations: chunk failed");
+          }
+        }
+        try {
+          await client.query(SEED_ROLE_PERMISSIONS_SQL);
+        } catch (err) {
+          const detail = err instanceof Error ? err.message : String(err);
+          failed.push({ name: "seed-role-permissions", detail });
+          logger.error({ chunk: "seed-role-permissions", detail }, "startup-migrations: seed failed");
+        }
+        if (failed.length === 0) {
+          migrated = true;
+          logger.info({ ms: Date.now() - started }, "startup-migrations: applied");
+        } else {
+          // No marcar migrated=true: el siguiente cold start reintenta los
+          // chunks fallidos. Los que sí pasaron son no-op en re-intento.
+          logger.error(
+            { ms: Date.now() - started, failed },
+            "startup-migrations: partial — process kept alive degraded",
+          );
+        }
       } finally {
         client.release();
       }
     } catch (err) {
-      logger.error({ err, ms: Date.now() - started }, "startup-migrations: FAILED (server continues degraded)");
+      const detail = err instanceof Error ? err.message : String(err);
+      logger.error({ detail, ms: Date.now() - started }, "startup-migrations: OUTER fail (no DB connection)");
     } finally {
       migrating = null;
     }
