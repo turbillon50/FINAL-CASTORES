@@ -341,7 +341,7 @@ export default function Materiales() {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          {["pza", "kg", "ton", "m", "m²", "m³", "lt", "saco", "rollo", "caja", "juego"].map(u => (
+                          {["pza", "kg", "ton", "m", "m²", "m³", "lt", "saco", "rollo", "caja", "juego", "varilla", "serv", "nota", "tramo"].map(u => (
                             <SelectItem key={u} value={u}>{u}</SelectItem>
                           ))}
                         </SelectContent>

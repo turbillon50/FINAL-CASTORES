@@ -58,7 +58,7 @@ type FormItem = {
 
 const EMPTY_ITEM: FormItem = { name: "", unit: "pza", quantityRequested: "", costPerUnit: "", notes: "" };
 
-const UNITS = ["pza", "kg", "ton", "m", "m²", "m³", "lt", "saco", "rollo", "caja", "juego", "varilla"] as const;
+const UNITS = ["pza", "kg", "ton", "m", "m²", "m³", "lt", "saco", "rollo", "caja", "juego", "varilla", "serv", "nota", "tramo"] as const;
 
 const fmtMoney = (n: number | null | undefined) => {
   if (n == null) return "—";

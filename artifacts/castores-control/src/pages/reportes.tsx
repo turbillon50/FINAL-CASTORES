@@ -9,6 +9,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { apiUrl } from "@/lib/api-url";
+import { ReportBuilder } from "@/components/report-builder";
 
 // ─── Auth fetch helper ────────────────────────────────────────────────────────
 function useAuthFetch() {
@@ -334,6 +335,7 @@ export default function Reportes() {
   const [creating, setCreating] = useState(false);
   const [printData, setPrintData] = useState<any>(null);
   const [loadingPrint, setLoadingPrint] = useState<number | null>(null);
+  const [tab, setTab] = useState<"saved" | "builder">("saved");
 
   const [form, setForm] = useState({
     title: "",
@@ -376,6 +378,9 @@ export default function Reportes() {
   // bitácora/reports work — supervisors retain it by default and an admin
   // can revoke it from /admin → Permisos to demote a specific role.
   const canCreate = permissions.has("bitacoraCreate") || permissions.isRole("admin", "supervisor");
+  // El Constructor inteligente vive en modo administrativo: agrega datos
+  // cross-obra (gasto, horas, bitácora) que solo el admin debe consolidar.
+  const canUseBuilder = permissions.has("adminPanelAccess");
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -460,6 +465,23 @@ export default function Reportes() {
             </div>
           </div>
 
+          {/* Tabs: reportes guardados vs constructor inteligente (admin) */}
+          {canUseBuilder && (
+            <div className="flex gap-2 p-1 rounded-2xl no-print" style={{ background: "rgba(0,0,0,0.05)" }}>
+              {([["saved", "Reportes guardados"], ["builder", "Constructor inteligente"]] as const).map(([v, label]) => (
+                <button key={v} type="button" onClick={() => setTab(v)}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-bold transition-all"
+                  style={{ background: tab === v ? "white" : "transparent", color: tab === v ? "#1a1612" : "rgba(26,22,18,0.5)", boxShadow: tab === v ? "0 1px 4px rgba(0,0,0,0.08)" : "none" }}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {tab === "builder" && canUseBuilder ? (
+            <ReportBuilder authFetch={authFetch} projects={projects} />
+          ) : (
+          <>
           {/* Generator form */}
           <AnimatePresence>
             {showForm && (
@@ -625,6 +647,8 @@ export default function Reportes() {
                 );
               })}
             </div>
+          )}
+          </>
           )}
         </div>
       </MainLayout>
