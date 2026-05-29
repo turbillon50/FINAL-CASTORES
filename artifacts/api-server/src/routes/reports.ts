@@ -176,6 +176,13 @@ router.get("/reports/:id/data", async (req, res): Promise<void> => {
   const totalMaterialCost = approvedMaterials.reduce((s, m) => s + (m.totalCost ?? 0), 0);
   const pendingMaterialCost = pendingMaterials.reduce((s, m) => s + (m.totalCost ?? 0), 0);
 
+  // Gasto efectivo: si la obra mantiene spentAmount (write-through al aprobar)
+  // lo usamos; si está en 0/sin definir, caemos al costo de materiales
+  // aprobados — así el reporte nunca muestra "Gastado: $0" teniendo
+  // materiales aprobados (que era el bug reportado).
+  const effectiveSpent =
+    project?.spentAmount && project.spentAmount > 0 ? project.spentAmount : totalMaterialCost;
+
   res.json({
     report: {
       ...report,
@@ -185,6 +192,7 @@ router.get("/reports/:id/data", async (req, res): Promise<void> => {
     project: project
       ? {
           ...project,
+          spentAmount: effectiveSpent,
           clientName,
           supervisorName,
         }
@@ -201,7 +209,7 @@ router.get("/reports/:id/data", async (req, res): Promise<void> => {
       pendingMaterialCost,
       progressPercent: project?.progressPercent ?? 0,
       budget: project?.budget ?? null,
-      spentAmount: project?.spentAmount ?? 0,
+      spentAmount: effectiveSpent,
     },
   });
 });
@@ -250,17 +258,32 @@ router.post("/reports/builder", async (req, res): Promise<void> => {
   const round1 = (n: number) => Math.round(n * 10) / 10;
   const dayOf = (d: Date) => d.toISOString().split("T")[0];
 
+  // Gasto efectivo por obra: usa spentAmount si está mantenido (>0); si no,
+  // cae al costo de materiales aprobados (evita "Gastado: $0" con materiales
+  // aprobados). Acumulado (sin filtro de fecha) porque el presupuesto se
+  // consume de forma acumulada.
+  const approvedByProject = new Map<number, number>();
+  if (projectIds.length) {
+    const allMatsForSpend = await db.select().from(materialsTable).where(inArray(materialsTable.projectId, projectIds));
+    for (const m of allMatsForSpend) {
+      if (m.status !== "approved") continue;
+      approvedByProject.set(m.projectId, (approvedByProject.get(m.projectId) ?? 0) + (m.totalCost ?? 0));
+    }
+  }
+  const spentOf = (p: { id: number; spentAmount: number | null }) =>
+    p.spentAmount && p.spentAmount > 0 ? p.spentAmount : (approvedByProject.get(p.id) ?? 0);
+
   const projects = targetProjects.map((p) => ({
     id: p.id, name: p.name, location: p.location, status: p.status,
     progressPercent: p.progressPercent ?? 0, budget: p.budget ?? null,
-    spentAmount: p.spentAmount ?? 0, startDate: p.startDate, endDate: p.endDate,
+    spentAmount: spentOf(p), startDate: p.startDate, endDate: p.endDate,
   }));
 
   // ─── Obra / avance / presupuesto ─────────────────────────────────────────
   let obra: unknown;
   if (sections.obra) {
     const totalBudget = targetProjects.reduce((acc, p) => acc + (p.budget ?? 0), 0);
-    const totalSpent = targetProjects.reduce((acc, p) => acc + (p.spentAmount ?? 0), 0);
+    const totalSpent = targetProjects.reduce((acc, p) => acc + spentOf(p), 0);
     obra = {
       totals: {
         projectCount: targetProjects.length,
@@ -274,8 +297,8 @@ router.post("/reports/builder", async (req, res): Promise<void> => {
       },
       byProject: targetProjects.map((p) => ({
         projectId: p.id, name: p.name, status: p.status,
-        budget: p.budget ?? 0, spent: p.spentAmount ?? 0,
-        available: (p.budget ?? 0) - (p.spentAmount ?? 0),
+        budget: p.budget ?? 0, spent: spentOf(p),
+        available: (p.budget ?? 0) - spentOf(p),
         progressPercent: p.progressPercent ?? 0,
       })),
     };
