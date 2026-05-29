@@ -200,7 +200,9 @@ export function Sidebar() {
       <aside className="hidden md:flex flex-col h-screen w-64 sticky top-0 shrink-0 z-30"
         style={{ background: "linear-gradient(180deg,#141414 0%,#0a0a0a 100%)", borderRight: "1px solid rgba(255,255,255,0.07)" }}>
         <div className="px-6 py-5" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-          <img src="/castores-logo.jpeg" alt="CASTORES" className="h-10 w-auto object-contain brightness-0 invert opacity-80" />
+          <div className="inline-flex items-center justify-center bg-white rounded-lg px-3 py-2">
+            <img src="/castores-logo.jpeg" alt="CASTORES" className="h-7 w-auto object-contain" />
+          </div>
         </div>
         <div className="px-5 py-3" style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
           <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.2em] px-3 py-1.5 rounded-full"
@@ -272,7 +274,9 @@ export function Sidebar() {
           paddingTop: "env(safe-area-inset-top)",
           height: "calc(56px + env(safe-area-inset-top))",
         }}>
-        <img src="/castores-logo.jpeg" alt="CASTORES" className="h-7 w-auto object-contain brightness-0 invert opacity-80" />
+        <div className="inline-flex items-center justify-center bg-white rounded-lg px-2 py-1">
+          <img src="/castores-logo.jpeg" alt="CASTORES" className="h-5 w-auto object-contain" />
+        </div>
         <div className="flex items-center gap-2">
           <span className="text-[9px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full"
             style={{ background: `${roleColor}20`, border: `1px solid ${roleColor}40`, color: roleColor }}>
