@@ -51,7 +51,7 @@ function RouteFallback() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#f8f4ef]">
       <div className="flex flex-col items-center gap-3">
-        <div className="w-10 h-10 rounded-full border-2 border-amber-200 border-t-amber-600 animate-spin" />
+        <div className="w-10 h-10 rounded-full border-2 border-black/10 border-t-[#141414] animate-spin" />
         <p className="text-xs text-gray-500 tracking-wider">CARGANDO…</p>
       </div>
     </div>
@@ -121,7 +121,7 @@ function SignInPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [accountReset, setAccountReset] = useState(false);
-  const inputCls = "w-full px-4 py-3 rounded-xl border border-gray-200 bg-white focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-100 text-gray-900 placeholder-gray-400 transition text-sm";
+  const inputCls = "w-full px-4 py-3 rounded-xl border border-gray-200 bg-white focus:outline-none focus:border-[#FF3C00] focus:ring-2 focus:ring-[#FF3C00]/15 text-gray-900 placeholder-gray-400 transition text-sm";
 
   // If a previous Clerk session is sitting around (user opened /sign-in while
   // already signed in), wipe it before showing the form so the new login
@@ -179,7 +179,7 @@ function SignInPage() {
           <p className="text-sm text-gray-500 mt-1">Entra con el correo y contraseña que creaste al registrarte.</p>
         </div>
         {accountReset ? (
-          <div className="bg-white rounded-2xl shadow-sm border border-amber-200 p-6 space-y-4 text-center">
+          <div className="bg-white rounded-2xl shadow-sm border border-black/10 p-6 space-y-4 text-center">
             <div className="text-4xl">🔑</div>
             <h2 className="font-bold text-gray-900 text-base">Tu acceso fue reiniciado</h2>
             <p className="text-sm text-gray-600 leading-relaxed">
@@ -188,7 +188,7 @@ function SignInPage() {
             <button
               type="button"
               onClick={() => { window.location.assign(`${basePath}/sign-up`); }}
-              className="w-full py-3 rounded-xl font-bold text-white bg-amber-600 hover:bg-amber-700 transition text-sm"
+              className="w-full py-3 rounded-xl font-bold text-white bg-[#FF3C00] hover:bg-[#E63600] transition text-sm"
             >
               Registrarme con mi código de invitación →
             </button>
@@ -230,19 +230,19 @@ function SignInPage() {
                 <button
                   type="button"
                   onClick={() => setLocation("/forgot-password")}
-                  className="block w-full text-center text-xs font-semibold text-amber-700 hover:text-amber-900 underline"
+                  className="block w-full text-center text-xs font-semibold text-[#FF3C00] hover:text-[#141414] underline"
                 >
                   Recupera tu contraseña en 30 segundos →
                 </button>
               </div>
             )}
-            <button type="submit" disabled={busy} className="w-full py-3 rounded-xl font-semibold text-white bg-amber-600 hover:bg-amber-700 transition disabled:opacity-50 text-sm mt-1">
+            <button type="submit" disabled={busy} className="w-full py-3 rounded-xl font-semibold text-white bg-[#FF3C00] hover:bg-[#E63600] transition disabled:opacity-50 text-sm mt-1">
               {busy ? "Entrando..." : "Iniciar sesión →"}
             </button>
             <button
               type="button"
               onClick={() => setLocation("/forgot-password")}
-              className="block w-full text-center text-xs text-gray-500 hover:text-amber-700 mt-2"
+              className="block w-full text-center text-xs text-gray-500 hover:text-[#FF3C00] mt-2"
             >
               ¿Olvidaste tu contraseña?
             </button>
@@ -253,7 +253,7 @@ function SignInPage() {
         )}
         <p className="text-center text-sm text-gray-500 mt-4">
           ¿Aún no tienes cuenta?{" "}
-          <button onClick={() => setLocation("/")} className="text-amber-700 font-medium hover:text-amber-900 underline">
+          <button onClick={() => setLocation("/")} className="text-[#FF3C00] font-medium hover:text-[#141414] underline">
             Volver al inicio
           </button>
         </p>
@@ -268,7 +268,7 @@ function ForgotPasswordPage() {
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const inputCls = "w-full px-4 py-3 rounded-xl border border-gray-200 bg-white focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-100 text-gray-900 placeholder-gray-400 transition text-sm";
+  const inputCls = "w-full px-4 py-3 rounded-xl border border-gray-200 bg-white focus:outline-none focus:border-[#FF3C00] focus:ring-2 focus:ring-[#FF3C00]/15 text-gray-900 placeholder-gray-400 transition text-sm";
 
   const onSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -312,7 +312,7 @@ function ForgotPasswordPage() {
             </p>
             <button
               onClick={() => setLocation("/sign-in")}
-              className="w-full py-3 rounded-xl font-semibold text-white bg-amber-600 hover:bg-amber-700 transition text-sm"
+              className="w-full py-3 rounded-xl font-semibold text-white bg-[#FF3C00] hover:bg-[#E63600] transition text-sm"
             >
               Volver a iniciar sesión
             </button>
@@ -333,13 +333,13 @@ function ForgotPasswordPage() {
               className={inputCls}
             />
             {error && <p className="text-sm text-red-600 text-center">{error}</p>}
-            <button type="submit" disabled={busy} className="w-full py-3 rounded-xl font-semibold text-white bg-amber-600 hover:bg-amber-700 transition disabled:opacity-50 text-sm mt-1">
+            <button type="submit" disabled={busy} className="w-full py-3 rounded-xl font-semibold text-white bg-[#FF3C00] hover:bg-[#E63600] transition disabled:opacity-50 text-sm mt-1">
               {busy ? "Enviando..." : "Enviar enlace"}
             </button>
             <button
               type="button"
               onClick={() => setLocation("/sign-in")}
-              className="block w-full text-center text-xs text-gray-500 hover:text-amber-700"
+              className="block w-full text-center text-xs text-gray-500 hover:text-[#FF3C00]"
             >
               Volver al inicio de sesión
             </button>
@@ -357,7 +357,7 @@ function ResetPasswordPage() {
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const inputCls = "w-full px-4 py-3 rounded-xl border border-gray-200 bg-white focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-100 text-gray-900 placeholder-gray-400 transition text-sm";
+  const inputCls = "w-full px-4 py-3 rounded-xl border border-gray-200 bg-white focus:outline-none focus:border-[#FF3C00] focus:ring-2 focus:ring-[#FF3C00]/15 text-gray-900 placeholder-gray-400 transition text-sm";
 
   const token = (() => {
     if (typeof window === "undefined") return "";
@@ -406,7 +406,7 @@ function ResetPasswordPage() {
             <p className="text-sm text-gray-700">Listo. Tu contraseña fue actualizada.</p>
             <button
               onClick={() => setLocation("/sign-in")}
-              className="w-full py-3 rounded-xl font-semibold text-white bg-amber-600 hover:bg-amber-700 transition text-sm"
+              className="w-full py-3 rounded-xl font-semibold text-white bg-[#FF3C00] hover:bg-[#E63600] transition text-sm"
             >
               Iniciar sesión →
             </button>
@@ -438,7 +438,7 @@ function ResetPasswordPage() {
               className={inputCls}
             />
             {error && <p className="text-sm text-red-600 text-center">{error}</p>}
-            <button type="submit" disabled={busy} className="w-full py-3 rounded-xl font-semibold text-white bg-amber-600 hover:bg-amber-700 transition disabled:opacity-50 text-sm mt-1">
+            <button type="submit" disabled={busy} className="w-full py-3 rounded-xl font-semibold text-white bg-[#FF3C00] hover:bg-[#E63600] transition disabled:opacity-50 text-sm mt-1">
               {busy ? "Guardando..." : "Guardar contraseña"}
             </button>
           </form>
@@ -490,16 +490,16 @@ function PwaInstallBanner({ defaultIOS }: { defaultIOS: boolean }) {
       </div>
       {/* Contenido */}
       <div className="p-4" style={{ background: "rgba(255,60,0,0.06)" }}>
-        <p className="font-semibold text-amber-800 mb-2">📲 Instala la app en tu teléfono</p>
+        <p className="font-semibold text-[#141414] mb-2">📲 Instala la app en tu teléfono</p>
         {tab === "ios" ? (
-          <ol className="text-amber-700 space-y-1.5">
+          <ol className="text-[#FF3C00] space-y-1.5">
             <li>1. Abre esta página en <span className="font-bold">Safari</span></li>
             <li>2. Toca el ícono <span className="font-bold">⬆ Compartir</span> (parte inferior de la pantalla)</li>
             <li>3. Selecciona <span className="font-bold">"Agregar a pantalla de inicio"</span></li>
             <li>4. Toca <span className="font-bold">"Agregar"</span> — ya tienes el ícono en tu inicio</li>
           </ol>
         ) : (
-          <ol className="text-amber-700 space-y-1.5">
+          <ol className="text-[#FF3C00] space-y-1.5">
             <li>1. Abre esta página en <span className="font-bold">Chrome</span></li>
             <li>2. Toca el menú <span className="font-bold">⋮</span> (esquina superior derecha)</li>
             <li>3. Selecciona <span className="font-bold">"Añadir a pantalla de inicio"</span> o <span className="font-bold">"Instalar app"</span></li>
@@ -926,8 +926,8 @@ function SignUpPage() {
     }
   };
 
-  const inputCls = "w-full px-4 py-3 rounded-xl border border-gray-200 bg-white focus:outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-100 text-gray-900 placeholder-gray-400 transition text-sm";
-  const btnPrimary = "w-full py-3 rounded-xl font-semibold text-white bg-amber-600 hover:bg-amber-700 transition disabled:opacity-50 text-sm";
+  const inputCls = "w-full px-4 py-3 rounded-xl border border-gray-200 bg-white focus:outline-none focus:border-[#FF3C00] focus:ring-2 focus:ring-[#FF3C00]/15 text-gray-900 placeholder-gray-400 transition text-sm";
+  const btnPrimary = "w-full py-3 rounded-xl font-semibold text-white bg-[#FF3C00] hover:bg-[#E63600] transition disabled:opacity-50 text-sm";
 
   // Show spinner while:
   //   - Clerk is initializing
@@ -941,7 +941,7 @@ function SignUpPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#f8f4ef]">
         <div className="flex flex-col items-center gap-3">
-          <div className="animate-spin rounded-full h-10 w-10 border-4 border-amber-500 border-t-transparent" />
+          <div className="animate-spin rounded-full h-10 w-10 border-4 border-black/10 border-t-[#141414]" />
           {purgingSession && (
             <p className="text-xs text-gray-500">Preparando registro nuevo...</p>
           )}
@@ -955,7 +955,7 @@ function SignUpPage() {
   if (isSignedIn) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#f8f4ef]">
-        <div className="animate-spin rounded-full h-10 w-10 border-4 border-amber-500 border-t-transparent" />
+        <div className="animate-spin rounded-full h-10 w-10 border-4 border-black/10 border-t-[#141414]" />
       </div>
     );
   }
@@ -965,7 +965,7 @@ function SignUpPage() {
   if (step === "otp" && !signUpLoaded) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#f8f4ef]">
-        <div className="animate-spin rounded-full h-10 w-10 border-4 border-amber-500 border-t-transparent" />
+        <div className="animate-spin rounded-full h-10 w-10 border-4 border-black/10 border-t-[#141414]" />
       </div>
     );
   }
@@ -987,8 +987,8 @@ function SignUpPage() {
           {/* Instrucción explícita paso a paso */}
           <div className="rounded-xl p-3 text-sm mb-4"
             style={{ background: "rgba(255,60,0,0.08)", border: "1px solid rgba(255,60,0,0.25)" }}>
-            <p className="font-semibold text-amber-800 mb-1">¿Qué hacer ahora?</p>
-            <ol className="text-amber-700 space-y-1 list-none">
+            <p className="font-semibold text-[#141414] mb-1">¿Qué hacer ahora?</p>
+            <ol className="text-[#FF3C00] space-y-1 list-none">
               <li>1. Abre tu app de correo</li>
               <li>2. Busca el mensaje de Castores</li>
               <li>3. Copia el código de 6 dígitos</li>
@@ -997,7 +997,7 @@ function SignUpPage() {
           </div>
 
           {!signUp && signUpLoaded && (
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-sm text-amber-800 mb-4">
+            <div className="bg-black/[0.04] border border-black/10 rounded-xl p-3 text-sm text-[#141414] mb-4">
               Tu sesión fue interrumpida. El código anterior puede haber expirado — usa el botón "Reenviar código".
             </div>
           )}
@@ -1026,7 +1026,7 @@ function SignUpPage() {
             <button
               onClick={handleResend}
               disabled={resendCooldown > 0}
-              className="text-sm text-amber-700 hover:text-amber-900 font-medium disabled:text-gray-400 disabled:hover:text-gray-400 disabled:cursor-not-allowed"
+              className="text-sm text-[#FF3C00] hover:text-[#141414] font-medium disabled:text-gray-400 disabled:hover:text-gray-400 disabled:cursor-not-allowed"
             >
               {resendCooldown > 0
                 ? `Espera ${resendCooldown}s antes de reenviar`
@@ -1193,7 +1193,7 @@ function SignUpPage() {
             Invitación inválida
           </h1>
           <p className="text-sm mb-6 leading-relaxed" style={{ color: "rgba(255,255,255,0.55)" }}>
-            La clave <span className="font-mono text-amber-400 font-bold">{splash.code}</span> no es válida o ya fue utilizada.
+            La clave <span className="font-mono text-[#FF3C00] font-bold">{splash.code}</span> no es válida o ya fue utilizada.
           </p>
           <p className="text-xs mb-6" style={{ color: "rgba(255,255,255,0.35)" }}>
             Pídele a tu administrador que te genere una nueva clave o que revise el link de invitación.
@@ -1312,20 +1312,20 @@ function SignUpPage() {
               type="checkbox"
               checked={acceptTerms}
               onChange={(e) => setAcceptTerms(e.target.checked)}
-              className="mt-0.5 w-4 h-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500"
+              className="mt-0.5 w-4 h-4 rounded border-gray-300 text-[#FF3C00] focus:ring-[#FF3C00]/40"
             />
             <span className="text-[11px] leading-snug text-gray-600">
               Acepto los{" "}
-              <a href={`${basePath}/legal/terminos`} target="_blank" rel="noopener noreferrer" className="text-amber-700 underline">Términos de Uso</a>
+              <a href={`${basePath}/legal/terminos`} target="_blank" rel="noopener noreferrer" className="text-[#FF3C00] underline">Términos de Uso</a>
               {" "}y la{" "}
-              <a href={`${basePath}/legal/privacidad`} target="_blank" rel="noopener noreferrer" className="text-amber-700 underline">Política de Privacidad</a>.
+              <a href={`${basePath}/legal/privacidad`} target="_blank" rel="noopener noreferrer" className="text-[#FF3C00] underline">Política de Privacidad</a>.
             </span>
           </label>
           {error && (
             <div className="text-sm text-red-600">
               {error}{" "}
               {emailTaken && (
-                <a href={`${basePath}/sign-in`} className="font-semibold underline text-amber-700">
+                <a href={`${basePath}/sign-in`} className="font-semibold underline text-[#FF3C00]">
                   Inicia sesión →
                 </a>
               )}
@@ -1338,7 +1338,7 @@ function SignUpPage() {
 
         <p className="text-center text-sm text-gray-500 mt-4">
           ¿Ya tienes cuenta?{" "}
-          <a href={`${basePath}/sign-in`} className="text-amber-700 font-medium hover:text-amber-900">Inicia sesión</a>
+          <a href={`${basePath}/sign-in`} className="text-[#FF3C00] font-medium hover:text-[#141414]">Inicia sesión</a>
         </p>
       </div>
     </div>
@@ -1496,7 +1496,7 @@ function ApprovalGate({ children }: { children: React.ReactNode }) {
   if (status === "loading") {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#f8f4ef]">
-        <div className="animate-spin rounded-full h-10 w-10 border-4 border-amber-500 border-t-transparent" />
+        <div className="animate-spin rounded-full h-10 w-10 border-4 border-black/10 border-t-[#141414]" />
       </div>
     );
   }
@@ -1507,7 +1507,7 @@ function ApprovalGate({ children }: { children: React.ReactNode }) {
         <p className="text-sm text-gray-600">No se pudo verificar tu acceso. Revisa tu conexión e intenta de nuevo.</p>
         <button
           onClick={() => { setStatus("loading"); setRetryTick(t => t + 1); }}
-          className="px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-semibold text-sm transition"
+          className="px-5 py-2.5 rounded-xl bg-[#FF3C00] hover:bg-[#E63600] text-white font-semibold text-sm transition"
         >
           Reintentar
         </button>
@@ -1534,7 +1534,7 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
   if (!isLoaded || (!isSignedIn && !graceDone)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#f8f4ef]">
-        <div className="animate-spin rounded-full h-10 w-10 border-4 border-amber-500 border-t-transparent" />
+        <div className="animate-spin rounded-full h-10 w-10 border-4 border-black/10 border-t-[#141414]" />
       </div>
     );
   }
@@ -1750,7 +1750,7 @@ function App() {
   if (!clerkPubKey) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#f8f4ef] px-6">
-        <div className="max-w-lg rounded-2xl border border-amber-200 bg-white p-6 text-center">
+        <div className="max-w-lg rounded-2xl border border-black/10 bg-white p-6 text-center">
           <h1 className="text-xl font-bold text-[#141414]">Configuracion pendiente de autenticacion</h1>
           <p className="mt-2 text-sm text-[#5b5146]">
             El demo esta listo para Vercel, pero falta configurar Clerk. Agrega

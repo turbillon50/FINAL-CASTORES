@@ -53,14 +53,15 @@ function PrintView({ data, onClose }: { data: any; onClose: () => void }) {
 
   return (
     <>
-      {/* Print-only style injected into head */}
+      {/* Al imprimir solo se ve el reporte; en pantalla se muestra normal. */}
       <style>{`
         @media print {
-          body > * { display: none !important; }
-          #castores-report-print { display: block !important; }
+          body * { visibility: hidden !important; }
+          #castores-report-print, #castores-report-print * { visibility: visible !important; }
+          #castores-report-print { position: absolute !important; left: 0; top: 0; width: 100%; }
+          .no-print { display: none !important; }
           @page { margin: 15mm; size: A4; }
         }
-        #castores-report-print { display: none; }
       `}</style>
 
       {/* Screen overlay */}
@@ -71,9 +72,9 @@ function PrintView({ data, onClose }: { data: any; onClose: () => void }) {
         className="fixed inset-0 z-50 flex flex-col"
         style={{ background: "#F4F4F5" }}>
 
-        {/* Top bar (hidden on print) */}
-        <div className="flex items-center justify-between px-4 py-3 border-b no-print"
-          style={{ background: "white", borderColor: "rgba(0,0,0,0.1)" }}>
+        {/* Top bar (hidden on print) — respeta el notch/barra de estado */}
+        <div className="flex items-center justify-between px-4 pb-3 border-b no-print"
+          style={{ background: "white", borderColor: "rgba(0,0,0,0.1)", paddingTop: "max(env(safe-area-inset-top), 0.75rem)" }}>
           <div className="flex items-center gap-3">
             <button onClick={onClose}
               className="w-8 h-8 rounded-lg flex items-center justify-center"
