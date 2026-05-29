@@ -153,11 +153,10 @@ export default function Dashboard() {
             {/* Section header */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-1 h-6 rounded-full" style={{ background: roleColor }} />
+                <div className="w-1 h-6 rounded-full bg-foreground" />
                 <h2 className="font-display text-2xl text-foreground tracking-wide">Obras Activas</h2>
               </div>
-              <Link href="/projects" className="text-xs font-bold uppercase tracking-wider flex items-center gap-1 transition-all hover:opacity-70"
-                style={{ color: roleColor }}>
+              <Link href="/projects" className="text-xs font-bold uppercase tracking-wider flex items-center gap-1 transition-colors text-muted-foreground hover:text-foreground">
                 Ver todas
                 <svg viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5">
                   <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" />
@@ -190,43 +189,6 @@ export default function Dashboard() {
               />
             )}
 
-            {/* Map placeholder */}
-            {(role === "admin" || role === "supervisor") && (
-              <div className="relative rounded-2xl overflow-hidden" style={{ height: 220, border: "1px solid rgba(0,0,0,0.07)", background: "linear-gradient(135deg,#0a0a0a 0%,#1f1f1f 60%,#141414 100%)" }}>
-                {/* Retícula técnica (blueprint) — sin fotos ajenas */}
-                <div className="absolute inset-0 opacity-[0.10]" style={{
-                  backgroundImage: "repeating-linear-gradient(0deg,transparent,transparent 31px,rgba(255,255,255,0.6) 31px,rgba(255,255,255,0.6) 32px),repeating-linear-gradient(90deg,transparent,transparent 31px,rgba(255,255,255,0.6) 31px,rgba(255,255,255,0.6) 32px)",
-                }} />
-                <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse at 60% 40%, rgba(255,60,0,0.18) 0%, transparent 55%)" }} />
-
-                {/* Fake pins */}
-                {[
-                  { top: "30%", left: "25%", label: "CDMX Norte" },
-                  { top: "55%", left: "60%", label: "Polanco" },
-                  { top: "40%", left: "70%", label: "Santa Fe" },
-                ].map((pin) => (
-                  <div key={pin.label} className="absolute flex flex-col items-center gap-1" style={{ top: pin.top, left: pin.left }}>
-                    <div className="w-3 h-3 rounded-full border-2 border-white animate-pulse"
-                      style={{ background: "#FF3C00", boxShadow: "0 0 8px #FF3C00" }} />
-                    <span className="text-[9px] font-bold text-white px-1.5 py-0.5 rounded"
-                      style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(4px)" }}>
-                      {pin.label}
-                    </span>
-                  </div>
-                ))}
-
-                <div className="absolute bottom-0 left-0 right-0 p-4 flex items-end justify-between">
-                  <div>
-                    <p className="text-white font-display text-xl tracking-wide">Vista de Ubicaciones</p>
-                    <p className="text-white/50 text-xs">{projects.length} obras activas georreferenciadas</p>
-                  </div>
-                  <span className="text-[10px] px-2.5 py-1 rounded-full font-bold"
-                    style={{ background: "rgba(255,60,0,0.25)", border: "1px solid rgba(255,60,0,0.5)", color: "#FF3C00" }}>
-                    Mapa Interactivo
-                  </span>
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Right: Activity + Quick actions */}
@@ -244,11 +206,10 @@ export default function Dashboard() {
                   ].map((a) => (
                     <Link key={a.href} href={a.href}>
                       <div className="flex items-center gap-3 px-3 py-3 rounded-xl cursor-pointer transition-all hover:bg-foreground/[0.03] group">
-                        <div className="w-2 h-2 rounded-full shrink-0" style={{ background: a.color }} />
-                        <span className="text-sm text-foreground/70 group-hover:text-foreground/90 flex-1 transition-colors">{a.label}</span>
+                        <div className="w-1.5 h-1.5 rounded-full shrink-0 bg-foreground/30 group-hover:bg-foreground/60 transition-colors" />
+                        <span className="text-sm text-foreground/70 group-hover:text-foreground flex-1 transition-colors">{a.label}</span>
                         {a.count != null && a.count > 0 && (
-                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
-                            style={{ background: `${a.color}20`, color: a.color }}>
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-foreground/[0.06] text-foreground/70">
                             {a.count}
                           </span>
                         )}

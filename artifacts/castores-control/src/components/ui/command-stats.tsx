@@ -40,42 +40,32 @@ export function CommandStats({ stats }: CommandStatsProps) {
       {stats.map((s, i) => (
         <motion.div
           key={s.label}
-          initial={{ opacity: 0, y: 16 }}
+          initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: i * 0.07, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-          className="relative overflow-hidden rounded-2xl p-5 flex flex-col gap-3"
-          style={{
-            background: "#fff",
-            border: "1px solid rgba(0,0,0,0.07)",
-            boxShadow: "0 2px 12px rgba(0,0,0,0.05)",
-          }}
+          transition={{ delay: i * 0.06, duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+          whileHover={{ y: -2 }}
+          className="relative rounded-xl p-5 flex flex-col gap-4 bg-card"
+          style={{ border: "1px solid hsl(var(--border))" }}
         >
-          {/* Subtle accent corner */}
-          <div className="absolute top-0 right-0 w-20 h-20 rounded-bl-full opacity-10"
-            style={{ background: s.color, transform: "translate(30%, -30%)" }} />
-
           <div className="flex items-center justify-between">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center"
-              style={{ background: `${s.color}18`, color: s.color }}>
+            {/* Ícono monocromo (estilo Vercel/v0: sin relleno de color) */}
+            <div className="w-9 h-9 rounded-lg flex items-center justify-center text-foreground/55"
+              style={{ background: "hsl(var(--muted))", border: "1px solid hsl(var(--border))" }}>
               {s.icon}
             </div>
             {s.trend && (
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-0.5"
-                style={{
-                  background: s.trend.up ? "rgba(16,185,129,0.10)" : "rgba(239,68,68,0.10)",
-                  color: s.trend.up ? "#10B981" : "#EF4444"
-                }}>
+              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md flex items-center gap-0.5 text-muted-foreground">
                 {s.trend.up ? "↑" : "↓"} {s.trend.value}%
               </span>
             )}
           </div>
 
           <div>
-            <div className="font-display text-4xl leading-none" style={{ color: s.color }}>
+            <div className="font-display text-4xl leading-none text-foreground tabular-nums">
               <AnimatedNumber value={s.value} prefix={s.prefix} suffix={s.suffix} />
             </div>
-            <p className="text-xs text-foreground/40 uppercase tracking-wider font-semibold mt-1">{s.label}</p>
-            {s.subtext && <p className="text-[10px] text-muted-foreground mt-1">{s.subtext}</p>}
+            <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold mt-2">{s.label}</p>
+            {s.subtext && <p className="text-[11px] text-muted-foreground/70 mt-1 tabular-nums">{s.subtext}</p>}
           </div>
         </motion.div>
       ))}

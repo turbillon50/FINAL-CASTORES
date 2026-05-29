@@ -48,7 +48,7 @@ export function PageHero({
             style={{
               width: 6,
               height: `${h * 78}%`,
-              background: i % 7 === 0 ? accentColor : "#ffffff",
+              background: "#ffffff",
             }}
           />
         ))}

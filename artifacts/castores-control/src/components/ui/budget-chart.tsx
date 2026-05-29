@@ -34,7 +34,7 @@ export function BudgetChart({ projects }: BudgetChartProps) {
         </div>
         <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
           <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-foreground/10" />Presupuesto</span>
-          <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-primary" />Gastado</span>
+          <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-foreground" />Gastado</span>
         </div>
       </div>
 
@@ -62,7 +62,7 @@ export function BudgetChart({ projects }: BudgetChartProps) {
                     <span className="text-muted-foreground font-mono">{fmt(spent)}</span>
                     <span className="text-muted-foreground">/</span>
                     <span className="font-mono text-foreground/60">{fmt(budget)}</span>
-                    <span className={`font-bold text-[10px] px-1.5 py-0.5 rounded-full ${over ? "bg-red-100 text-red-600" : "bg-amber-50 text-amber-700"}`}>
+                    <span className={`font-bold text-[10px] px-1.5 py-0.5 rounded-md ${over ? "bg-red-100 text-red-600" : "bg-foreground/[0.06] text-foreground/60"}`}>
                       {Math.round(pct)}%
                     </span>
                   </div>
@@ -74,7 +74,7 @@ export function BudgetChart({ projects }: BudgetChartProps) {
                     animate={{ width: `${pct}%` }}
                     transition={{ delay: 0.2 + i * 0.06, duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
                     className="absolute top-0 left-0 h-full rounded-full"
-                    style={{ background: over ? "#EF4444" : "#FF3C00" }}
+                    style={{ background: over ? "#EF4444" : "#171717" }}
                   />
                 </div>
                 {/* Progress bar */}
@@ -84,7 +84,7 @@ export function BudgetChart({ projects }: BudgetChartProps) {
                     animate={{ width: `${p.progressPercent ?? 0}%` }}
                     transition={{ delay: 0.3 + i * 0.06, duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
                     className="absolute top-0 left-0 h-full rounded-full"
-                    style={{ background: "#10B981" }}
+                    style={{ background: "rgba(20,20,20,0.35)" }}
                   />
                 </div>
                 <p className="text-[9px] text-muted-foreground">Avance obra: {p.progressPercent ?? 0}%</p>
