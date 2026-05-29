@@ -304,7 +304,7 @@ export default function WorkerCheckPage() {
       <div className="min-h-screen flex flex-col items-center justify-center px-6 gap-3 text-center"
         style={{ background: "linear-gradient(160deg, #141414 0%, #262626 60%, #141414 100%)" }}>
         <p className="text-white">{loadError || "Sin datos"}</p>
-        <button onClick={reload} className="px-5 py-2 rounded-xl bg-amber-600 text-white text-sm font-bold">
+        <button onClick={reload} className="px-5 py-2 rounded-xl bg-[#FF3C00] text-white text-sm font-bold">
           Reintentar
         </button>
       </div>

@@ -194,7 +194,7 @@ export default function SupervisorQrPage() {
             />
             <div className="mt-6 inline-block px-5 py-2 rounded-full"
               style={{ background: "#141414" }}>
-              <p className="text-[10px] uppercase tracking-widest font-bold text-amber-300 mb-0.5">
+              <p className="text-[10px] uppercase tracking-widest font-bold text-[#FF7A3C] mb-0.5">
                 Código manual
               </p>
               <p className="text-3xl font-mono font-black text-white tracking-[0.25em]"

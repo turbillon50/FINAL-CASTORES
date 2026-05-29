@@ -49,7 +49,7 @@ const AsistenciaQr = lazy(() => import("@/pages/asistencia/qr"));
 
 function RouteFallback() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#f8f4ef]">
+    <div className="min-h-screen flex items-center justify-center bg-[#FAFAFA]">
       <div className="flex flex-col items-center gap-3">
         <div className="w-10 h-10 rounded-full border-2 border-black/10 border-t-[#141414] animate-spin" />
         <p className="text-xs text-gray-500 tracking-wider">CARGANDO…</p>
@@ -91,6 +91,13 @@ const queryClient = new QueryClient({
 });
 
 const clerkAppearance = {
+  variables: {
+    colorPrimary: "#FF3C00",
+    colorText: "#141414",
+    colorBackground: "#ffffff",
+    borderRadius: "0.75rem",
+    fontFamily: "'DM Sans', sans-serif",
+  },
   elements: {
     socialButtonsRoot: { display: "none" },
     socialButtonsBlockButton: { display: "none" },
@@ -171,7 +178,7 @@ function SignInPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#f8f4ef] px-4">
+    <div className="min-h-screen flex items-center justify-center bg-[#FAFAFA] px-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-6">
           <img src={`${basePath}/castores-logo.jpeg`} alt="Castores" className="w-16 h-16 rounded-2xl object-cover shadow mx-auto mb-3" />
@@ -298,7 +305,7 @@ function ForgotPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#f8f4ef] px-4">
+    <div className="min-h-screen flex items-center justify-center bg-[#FAFAFA] px-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-6">
           <img src={`${basePath}/castores-logo.jpeg`} alt="Castores" className="w-16 h-16 rounded-2xl object-cover shadow mx-auto mb-3" />
@@ -394,7 +401,7 @@ function ResetPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#f8f4ef] px-4">
+    <div className="min-h-screen flex items-center justify-center bg-[#FAFAFA] px-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-6">
           <img src={`${basePath}/castores-logo.jpeg`} alt="Castores" className="w-16 h-16 rounded-2xl object-cover shadow mx-auto mb-3" />
@@ -939,7 +946,7 @@ function SignUpPage() {
   // isSignedIn becomes false — so the form renders.
   if (!isLoaded || !signUpLoaded || purgingSession || (isSignedIn && handledStaleSessionRef.current === false)) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#f8f4ef]">
+      <div className="min-h-screen flex items-center justify-center bg-[#FAFAFA]">
         <div className="flex flex-col items-center gap-3">
           <div className="animate-spin rounded-full h-10 w-10 border-4 border-black/10 border-t-[#141414]" />
           {purgingSession && (
@@ -954,7 +961,7 @@ function SignUpPage() {
   // not flash.
   if (isSignedIn) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#f8f4ef]">
+      <div className="min-h-screen flex items-center justify-center bg-[#FAFAFA]">
         <div className="animate-spin rounded-full h-10 w-10 border-4 border-black/10 border-t-[#141414]" />
       </div>
     );
@@ -964,7 +971,7 @@ function SignUpPage() {
   // (prevents flashing the form before the Clerk sync effect redirects to OTP)
   if (step === "otp" && !signUpLoaded) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#f8f4ef]">
+      <div className="min-h-screen flex items-center justify-center bg-[#FAFAFA]">
         <div className="animate-spin rounded-full h-10 w-10 border-4 border-black/10 border-t-[#141414]" />
       </div>
     );
@@ -973,7 +980,7 @@ function SignUpPage() {
   // ── OTP step ──────────────────────────────────────────────────────────────
   if (step === "otp") {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#f8f4ef] p-4">
+      <div className="min-h-screen flex items-center justify-center bg-[#FAFAFA] p-4">
         <div className="w-full max-w-sm">
           <div className="text-center mb-5">
             <div className="text-4xl mb-2">📧</div>
@@ -1218,7 +1225,7 @@ function SignUpPage() {
   const detectedIOS = typeof window !== "undefined" && /iphone|ipad|ipod/i.test(window.navigator.userAgent);
 
   return (
-    <div className="min-h-screen bg-[#f8f4ef] overflow-y-auto">
+    <div className="min-h-screen bg-[#FAFAFA] overflow-y-auto">
       <div className="flex flex-col items-center px-4 py-8 max-w-sm mx-auto">
 
         {/* Logo + bienvenida */}
@@ -1495,7 +1502,7 @@ function ApprovalGate({ children }: { children: React.ReactNode }) {
 
   if (status === "loading") {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#f8f4ef]">
+      <div className="min-h-screen flex items-center justify-center bg-[#FAFAFA]">
         <div className="animate-spin rounded-full h-10 w-10 border-4 border-black/10 border-t-[#141414]" />
       </div>
     );
@@ -1503,7 +1510,7 @@ function ApprovalGate({ children }: { children: React.ReactNode }) {
 
   if (status === "error") {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-[#f8f4ef] gap-4 p-6 text-center">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#FAFAFA] gap-4 p-6 text-center">
         <p className="text-sm text-gray-600">No se pudo verificar tu acceso. Revisa tu conexión e intenta de nuevo.</p>
         <button
           onClick={() => { setStatus("loading"); setRetryTick(t => t + 1); }}
@@ -1533,7 +1540,7 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
 
   if (!isLoaded || (!isSignedIn && !graceDone)) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#f8f4ef]">
+      <div className="min-h-screen flex items-center justify-center bg-[#FAFAFA]">
         <div className="animate-spin rounded-full h-10 w-10 border-4 border-black/10 border-t-[#141414]" />
       </div>
     );
@@ -1749,7 +1756,7 @@ function ClerkProviderWithRoutes() {
 function App() {
   if (!clerkPubKey) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#f8f4ef] px-6">
+      <div className="min-h-screen flex items-center justify-center bg-[#FAFAFA] px-6">
         <div className="max-w-lg rounded-2xl border border-black/10 bg-white p-6 text-center">
           <h1 className="text-xl font-bold text-[#141414]">Configuracion pendiente de autenticacion</h1>
           <p className="mt-2 text-sm text-[#5b5146]">

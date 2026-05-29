@@ -278,7 +278,7 @@ export default function NewBitacoraEntry() {
               {/* ─ Firmas ─ */}
               <div className="pt-6 border-t border-black/[0.06]">
                 <div className="flex items-center gap-2 mb-6">
-                  <div className="w-1 h-5 rounded-full bg-amber-500" />
+                  <div className="w-1 h-5 rounded-full bg-[#FF3C00]/[0.06]0" />
                   <h3 className="font-display text-xl text-foreground">Autorización y Firmas</h3>
                 </div>
 

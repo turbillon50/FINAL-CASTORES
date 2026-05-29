@@ -329,7 +329,7 @@ export default function Usuarios() {
                         else toast({ variant: "destructive", title: "Error", description: r.error });
                       }}
                       title="Enviar correo de recuperación de contraseña"
-                      className="w-8 h-8 rounded-lg flex items-center justify-center text-foreground/30 hover:text-amber-600 hover:bg-amber-50 transition-all">
+                      className="w-8 h-8 rounded-lg flex items-center justify-center text-foreground/30 hover:text-[#FF3C00] hover:bg-[#FF3C00]/[0.06] transition-all">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="w-3.5 h-3.5">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
                       </svg>
@@ -711,13 +711,13 @@ function CredentialsShareView({
       </div>
 
       <div className="rounded-2xl p-4 space-y-2 text-center" style={{ background: "#141414" }}>
-        <p className="text-[10px] uppercase tracking-widest font-bold text-amber-300">
+        <p className="text-[10px] uppercase tracking-widest font-bold text-[#FF7A3C]">
           Código de trabajador
         </p>
         <p className="text-3xl font-mono font-black text-white tracking-[0.15em]">
           {result.workerCode}
         </p>
-        <p className="text-[10px] uppercase tracking-widest font-bold text-amber-300 mt-3">
+        <p className="text-[10px] uppercase tracking-widest font-bold text-[#FF7A3C] mt-3">
           PIN inicial
         </p>
         <p className="text-4xl font-mono font-black text-white tracking-[0.5em]">
@@ -762,7 +762,7 @@ function CredentialsShareView({
         </button>
       </div>
 
-      <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3">
+      <p className="text-xs text-[#FF3C00] bg-[#FF3C00]/[0.06] border border-black/10 rounded-lg p-3">
         El PIN solo se ve una vez. El trabajador deberá cambiarlo en su primer login — si lo pierde antes, puedes resetearlo desde su detalle.
       </p>
 

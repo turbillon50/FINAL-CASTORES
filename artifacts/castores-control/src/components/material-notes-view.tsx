@@ -486,7 +486,7 @@ function NoteRow({
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <h3 className="font-bold text-sm">Conceptos</h3>
-                    <button type="button" onClick={() => setEditItems((prev) => [...prev, { ...EMPTY_ITEM }])} className="text-xs font-bold text-amber-700 hover:underline">
+                    <button type="button" onClick={() => setEditItems((prev) => [...prev, { ...EMPTY_ITEM }])} className="text-xs font-bold text-[#FF3C00] hover:underline">
                       + Agregar concepto
                     </button>
                   </div>
@@ -803,7 +803,7 @@ function NewNoteModal({
               <button
                 type="button"
                 onClick={addRow}
-                className="text-xs font-bold text-amber-700 hover:underline"
+                className="text-xs font-bold text-[#FF3C00] hover:underline"
               >
                 + Agregar concepto
               </button>

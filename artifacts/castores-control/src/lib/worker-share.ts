@@ -118,9 +118,9 @@ export async function downloadCredentialPdf(c: WorkerCredentials): Promise<void>
   pdf.text("Escanea para entrar", cardX + cardW - qrSize - 6, cardY + qrSize + 27, { maxWidth: qrSize });
 
   // Aviso al pie de la tarjeta
-  pdf.setFillColor(255, 251, 235); // amber-50
+  pdf.setFillColor(245, 245, 245); // gris concreto
   pdf.rect(cardX, cardY + cardH - 14, cardW, 14, "F");
-  pdf.setTextColor(146, 64, 14); // amber-800
+  pdf.setTextColor(20, 20, 20); // negro neutro
   pdf.setFontSize(8);
   pdf.setFont("helvetica", "bold");
   pdf.text(

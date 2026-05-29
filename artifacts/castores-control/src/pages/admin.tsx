@@ -879,7 +879,7 @@ function UsuariosTab() {
       {pending.length > 0 && (
         <div>
           <div className="flex items-center gap-2 mb-3">
-            <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+            <div className="w-2 h-2 rounded-full bg-[#FF3C00] animate-pulse" />
             <h3 className="font-black text-sm" style={{ color: "#141414" }}>
               Pendientes de aprobación ({pending.length})
             </h3>
@@ -1117,7 +1117,7 @@ function ObrasTab() {
                   <button
                     onClick={(e) => { e.stopPropagation(); setLocation(`/projects/${p.id}`); }}
                     title="Ver / editar obra"
-                    className="w-8 h-8 rounded-lg flex items-center justify-center transition-all hover:bg-amber-50"
+                    className="w-8 h-8 rounded-lg flex items-center justify-center transition-all hover:bg-[#FF3C00]/[0.06]"
                     style={{ color: "#FF3C00" }}>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zM19.5 19.5h-15" />
