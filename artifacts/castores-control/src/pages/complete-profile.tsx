@@ -335,7 +335,7 @@ export default function CompleteProfile() {
 
           <div className="rounded-2xl p-4 mb-4 text-left"
             style={{ background: "rgba(255,60,0,0.08)", border: "1px solid rgba(255,60,0,0.2)" }}>
-            <p className="text-xs font-semibold mb-2 text-amber-400">¿Cómo obtener una clave?</p>
+            <p className="text-xs font-semibold mb-2 text-[#FF7A3C]">¿Cómo obtener una clave?</p>
             <p className="text-xs leading-relaxed" style={{ color: "rgba(255,255,255,0.55)" }}>
               Pídele a tu administrador que te genere una clave desde su panel y te la comparta. Cada clave es de un solo uso.
             </p>
@@ -365,7 +365,7 @@ export default function CompleteProfile() {
             Clave Inválida
           </h1>
           <p className="text-sm mb-4 leading-relaxed" style={{ color: "rgba(255,255,255,0.5)" }}>
-            La clave <span className="font-mono text-amber-400 font-bold">{codeState.code}</span> no es válida o ya fue utilizada.
+            La clave <span className="font-mono text-[#FF7A3C] font-bold">{codeState.code}</span> no es válida o ya fue utilizada.
           </p>
           <p className="text-xs mb-6" style={{ color: "rgba(255,255,255,0.35)" }}>
             Pide al administrador que genere una nueva clave para ti.

@@ -149,7 +149,7 @@ export function PushToggle() {
   return (
     <section className="bg-card border border-border rounded-2xl p-6 space-y-3">
       <div className="flex items-start gap-3">
-        <span className="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center text-lg font-bold">🔔</span>
+        <span className="w-10 h-10 rounded-xl bg-[#FF3C00]/10 text-[#FF3C00] flex items-center justify-center text-lg font-bold">🔔</span>
         <div className="flex-1 min-w-0">
           <h3 className="font-bebas text-xl tracking-wide">NOTIFICACIONES</h3>
           <p className="text-xs text-muted-foreground mt-0.5">
@@ -205,7 +205,7 @@ export function PushToggle() {
                 "px-4 py-2 rounded-xl font-semibold text-sm transition disabled:opacity-50 " +
                 (state.subscribed
                   ? "border border-border bg-background hover:bg-accent"
-                  : "bg-amber-600 hover:bg-amber-700 text-white")
+                  : "bg-[#FF3C00] hover:bg-[#E63600] text-white")
               }
             >
               {busy ? "..." : state.subscribed ? "Desactivar" : "Activar"}

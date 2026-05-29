@@ -43,8 +43,8 @@ export default function AdminAccessPage() {
 
   if (!isLoaded) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#f8f4ef]">
-        <div className="animate-spin rounded-full h-10 w-10 border-4 border-amber-500 border-t-transparent" />
+      <div className="min-h-screen flex items-center justify-center bg-[#FAFAFA]">
+        <div className="animate-spin rounded-full h-10 w-10 border-4 border-black/10 border-t-[#141414]" />
       </div>
     );
   }
@@ -55,7 +55,7 @@ export default function AdminAccessPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#f8f4ef] px-4">
+    <div className="min-h-screen flex items-center justify-center bg-[#FAFAFA] px-4">
       <div className="w-full max-w-md bg-white rounded-3xl p-7 shadow-sm border border-black/10">
         <h1 className="text-[#141414] font-black text-2xl mb-2" style={{ fontFamily: "'Bebas Neue', sans-serif", letterSpacing: "0.05em" }}>
           Activar administrador

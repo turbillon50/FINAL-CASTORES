@@ -45,7 +45,7 @@ export class ErrorBoundary extends Component<GlobalProps, GlobalState> {
           alignItems: "center",
           justifyContent: "center",
           padding: "24px",
-          background: "#f8f4ef",
+          background: "#FAFAFA",
           fontFamily:
             "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
         }}
@@ -79,7 +79,7 @@ export class ErrorBoundary extends Component<GlobalProps, GlobalState> {
             style={{
               fontSize: 12,
               color: "#141414",
-              background: "#f8f4ef",
+              background: "#FAFAFA",
               border: "1px solid #e7dccc",
               borderRadius: 10,
               padding: 14,

@@ -271,7 +271,7 @@ function ProjectCalendarCard({ project }: { project: any }) {
           <h3 className="font-display text-lg">Calendario y plazo</h3>
         </div>
         {daysLeft != null && (
-          <span className={"text-xs font-bold px-2.5 py-1 rounded-full " + (daysLeft < 0 ? "bg-red-100 text-red-700" : daysLeft < 14 ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-emerald-700")}>
+          <span className={"text-xs font-bold px-2.5 py-1 rounded-full " + (daysLeft < 0 ? "bg-red-100 text-red-700" : daysLeft < 14 ? "bg-[#FF3C00]/10 text-[#FF3C00]" : "bg-emerald-100 text-emerald-700")}>
             {daysLeft < 0 ? `Vencida hace ${Math.abs(daysLeft)} días` : daysLeft === 0 ? "Vence hoy" : `Faltan ${daysLeft} días`}
           </span>
         )}
@@ -303,7 +303,7 @@ function ProjectCalendarCard({ project }: { project: any }) {
             <span>Avance reportado</span>
           </div>
           <div className="relative h-2 rounded-full bg-foreground/10 overflow-hidden">
-            <div className="absolute left-0 top-0 h-full bg-amber-500/60" style={{ width: `${elapsedPct}%` }} />
+            <div className="absolute left-0 top-0 h-full bg-[#FF3C00]/[0.06]0/60" style={{ width: `${elapsedPct}%` }} />
             <div className="absolute left-0 top-0 h-full border-r-2 border-emerald-500" style={{ width: `${project.progressPercent ?? 0}%` }} />
           </div>
           <p className="text-[11px] text-muted-foreground">
@@ -937,8 +937,8 @@ export default function ProjectDetail() {
               </div>
 
               {/* Asistencia — geocerca de check-in/out por GPS */}
-              <div className="rounded-xl border border-amber-200/60 bg-amber-50/40 p-3 space-y-3">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-amber-800">
+              <div className="rounded-xl border border-black/10 bg-[#FF3C00]/[0.05] p-3 space-y-3">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[#141414]">
                   Asistencia con geocerca
                 </p>
                 <div className="grid grid-cols-2 gap-3">
@@ -966,7 +966,7 @@ export default function ProjectDetail() {
                     </select>
                   </Field>
                 </div>
-                <p className="text-[11px] text-amber-700 leading-snug">
+                <p className="text-[11px] text-[#FF3C00] leading-snug">
                   El radio se mide desde la latitud/longitud de arriba. Si la obra no tiene coordenadas, el geofence queda inactivo aunque pongas un radio.
                 </p>
               </div>

@@ -163,7 +163,7 @@ export default function AsistenciaDashboardPage() {
             {perms.has("attendanceExport") && (
               <button
                 onClick={onExport}
-                className="px-4 py-2 rounded-xl text-sm font-bold text-amber-800"
+                className="px-4 py-2 rounded-xl text-sm font-bold text-[#141414]"
                 style={{ background: "rgba(255,60,0,0.18)", border: "1px solid rgba(255,60,0,0.4)" }}
                 data-testid="button-export-csv"
               >
@@ -262,7 +262,7 @@ export default function AsistenciaDashboardPage() {
                     const flagged = r.checkInStatus === "flagged" || r.checkOutStatus === "flagged";
                     const hours = r.totalMinutes != null ? (r.totalMinutes / 60).toFixed(1) : "—";
                     return (
-                      <tr key={r.id} className="border-t border-gray-100 hover:bg-amber-50/30">
+                      <tr key={r.id} className="border-t border-gray-100 hover:bg-[#FF3C00]/[0.04]">
                         <td className="px-4 py-3">
                           <p className="font-semibold text-gray-900">{r.userName ?? "—"}</p>
                           {r.userWorkerCode && (
