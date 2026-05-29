@@ -293,16 +293,16 @@ export default function WorkerCheckPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center"
-        style={{ background: "linear-gradient(160deg, #1a1612 0%, #2d2419 60%, #1a1612 100%)" }}>
+        style={{ background: "linear-gradient(160deg, #141414 0%, #262626 60%, #141414 100%)" }}>
         <div className="animate-spin rounded-full h-10 w-10 border-4"
-          style={{ borderColor: "rgba(200,149,42,0.2)", borderTopColor: "#C8952A" }} />
+          style={{ borderColor: "rgba(255,60,0,0.2)", borderTopColor: "#FF3C00" }} />
       </div>
     );
   }
   if (loadError || !me) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center px-6 gap-3 text-center"
-        style={{ background: "linear-gradient(160deg, #1a1612 0%, #2d2419 60%, #1a1612 100%)" }}>
+        style={{ background: "linear-gradient(160deg, #141414 0%, #262626 60%, #141414 100%)" }}>
         <p className="text-white">{loadError || "Sin datos"}</p>
         <button onClick={reload} className="px-5 py-2 rounded-xl bg-amber-600 text-white text-sm font-bold">
           Reintentar
@@ -327,13 +327,13 @@ export default function WorkerCheckPage() {
 
   return (
     <div className="min-h-screen pb-12"
-      style={{ background: "linear-gradient(160deg, #1a1612 0%, #2d2419 60%, #1a1612 100%)" }}>
+      style={{ background: "linear-gradient(160deg, #141414 0%, #262626 60%, #141414 100%)" }}>
       {/* Top bar */}
       <header className="px-5 pt-6 pb-4 flex items-center justify-between"
         style={{ paddingTop: "max(env(safe-area-inset-top), 24px)" }}>
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl"
-            style={{ background: "rgba(200,149,42,0.18)", border: "1px solid rgba(200,149,42,0.4)" }}>
+            style={{ background: "rgba(255,60,0,0.18)", border: "1px solid rgba(255,60,0,0.4)" }}>
             👷
           </div>
           <div>
@@ -348,7 +348,7 @@ export default function WorkerCheckPage() {
           <button
             onClick={() => setLocation("/check/change-pin")}
             className="text-[10px] font-bold uppercase tracking-widest px-3 py-2 rounded-full"
-            style={{ background: "rgba(200,149,42,0.18)", border: "1px solid rgba(200,149,42,0.4)", color: "#fde68a" }}
+            style={{ background: "rgba(255,60,0,0.18)", border: "1px solid rgba(255,60,0,0.4)", color: "#fde68a" }}
             data-testid="button-go-change-pin"
           >
             🔐 PIN
@@ -421,7 +421,7 @@ export default function WorkerCheckPage() {
               onClick={requestLocation}
               disabled={gpsBusy}
               className="text-[10px] font-bold uppercase tracking-widest px-3 py-2 rounded-full disabled:opacity-40"
-              style={{ background: "rgba(200,149,42,0.18)", border: "1px solid rgba(200,149,42,0.4)", color: "#fde68a" }}
+              style={{ background: "rgba(255,60,0,0.18)", border: "1px solid rgba(255,60,0,0.4)", color: "#fde68a" }}
               data-testid="button-refresh-gps"
             >
               {gpsBusy ? "..." : "Actualizar"}
@@ -454,8 +454,8 @@ export default function WorkerCheckPage() {
                       onClick={() => setSelectedProjectId(p.id)}
                       className="w-full text-left px-3 py-2.5 rounded-xl transition-colors"
                       style={{
-                        background: isSelected ? "rgba(200,149,42,0.18)" : "rgba(255,255,255,0.04)",
-                        border: `1px solid ${isSelected ? "rgba(200,149,42,0.5)" : "rgba(255,255,255,0.08)"}`,
+                        background: isSelected ? "rgba(255,60,0,0.18)" : "rgba(255,255,255,0.04)",
+                        border: `1px solid ${isSelected ? "rgba(255,60,0,0.5)" : "rgba(255,255,255,0.08)"}`,
                       }}
                       data-testid={`project-option-${p.id}`}
                     >

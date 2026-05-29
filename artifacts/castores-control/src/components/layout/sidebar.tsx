@@ -150,7 +150,7 @@ const ROLE_LABELS: Record<string, string> = {
   admin: "Administrador", supervisor: "Supervisor", client: "Cliente", worker: "Trabajador",
 };
 const ROLE_ACCENT: Record<string, string> = {
-  admin: "#C8952A", supervisor: "#3B82F6", client: "#10B981", worker: "#EF4444",
+  admin: "#FF3C00", supervisor: "#3B82F6", client: "#10B981", worker: "#EF4444",
 };
 
 /* vivid orange — not gold */
@@ -190,7 +190,7 @@ export function Sidebar() {
 
   const filteredNav = ALL_NAV.filter(item => item.roles.includes(user.role));
   const filteredSidebar = SIDEBAR_NAV.filter(item => item.roles.includes(user.role));
-  const roleColor = ROLE_ACCENT[user.role] ?? "#C8952A";
+  const roleColor = ROLE_ACCENT[user.role] ?? "#FF3C00";
 
   const close = () => setOverlayOpen(false);
 
@@ -198,7 +198,7 @@ export function Sidebar() {
     <>
       {/* ─── DESKTOP SIDEBAR ─────────────────────────────────── */}
       <aside className="hidden md:flex flex-col h-screen w-64 sticky top-0 shrink-0 z-30"
-        style={{ background: "linear-gradient(180deg,#1a1612 0%,#0f0d0b 100%)", borderRight: "1px solid rgba(255,255,255,0.07)" }}>
+        style={{ background: "linear-gradient(180deg,#141414 0%,#0a0a0a 100%)", borderRight: "1px solid rgba(255,255,255,0.07)" }}>
         <div className="px-6 py-5" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
           <img src="/castores-logo.jpeg" alt="CASTORES" className="h-10 w-auto object-contain brightness-0 invert opacity-80" />
         </div>
@@ -266,7 +266,7 @@ export function Sidebar() {
       {/* ─── MOBILE TOP BAR ──────────────────────────────────── */}
       <div className="md:hidden fixed top-0 left-0 right-0 z-40 flex items-center justify-between px-4"
         style={{
-          background: "rgba(15,13,11,0.92)",
+          background: "rgba(12,12,12,0.92)",
           backdropFilter: "blur(20px)",
           borderBottom: "1px solid rgba(255,255,255,0.06)",
           paddingTop: "env(safe-area-inset-top)",
@@ -342,7 +342,7 @@ export function Sidebar() {
               transition={{ duration: 0.22 }}
               className="fixed inset-0 z-[60] md:hidden"
               style={{
-                background: "rgba(8,6,4,0.52)",
+                background: "rgba(8,8,8,0.52)",
                 backdropFilter: "blur(18px) saturate(160%) brightness(0.75)",
                 WebkitBackdropFilter: "blur(18px) saturate(160%) brightness(0.75)",
               }}

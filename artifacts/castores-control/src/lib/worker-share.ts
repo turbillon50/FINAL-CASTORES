@@ -55,7 +55,7 @@ export async function downloadCredentialPdf(c: WorkerCredentials): Promise<void>
   const link = buildShareLink(c);
   const qrDataUrl = await QRCode.toDataURL(link, {
     width: 240, margin: 1, errorCorrectionLevel: "M",
-    color: { dark: "#1a1612", light: "#ffffff" },
+    color: { dark: "#141414", light: "#ffffff" },
   });
 
   // Hoja carta vertical pero con la tarjeta como bloque grande (más

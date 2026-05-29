@@ -168,7 +168,7 @@ export default function Materiales() {
   };
 
   const statCards = [
-    { label: "Total Gastado", value: fmt(stats?.totalMaterialCost), color: "#C8952A", icon: "💰", onClick: undefined as (() => void) | undefined },
+    { label: "Total Gastado", value: fmt(stats?.totalMaterialCost), color: "#FF3C00", icon: "💰", onClick: undefined as (() => void) | undefined },
     { label: "Pendientes", value: stats?.pendingRequests ?? 0, color: "#F59E0B", icon: "⏳", onClick: () => setView("kanban") },
     { label: "Aprobadas", value: stats?.approvedRequests ?? 0, color: "#10B981", icon: "✅", onClick: () => setView("kanban") },
     { label: "Total Solicitudes", value: stats?.totalMaterialRequests ?? 0, color: "#3B82F6", icon: "📦", onClick: undefined as (() => void) | undefined },
@@ -181,14 +181,14 @@ export default function Materiales() {
           title="Logística de Materiales"
           subtitle="Control de inventario, solicitudes y movimientos de suministros"
           imageUrl="https://images.unsplash.com/photo-1607400201515-c2c41c8eb8e6?w=1400&q=80&fit=crop"
-          accentColor="#C8952A"
+          accentColor="#FF3C00"
           badge="BODEGA Y SUMINISTROS"
         >
           {view === "kanban" && canRequest && (
             <Button
               onClick={() => setShowForm(true)}
               className="mt-1 rounded-xl text-xs font-bold px-4 py-2 h-auto"
-              style={{ background: "rgba(200,149,42,0.25)", border: "1px solid rgba(200,149,42,0.5)", color: "#fff" }}
+              style={{ background: "rgba(255,60,0,0.25)", border: "1px solid rgba(255,60,0,0.5)", color: "#fff" }}
             >
               <Icons.Plus className="w-3.5 h-3.5 mr-1.5" /> Solicitar suelto
             </Button>
@@ -206,7 +206,7 @@ export default function Materiales() {
               className="px-4 py-1.5 rounded-xl text-xs font-bold transition-all"
               style={{
                 background: view === v ? "white" : "transparent",
-                color: view === v ? "#1a1612" : "rgba(26,22,18,0.5)",
+                color: view === v ? "#141414" : "rgba(20,20,20,0.5)",
                 boxShadow: view === v ? "0 1px 4px rgba(0,0,0,0.08)" : "none",
               }}
             >
@@ -367,7 +367,7 @@ export default function Materiales() {
                     <Button type="button" variant="outline" onClick={() => setShowForm(false)}
                       className="flex-1 rounded-xl border-black/10">Cancelar</Button>
                     <Button type="submit" disabled={submitting} className="flex-1 rounded-xl font-bold"
-                      style={{ background: "#C8952A", color: "#fff" }}>
+                      style={{ background: "#FF3C00", color: "#fff" }}>
                       {submitting ? "Enviando..." : "Solicitar"}
                     </Button>
                   </div>
@@ -442,7 +442,7 @@ export default function Materiales() {
                       disabled={editSaving} className="flex-1 rounded-xl border-black/10">Cancelar</Button>
                     <Button type="button" onClick={submitEdit} disabled={editSaving}
                       className="flex-1 rounded-xl font-bold"
-                      style={{ background: "#C8952A", color: "#fff" }}>
+                      style={{ background: "#FF3C00", color: "#fff" }}>
                       {editSaving ? "Guardando..." : "Guardar cambios"}
                     </Button>
                   </div>

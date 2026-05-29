@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/select";
 
 const STATUS_META: Record<string, { label: string; color: string }> = {
-  active:    { label: "Activas",     color: "#C8952A" },
+  active:    { label: "Activas",     color: "#FF3C00" },
   paused:    { label: "Pausadas",    color: "#F59E0B" },
   completed: { label: "Completadas", color: "#10B981" },
   cancelled: { label: "Canceladas",  color: "#EF4444" },
@@ -173,7 +173,7 @@ export default function Projects() {
           title="Portafolio de Obras"
           subtitle="Gestiona, monitorea y controla todas las obras en ejecución"
           imageUrl="https://images.unsplash.com/photo-1503387762-592deb58ef4e?w=1400&q=80&fit=crop"
-          accentColor="#C8952A"
+          accentColor="#FF3C00"
           badge="GESTIÓN OPERATIVA"
         />
 
@@ -203,7 +203,7 @@ export default function Projects() {
           </div>
           {canCreate && (
             <Button onClick={() => setShowForm(true)} className="rounded-xl font-bold"
-              style={{ background: "#C8952A", color: "#fff" }}>
+              style={{ background: "#FF3C00", color: "#fff" }}>
               <Icons.Plus className="w-4 h-4 mr-2" /> Nueva Obra
             </Button>
           )}
@@ -461,7 +461,7 @@ export default function Projects() {
                     <Button type="button" variant="outline" onClick={() => setShowForm(false)}
                       className="flex-1 rounded-xl border-black/10">Cancelar</Button>
                     <Button type="submit" disabled={submitting} className="flex-1 rounded-xl font-bold"
-                      style={{ background: "#C8952A", color: "#fff" }}>
+                      style={{ background: "#FF3C00", color: "#fff" }}>
                       {submitting ? "Creando..." : "Crear Obra"}
                     </Button>
                   </div>

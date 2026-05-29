@@ -4,32 +4,85 @@ import { ReactNode } from "react";
 interface PageHeroProps {
   title: string;
   subtitle?: string;
-  imageUrl: string;
+  /** Conservado por compatibilidad: se usa solo como textura tenue en B/N. */
+  imageUrl?: string;
   accentColor?: string;
   badge?: string;
   children?: ReactNode;
 }
 
-export function PageHero({ title, subtitle, imageUrl, accentColor = "#C8952A", badge, children }: PageHeroProps) {
+// Barras tipo skyline — el mismo lenguaje del logo Castores (estructuras
+// verticales que suben en pirámide). Alturas relativas (0–1).
+const SKYLINE = [
+  0.28, 0.16, 0.34, 0.22, 0.46, 0.3, 0.58, 0.4, 0.72, 0.54, 0.88, 1, 0.86, 0.6,
+  0.74, 0.44, 0.62, 0.34, 0.5, 0.24, 0.4, 0.18, 0.3, 0.14,
+];
+
+export function PageHero({
+  title,
+  subtitle,
+  imageUrl,
+  accentColor = "#FF3C00",
+  badge,
+  children,
+}: PageHeroProps) {
   return (
-    <div className="relative w-full rounded-2xl overflow-hidden mb-8" style={{ height: 200 }}>
-      {/* Background image */}
-      <img
-        src={imageUrl}
-        alt={title}
-        className="absolute inset-0 w-full h-full object-cover"
-        style={{ filter: "brightness(0.45) saturate(1.1)" }}
+    <div
+      className="relative w-full rounded-2xl overflow-hidden mb-8"
+      style={{
+        height: 200,
+        background: "linear-gradient(135deg, #0a0a0a 0%, #1f1f1f 55%, #141414 100%)",
+        border: "1px solid rgba(255,255,255,0.06)",
+      }}
+    >
+      {/* Textura de foto opcional, en blanco y negro y muy tenue */}
+      {imageUrl && (
+        <img
+          src={imageUrl}
+          alt=""
+          aria-hidden="true"
+          className="absolute inset-0 w-full h-full object-cover"
+          style={{ filter: "grayscale(1) brightness(0.32) contrast(1.1)", opacity: 0.35 }}
+        />
+      )}
+
+      {/* Skyline de barras (motivo del logo) anclado abajo a la derecha */}
+      <div className="absolute bottom-0 right-0 h-full flex items-end gap-[3px] pr-6 opacity-[0.13] pointer-events-none">
+        {SKYLINE.map((h, i) => (
+          <div
+            key={i}
+            style={{
+              width: 6,
+              height: `${h * 78}%`,
+              background: i % 7 === 0 ? accentColor : "#ffffff",
+            }}
+          />
+        ))}
+      </div>
+
+      {/* Retícula técnica sutil (blueprint) */}
+      <div
+        className="absolute inset-0 opacity-[0.06] pointer-events-none"
+        style={{
+          backgroundImage:
+            "repeating-linear-gradient(0deg,transparent,transparent 39px,rgba(255,255,255,0.5) 39px,rgba(255,255,255,0.5) 40px),repeating-linear-gradient(90deg,transparent,transparent 39px,rgba(255,255,255,0.5) 39px,rgba(255,255,255,0.5) 40px)",
+        }}
       />
-      {/* Gradient overlay */}
-      <div className="absolute inset-0" style={{
-        background: `linear-gradient(120deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 60%, ${accentColor}22 100%)`
-      }} />
-      {/* Subtle grid texture */}
-      <div className="absolute inset-0 opacity-10" style={{
-        backgroundImage: "repeating-linear-gradient(0deg,transparent,transparent 39px,rgba(255,255,255,0.15) 39px,rgba(255,255,255,0.15) 40px),repeating-linear-gradient(90deg,transparent,transparent 39px,rgba(255,255,255,0.15) 39px,rgba(255,255,255,0.15) 40px)"
-      }} />
-      {/* Accent glow */}
-      <div className="absolute bottom-0 left-0 right-0 h-1" style={{ background: `linear-gradient(90deg, ${accentColor}, transparent)` }} />
+
+      {/* Degradado de legibilidad para el texto a la izquierda */}
+      <div
+        className="absolute inset-0"
+        style={{
+          background:
+            "linear-gradient(90deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.45) 55%, transparent 100%)",
+        }}
+      />
+
+      {/* Línea de acento inferior */}
+      <div
+        className="absolute bottom-0 left-0 right-0 h-1"
+        style={{ background: `linear-gradient(90deg, ${accentColor}, transparent)` }}
+      />
 
       <div className="relative z-10 h-full flex flex-col justify-end p-6">
         {badge && (
@@ -37,7 +90,7 @@ export function PageHero({ title, subtitle, imageUrl, accentColor = "#C8952A", b
             initial={{ opacity: 0, x: -10 }}
             animate={{ opacity: 1, x: 0 }}
             className="inline-flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-[0.25em] px-2.5 py-1 rounded-full mb-3 w-fit"
-            style={{ background: `${accentColor}30`, border: `1px solid ${accentColor}60`, color: accentColor }}
+            style={{ background: `${accentColor}26`, border: `1px solid ${accentColor}66`, color: accentColor }}
           >
             <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: accentColor }} />
             {badge}
@@ -56,7 +109,7 @@ export function PageHero({ title, subtitle, imageUrl, accentColor = "#C8952A", b
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="text-white/50 text-sm mt-1.5"
+            className="text-white/55 text-sm mt-1.5"
           >
             {subtitle}
           </motion.p>

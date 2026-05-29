@@ -78,60 +78,60 @@
   --elevate-1: rgba(0,0,0,0.03);
   --elevate-2: rgba(0,0,0,0.06);
 
-  /* Fondo: blanco roto cálido */
-  --background: 38 30% 97%;
-  --foreground: 24 15% 12%;
+  /* Fondo: concreto neutro (sin tinte cálido) */
+  --background: 0 0% 98%;
+  --foreground: 0 0% 9%;
 
-  --border: 38 20% 84%;
+  --border: 0 0% 89%;
 
-  /* Tarjetas: blanco puro con borde sutil */
+  /* Tarjetas: blanco puro con borde sutil neutro */
   --card: 0 0% 100%;
-  --card-foreground: 24 15% 12%;
-  --card-border: 38 18% 87%;
+  --card-foreground: 0 0% 9%;
+  --card-border: 0 0% 91%;
 
-  /* Sidebar: tono arena muy suave */
-  --sidebar: 38 22% 93%;
-  --sidebar-foreground: 24 15% 12%;
-  --sidebar-border: 38 18% 84%;
-  --sidebar-primary: 36 72% 40%;
+  /* Sidebar: gris concreto neutro */
+  --sidebar: 0 0% 96%;
+  --sidebar-foreground: 0 0% 9%;
+  --sidebar-border: 0 0% 88%;
+  --sidebar-primary: 14 100% 50%;
   --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 38 22% 89%;
-  --sidebar-accent-foreground: 24 15% 12%;
-  --sidebar-ring: 36 72% 40%;
+  --sidebar-accent: 0 0% 93%;
+  --sidebar-accent-foreground: 0 0% 9%;
+  --sidebar-ring: 14 100% 50%;
 
   /* Popover */
   --popover: 0 0% 100%;
-  --popover-foreground: 24 15% 12%;
-  --popover-border: 38 18% 87%;
+  --popover-foreground: 0 0% 9%;
+  --popover-border: 0 0% 91%;
 
-  /* Primary: ámbar oscuro — legible sobre claro */
-  --primary: 36 72% 40%;
+  /* Primary: naranja construcción de marca (#FF3C00) */
+  --primary: 14 100% 50%;
   --primary-foreground: 0 0% 100%;
 
   /* Secondary */
-  --secondary: 38 20% 91%;
-  --secondary-foreground: 24 15% 12%;
+  --secondary: 0 0% 94%;
+  --secondary-foreground: 0 0% 9%;
 
   /* Muted */
-  --muted: 38 18% 92%;
-  --muted-foreground: 30 8% 48%;
+  --muted: 0 0% 95%;
+  --muted-foreground: 0 0% 40%;
 
-  /* Accent */
-  --accent: 36 72% 40%;
+  /* Accent: naranja de marca */
+  --accent: 14 100% 50%;
   --accent-foreground: 0 0% 100%;
 
   /* Destructive */
-  --destructive: 0 68% 50%;
+  --destructive: 0 72% 48%;
   --destructive-foreground: 0 0% 100%;
 
-  --input: 38 20% 84%;
-  --ring: 36 72% 40%;
+  --input: 0 0% 89%;
+  --ring: 14 100% 50%;
 
-  --chart-1: 36 72% 40%;
-  --chart-2: 210 65% 50%;
-  --chart-3: 142 55% 40%;
-  --chart-4: 0 68% 50%;
-  --chart-5: 280 50% 55%;
+  --chart-1: 14 100% 50%;
+  --chart-2: 0 0% 20%;
+  --chart-3: 210 9% 55%;
+  --chart-4: 142 45% 42%;
+  --chart-5: 28 90% 55%;
 
   --app-font-sans: 'DM Sans', sans-serif;
   --app-font-serif: Georgia, serif;
@@ -166,6 +166,13 @@
 
   body {
     @apply font-sans antialiased bg-background text-foreground;
+    /* Cifras tabulares: montos y números se alinean en columna (look ERP/pro) */
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Títulos display: el tracking condensado del logo Castores */
+  h1, h2, h3, .font-display, .font-bebas {
+    letter-spacing: 0.01em;
   }
 }
 

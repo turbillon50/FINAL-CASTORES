@@ -154,7 +154,7 @@ export default function AsistenciaDashboardPage() {
               <button
                 onClick={() => setLocation("/asistencia/qr")}
                 className="px-4 py-2 rounded-xl text-sm font-bold text-white"
-                style={{ background: "#1a1612" }}
+                style={{ background: "#141414" }}
                 data-testid="button-go-qr"
               >
                 📱 Mostrar QR
@@ -164,7 +164,7 @@ export default function AsistenciaDashboardPage() {
               <button
                 onClick={onExport}
                 className="px-4 py-2 rounded-xl text-sm font-bold text-amber-800"
-                style={{ background: "rgba(200,149,42,0.18)", border: "1px solid rgba(200,149,42,0.4)" }}
+                style={{ background: "rgba(255,60,0,0.18)", border: "1px solid rgba(255,60,0,0.4)" }}
                 data-testid="button-export-csv"
               >
                 ⬇ Exportar CSV
@@ -175,10 +175,10 @@ export default function AsistenciaDashboardPage() {
 
         {/* KPIs */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <Kpi label="Registros" value={String(summary.total)} accent="#1a1612" />
+          <Kpi label="Registros" value={String(summary.total)} accent="#141414" />
           <Kpi label="En obra ahora" value={String(summary.open)} accent="#22C55E" />
           <Kpi label="Marcados" value={String(summary.flagged)} accent="#F59E0B" />
-          <Kpi label="Horas totales" value={String(summary.totalHours)} accent="#C8952A" />
+          <Kpi label="Horas totales" value={String(summary.totalHours)} accent="#FF3C00" />
         </div>
 
         {/* Filtros */}

@@ -16,14 +16,14 @@ import {
 type Section = "obra" | "bitacora" | "materiales" | "asistencia";
 
 const SECTION_META: { key: Section; label: string; icon: string; color: string; desc: string }[] = [
-  { key: "obra", label: "Obra / Avance / Presupuesto", icon: "📊", color: "#C8952A", desc: "Estado, % avance, presupuesto vs gastado" },
+  { key: "obra", label: "Obra / Avance / Presupuesto", icon: "📊", color: "#FF3C00", desc: "Estado, % avance, presupuesto vs gastado" },
   { key: "bitacora", label: "Bitácora", icon: "📋", color: "#3B82F6", desc: "Actividades diarias por obra y fecha" },
   { key: "materiales", label: "Materiales y notas", icon: "🏗️", color: "#8B5CF6", desc: "Gasto por proveedor, estatus y obra" },
   { key: "asistencia", label: "Asistencia / Geocheck", icon: "📍", color: "#10B981", desc: "Horas por trabajador, check-ins y obra" },
 ];
 
-const GOLD = "#C8952A";
-const PALETTE = ["#C8952A", "#3B82F6", "#10B981", "#8B5CF6", "#EF4444", "#F59E0B", "#06B6D4", "#EC4899", "#64748B", "#14B8A6"];
+const GOLD = "#FF3C00";
+const PALETTE = ["#FF3C00", "#3B82F6", "#10B981", "#8B5CF6", "#EF4444", "#F59E0B", "#06B6D4", "#EC4899", "#64748B", "#14B8A6"];
 const STATUS_COLOR: Record<string, string> = { approved: "#10B981", pending: "#F59E0B", rejected: "#EF4444" };
 const STATUS_LABEL: Record<string, string> = { approved: "Aprobado", pending: "Pendiente", rejected: "Rechazado", manual: "Manual", ok: "OK", flagged: "Marcado" };
 
@@ -87,7 +87,7 @@ export function ReportBuilder({ authFetch, projects }: Props) {
 
       {/* ─── Configuración ─── */}
       <div className="rounded-3xl p-6 space-y-5 no-print"
-        style={{ background: "linear-gradient(135deg, #1a1612 0%, #2d2419 100%)", border: "1.5px solid rgba(200,149,42,0.2)" }}>
+        style={{ background: "linear-gradient(135deg, #141414 0%, #262626 100%)", border: "1.5px solid rgba(255,60,0,0.2)" }}>
         <div>
           <h3 className="font-black text-white text-lg" style={{ fontFamily: "'Bebas Neue', sans-serif", letterSpacing: "0.04em" }}>
             Constructor inteligente
@@ -115,7 +115,7 @@ export function ReportBuilder({ authFetch, projects }: Props) {
                   <div className="w-4 h-4 rounded-md border-2 flex items-center justify-center flex-shrink-0"
                     style={{ borderColor: on ? m.color : "rgba(255,255,255,0.25)", background: on ? m.color : "transparent" }}>
                     {on && (
-                      <svg viewBox="0 0 24 24" fill="none" stroke="#1a1612" strokeWidth="3" className="w-3 h-3">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="#141414" strokeWidth="3" className="w-3 h-3">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
                       </svg>
                     )}
@@ -135,7 +135,7 @@ export function ReportBuilder({ authFetch, projects }: Props) {
                 className="flex-1 py-2 rounded-xl text-xs font-bold transition-all"
                 style={{
                   background: projectMode === mode ? GOLD : "rgba(255,255,255,0.06)",
-                  color: projectMode === mode ? "#1a1612" : "rgba(255,255,255,0.6)",
+                  color: projectMode === mode ? "#141414" : "rgba(255,255,255,0.6)",
                   border: `1.5px solid ${projectMode === mode ? GOLD : "rgba(255,255,255,0.1)"}`,
                 }}>
                 {mode === "all" ? "Todas las obras" : "Elegir obras"}
@@ -151,10 +151,10 @@ export function ReportBuilder({ authFetch, projects }: Props) {
                 return (
                   <button key={p.id} type="button" onClick={() => toggleProject(p.id)}
                     className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left transition-all"
-                    style={{ background: on ? "rgba(200,149,42,0.18)" : "transparent" }}>
+                    style={{ background: on ? "rgba(255,60,0,0.18)" : "transparent" }}>
                     <div className="w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0"
                       style={{ borderColor: on ? GOLD : "rgba(255,255,255,0.25)", background: on ? GOLD : "transparent" }}>
-                      {on && <svg viewBox="0 0 24 24" fill="none" stroke="#1a1612" strokeWidth="3" className="w-2.5 h-2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>}
+                      {on && <svg viewBox="0 0 24 24" fill="none" stroke="#141414" strokeWidth="3" className="w-2.5 h-2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>}
                     </div>
                     <span className="text-xs font-semibold truncate" style={{ color: on ? "white" : "rgba(255,255,255,0.6)" }}>{p.name}</span>
                   </button>
@@ -203,7 +203,7 @@ function BuilderReport({ data }: { data: any }) {
     <div className="mt-5 space-y-4">
       {/* Barra de acciones (no imprime) */}
       <div className="flex items-center justify-between no-print">
-        <p className="text-sm font-bold" style={{ color: "rgba(26,22,18,0.55)" }}>
+        <p className="text-sm font-bold" style={{ color: "rgba(20,20,20,0.55)" }}>
           {meta.projectCount} obra(s) · generado {format(new Date(meta.generatedAt), "dd/MM/yyyy HH:mm", { locale: es })}
         </p>
         <button onClick={() => window.print()}
@@ -219,11 +219,11 @@ function BuilderReport({ data }: { data: any }) {
       {/* Contenedor imprimible */}
       <div id="castores-builder-report" className="bg-white rounded-2xl overflow-hidden" style={{ border: "1px solid rgba(0,0,0,0.08)" }}>
         {/* Header */}
-        <div className="px-7 pt-7 pb-5" style={{ background: "linear-gradient(135deg, #1a1612 0%, #2d2419 100%)" }}>
+        <div className="px-7 pt-7 pb-5" style={{ background: "linear-gradient(135deg, #141414 0%, #262626 100%)" }}>
           <div className="flex items-start justify-between">
             <div>
               <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0" style={{ background: "rgba(200,149,42,0.2)", border: "1px solid rgba(200,149,42,0.3)" }}>
+                <div className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0" style={{ background: "rgba(255,60,0,0.2)", border: "1px solid rgba(255,60,0,0.3)" }}>
                   <img src="/castores-logo.jpeg" alt="CASTORES" className="w-full h-full object-contain" />
                 </div>
                 <div>
@@ -259,7 +259,7 @@ function BuilderReport({ data }: { data: any }) {
             <Section title={`OBRAS INCLUIDAS (${projects.length})`}>
               <div className="flex flex-wrap gap-2">
                 {projects.map((p: any) => (
-                  <span key={p.id} className="text-xs font-semibold px-3 py-1.5 rounded-lg" style={{ background: "#FAFAF9", border: "1px solid rgba(0,0,0,0.07)", color: "#1a1612" }}>
+                  <span key={p.id} className="text-xs font-semibold px-3 py-1.5 rounded-lg" style={{ background: "#FAFAFA", border: "1px solid rgba(0,0,0,0.07)", color: "#141414" }}>
                     {p.name}
                   </span>
                 ))}
@@ -281,7 +281,7 @@ function BuilderReport({ data }: { data: any }) {
 function Badge({ label }: { label: string }) {
   return (
     <span className="inline-flex items-center text-xs font-bold px-3 py-1.5 rounded-lg"
-      style={{ background: "rgba(200,149,42,0.15)", border: "1px solid rgba(200,149,42,0.3)", color: GOLD }}>
+      style={{ background: "rgba(255,60,0,0.15)", border: "1px solid rgba(255,60,0,0.3)", color: GOLD }}>
       {label}
     </span>
   );
@@ -290,7 +290,7 @@ function Badge({ label }: { label: string }) {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section>
-      <h2 className="font-black text-base mb-3 pb-2 border-b" style={{ color: "#1a1612", fontFamily: "'Bebas Neue', sans-serif", letterSpacing: "0.04em", borderColor: "rgba(0,0,0,0.08)" }}>
+      <h2 className="font-black text-base mb-3 pb-2 border-b" style={{ color: "#141414", fontFamily: "'Bebas Neue', sans-serif", letterSpacing: "0.04em", borderColor: "rgba(0,0,0,0.08)" }}>
         {title}
       </h2>
       {children}
@@ -300,23 +300,23 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 function Kpi({ label, value, color }: { label: string; value: string; color?: string }) {
   return (
-    <div className="rounded-xl p-3 flex-1 min-w-[120px]" style={{ background: "#FAFAF9", border: "1px solid rgba(0,0,0,0.06)" }}>
-      <p className="text-[10px] font-bold uppercase tracking-wider mb-0.5" style={{ color: "rgba(26,22,18,0.4)" }}>{label}</p>
-      <p className="text-base font-black" style={{ color: color ?? "#1a1612" }}>{value}</p>
+    <div className="rounded-xl p-3 flex-1 min-w-[120px]" style={{ background: "#FAFAFA", border: "1px solid rgba(0,0,0,0.06)" }}>
+      <p className="text-[10px] font-bold uppercase tracking-wider mb-0.5" style={{ color: "rgba(20,20,20,0.4)" }}>{label}</p>
+      <p className="text-base font-black" style={{ color: color ?? "#141414" }}>{value}</p>
     </div>
   );
 }
 
 function ChartBox({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-xl p-4 mt-4" style={{ background: "#FAFAF9", border: "1px solid rgba(0,0,0,0.06)" }}>
-      <p className="text-xs font-bold mb-2" style={{ color: "rgba(26,22,18,0.55)" }}>{title}</p>
+    <div className="rounded-xl p-4 mt-4" style={{ background: "#FAFAFA", border: "1px solid rgba(0,0,0,0.06)" }}>
+      <p className="text-xs font-bold mb-2" style={{ color: "rgba(20,20,20,0.55)" }}>{title}</p>
       <div style={{ width: "100%", height: 260 }}>{children}</div>
     </div>
   );
 }
 
-const axisProps = { tick: { fontSize: 11, fill: "rgba(26,22,18,0.6)" }, stroke: "rgba(0,0,0,0.15)" };
+const axisProps = { tick: { fontSize: 11, fill: "rgba(20,20,20,0.6)" }, stroke: "rgba(0,0,0,0.15)" };
 
 // ─── Sección Obra ──────────────────────────────────────────────────────────────
 function ObraSection({ obra }: { obra: any }) {
@@ -342,7 +342,7 @@ function ObraSection({ obra }: { obra: any }) {
               <YAxis {...axisProps} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
               <Tooltip formatter={(v: any) => MXN(Number(v))} />
               <Legend wrapperStyle={{ fontSize: 11 }} />
-              <Bar dataKey="Presupuesto" fill="#C8952A" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="Presupuesto" fill="#FF3C00" radius={[4, 4, 0, 0]} />
               <Bar dataKey="Gastado" fill="#EF4444" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
@@ -476,15 +476,15 @@ function AsistenciaSection({ a }: { a: any }) {
 // ─── Tabla genérica ─────────────────────────────────────────────────────────
 function Table({ head, rows }: { head: string[]; rows: (string | number)[][] }) {
   if (rows.length === 0) {
-    return <p className="text-sm text-center py-6" style={{ color: "rgba(26,22,18,0.35)" }}>Sin datos en el período seleccionado</p>;
+    return <p className="text-sm text-center py-6" style={{ color: "rgba(20,20,20,0.35)" }}>Sin datos en el período seleccionado</p>;
   }
   return (
     <div className="rounded-xl overflow-hidden mt-4" style={{ border: "1px solid rgba(0,0,0,0.08)" }}>
       <table className="w-full text-xs">
         <thead>
-          <tr style={{ background: "#F5F4F0" }}>
+          <tr style={{ background: "#F4F4F5" }}>
             {head.map((h) => (
-              <th key={h} className="px-3 py-2 text-left font-bold" style={{ color: "rgba(26,22,18,0.5)" }}>{h}</th>
+              <th key={h} className="px-3 py-2 text-left font-bold" style={{ color: "rgba(20,20,20,0.5)" }}>{h}</th>
             ))}
           </tr>
         </thead>
@@ -492,7 +492,7 @@ function Table({ head, rows }: { head: string[]; rows: (string | number)[][] }) 
           {rows.map((r, i) => (
             <tr key={i}>
               {r.map((c, j) => (
-                <td key={j} className="px-3 py-2" style={{ color: j === 0 ? "#1a1612" : "rgba(26,22,18,0.65)", fontWeight: j === 0 ? 600 : 400 }}>{c}</td>
+                <td key={j} className="px-3 py-2" style={{ color: j === 0 ? "#141414" : "rgba(20,20,20,0.65)", fontWeight: j === 0 ? 600 : 400 }}>{c}</td>
               ))}
             </tr>
           ))}

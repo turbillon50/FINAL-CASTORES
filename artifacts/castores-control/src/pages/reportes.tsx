@@ -31,7 +31,7 @@ function useAuthFetch() {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 const REPORT_TYPES = [
-  { value: "avance", label: "Avance de Obra", icon: "📊", desc: "Progreso, presupuesto y estado general del proyecto", color: "#C8952A" },
+  { value: "avance", label: "Avance de Obra", icon: "📊", desc: "Progreso, presupuesto y estado general del proyecto", color: "#FF3C00" },
   { value: "bitacora", label: "Bitácora de Trabajo", icon: "📋", desc: "Registro de actividades diarias y entradas de obra", color: "#3B82F6" },
   { value: "materiales", label: "Control de Materiales", icon: "🏗️", desc: "Solicitudes de materiales, costos y estatus de entrega", color: "#8B5CF6" },
 ];
@@ -69,7 +69,7 @@ function PrintView({ data, onClose }: { data: any; onClose: () => void }) {
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         className="fixed inset-0 z-50 flex flex-col"
-        style={{ background: "#F5F4F0" }}>
+        style={{ background: "#F4F4F5" }}>
 
         {/* Top bar (hidden on print) */}
         <div className="flex items-center justify-between px-4 py-3 border-b no-print"
@@ -83,14 +83,14 @@ function PrintView({ data, onClose }: { data: any; onClose: () => void }) {
               </svg>
             </button>
             <div>
-              <p className="font-bold text-sm" style={{ color: "#1a1612" }}>{report.title}</p>
-              <p className="text-xs" style={{ color: "rgba(26,22,18,0.45)" }}>{typeLabel}</p>
+              <p className="font-bold text-sm" style={{ color: "#141414" }}>{report.title}</p>
+              <p className="text-xs" style={{ color: "rgba(20,20,20,0.45)" }}>{typeLabel}</p>
             </div>
           </div>
           <button
             onClick={handlePrint}
             className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold text-white"
-            style={{ background: "#C8952A" }}>
+            style={{ background: "#FF3C00" }}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
               <path strokeLinecap="round" strokeLinejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.056 48.056 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5zm-3 0h.008v.008H15V10.5z" />
             </svg>
@@ -103,11 +103,11 @@ function PrintView({ data, onClose }: { data: any; onClose: () => void }) {
           <div id="castores-report-print" className="max-w-3xl mx-auto bg-white rounded-2xl shadow-sm overflow-hidden" style={{ border: "1px solid rgba(0,0,0,0.08)" }}>
 
             {/* Header */}
-            <div className="px-8 pt-8 pb-6" style={{ background: "linear-gradient(135deg, #1a1612 0%, #2d2419 100%)" }}>
+            <div className="px-8 pt-8 pb-6" style={{ background: "linear-gradient(135deg, #141414 0%, #262626 100%)" }}>
               <div className="flex items-start justify-between">
                 <div>
                   <div className="flex items-center gap-3 mb-3">
-                    <div className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0" style={{ background: "rgba(200,149,42,0.2)", border: "1px solid rgba(200,149,42,0.3)" }}>
+                    <div className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0" style={{ background: "rgba(255,60,0,0.2)", border: "1px solid rgba(255,60,0,0.3)" }}>
                       <img src="/castores-logo.jpeg" alt="CASTORES" className="w-full h-full object-contain" />
                     </div>
                     <div>
@@ -120,7 +120,7 @@ function PrintView({ data, onClose }: { data: any; onClose: () => void }) {
                   <h1 className="text-white font-black text-2xl mb-1" style={{ fontFamily: "'Bebas Neue', sans-serif", letterSpacing: "0.04em" }}>
                     {report.title}
                   </h1>
-                  <p className="text-sm font-semibold" style={{ color: "#C8952A" }}>{typeLabel}</p>
+                  <p className="text-sm font-semibold" style={{ color: "#FF3C00" }}>{typeLabel}</p>
                 </div>
                 <div className="text-right">
                   <p className="text-xs mb-1" style={{ color: "rgba(255,255,255,0.4)" }}>Generado por</p>
@@ -134,11 +134,11 @@ function PrintView({ data, onClose }: { data: any; onClose: () => void }) {
               {/* Period badge */}
               {(report.dateFrom || report.dateTo) && (
                 <div className="mt-4 inline-flex items-center gap-2 px-3 py-1.5 rounded-lg"
-                  style={{ background: "rgba(200,149,42,0.15)", border: "1px solid rgba(200,149,42,0.3)" }}>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="#C8952A" strokeWidth="2" className="w-3.5 h-3.5">
+                  style={{ background: "rgba(255,60,0,0.15)", border: "1px solid rgba(255,60,0,0.3)" }}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="#FF3C00" strokeWidth="2" className="w-3.5 h-3.5">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
                   </svg>
-                  <span className="text-xs font-bold" style={{ color: "#C8952A" }}>
+                  <span className="text-xs font-bold" style={{ color: "#FF3C00" }}>
                     Período: {report.dateFrom ? format(new Date(report.dateFrom + "T12:00:00"), "dd MMM yyyy", { locale: es }) : "Inicio"} — {report.dateTo ? format(new Date(report.dateTo + "T12:00:00"), "dd MMM yyyy", { locale: es }) : "Hoy"}
                   </span>
                 </div>
@@ -150,7 +150,7 @@ function PrintView({ data, onClose }: { data: any; onClose: () => void }) {
               {/* Project info */}
               {project && (
                 <section>
-                  <h2 className="font-black text-base mb-3 pb-2 border-b" style={{ color: "#1a1612", fontFamily: "'Bebas Neue', sans-serif", letterSpacing: "0.04em", borderColor: "rgba(0,0,0,0.08)" }}>
+                  <h2 className="font-black text-base mb-3 pb-2 border-b" style={{ color: "#141414", fontFamily: "'Bebas Neue', sans-serif", letterSpacing: "0.04em", borderColor: "rgba(0,0,0,0.08)" }}>
                     INFORMACIÓN DEL PROYECTO
                   </h2>
                   <div className="grid grid-cols-2 gap-3">
@@ -164,35 +164,35 @@ function PrintView({ data, onClose }: { data: any; onClose: () => void }) {
                       { label: "Presupuesto", value: project.budget ? MXN(project.budget) : "—" },
                       { label: "Inicio", value: project.startDate ? format(new Date(project.startDate + "T12:00:00"), "dd/MM/yyyy") : "—" },
                     ].map(({ label, value }) => (
-                      <div key={label} className="rounded-lg p-3" style={{ background: "#FAFAF9", border: "1px solid rgba(0,0,0,0.06)" }}>
-                        <p className="text-[10px] font-bold uppercase tracking-wider mb-0.5" style={{ color: "rgba(26,22,18,0.4)" }}>{label}</p>
-                        <p className="text-sm font-bold" style={{ color: "#1a1612" }}>{value}</p>
+                      <div key={label} className="rounded-lg p-3" style={{ background: "#FAFAFA", border: "1px solid rgba(0,0,0,0.06)" }}>
+                        <p className="text-[10px] font-bold uppercase tracking-wider mb-0.5" style={{ color: "rgba(20,20,20,0.4)" }}>{label}</p>
+                        <p className="text-sm font-bold" style={{ color: "#141414" }}>{value}</p>
                       </div>
                     ))}
                   </div>
 
                   {/* Progress bar */}
                   {report.type === "avance" && (
-                    <div className="mt-4 rounded-xl p-4" style={{ background: "#FAFAF9", border: "1px solid rgba(0,0,0,0.06)" }}>
+                    <div className="mt-4 rounded-xl p-4" style={{ background: "#FAFAFA", border: "1px solid rgba(0,0,0,0.06)" }}>
                       <div className="flex justify-between items-center mb-2">
-                        <span className="text-xs font-bold" style={{ color: "rgba(26,22,18,0.55)" }}>Avance general</span>
-                        <span className="text-sm font-black" style={{ color: "#C8952A" }}>{project.progressPercent ?? 0}%</span>
+                        <span className="text-xs font-bold" style={{ color: "rgba(20,20,20,0.55)" }}>Avance general</span>
+                        <span className="text-sm font-black" style={{ color: "#FF3C00" }}>{project.progressPercent ?? 0}%</span>
                       </div>
                       <div className="h-3 rounded-full overflow-hidden" style={{ background: "rgba(0,0,0,0.08)" }}>
-                        <div className="h-full rounded-full transition-all" style={{ width: `${project.progressPercent ?? 0}%`, background: "linear-gradient(90deg, #C8952A, #E8B84B)" }} />
+                        <div className="h-full rounded-full transition-all" style={{ width: `${project.progressPercent ?? 0}%`, background: "linear-gradient(90deg, #FF3C00, #FF7A3C)" }} />
                       </div>
                       {project.budget ? (
                         <div className="flex justify-between mt-3">
                           <div className="text-center">
-                            <p className="text-[10px]" style={{ color: "rgba(26,22,18,0.4)" }}>Presupuesto total</p>
-                            <p className="text-sm font-black" style={{ color: "#1a1612" }}>{MXN(project.budget)}</p>
+                            <p className="text-[10px]" style={{ color: "rgba(20,20,20,0.4)" }}>Presupuesto total</p>
+                            <p className="text-sm font-black" style={{ color: "#141414" }}>{MXN(project.budget)}</p>
                           </div>
                           <div className="text-center">
-                            <p className="text-[10px]" style={{ color: "rgba(26,22,18,0.4)" }}>Gastado</p>
+                            <p className="text-[10px]" style={{ color: "rgba(20,20,20,0.4)" }}>Gastado</p>
                             <p className="text-sm font-black" style={{ color: "#EF4444" }}>{MXN(project.spentAmount ?? 0)}</p>
                           </div>
                           <div className="text-center">
-                            <p className="text-[10px]" style={{ color: "rgba(26,22,18,0.4)" }}>Disponible</p>
+                            <p className="text-[10px]" style={{ color: "rgba(20,20,20,0.4)" }}>Disponible</p>
                             <p className="text-sm font-black" style={{ color: "#10B981" }}>{MXN((project.budget ?? 0) - (project.spentAmount ?? 0))}</p>
                           </div>
                         </div>
@@ -205,7 +205,7 @@ function PrintView({ data, onClose }: { data: any; onClose: () => void }) {
               {/* Materials section */}
               {(report.type === "materiales" || report.type === "avance") && (
                 <section>
-                  <h2 className="font-black text-base mb-3 pb-2 border-b" style={{ color: "#1a1612", fontFamily: "'Bebas Neue', sans-serif", letterSpacing: "0.04em", borderColor: "rgba(0,0,0,0.08)" }}>
+                  <h2 className="font-black text-base mb-3 pb-2 border-b" style={{ color: "#141414", fontFamily: "'Bebas Neue', sans-serif", letterSpacing: "0.04em", borderColor: "rgba(0,0,0,0.08)" }}>
                     MATERIALES ({summary.totalMaterials})
                   </h2>
 
@@ -224,8 +224,8 @@ function PrintView({ data, onClose }: { data: any; onClose: () => void }) {
                     ))}
                     {summary.totalMaterialCost > 0 && (
                       <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg ml-auto"
-                        style={{ background: "#C8952A10", border: "1px solid #C8952A30" }}>
-                        <span className="text-xs font-bold" style={{ color: "#C8952A" }}>
+                        style={{ background: "#FF3C0010", border: "1px solid #FF3C0030" }}>
+                        <span className="text-xs font-bold" style={{ color: "#FF3C00" }}>
                           Total: {MXN(summary.totalMaterialCost)}
                         </span>
                       </div>
@@ -233,24 +233,24 @@ function PrintView({ data, onClose }: { data: any; onClose: () => void }) {
                   </div>
 
                   {materials.length === 0 ? (
-                    <p className="text-sm text-center py-6" style={{ color: "rgba(26,22,18,0.35)" }}>Sin materiales en el período seleccionado</p>
+                    <p className="text-sm text-center py-6" style={{ color: "rgba(20,20,20,0.35)" }}>Sin materiales en el período seleccionado</p>
                   ) : (
                     <div className="rounded-xl overflow-hidden" style={{ border: "1px solid rgba(0,0,0,0.08)" }}>
                       <table className="w-full text-xs">
                         <thead>
-                          <tr style={{ background: "#F5F4F0" }}>
+                          <tr style={{ background: "#F4F4F5" }}>
                             {["Material", "Cantidad", "Unidad", "Costo Total", "Estatus"].map(h => (
-                              <th key={h} className="px-3 py-2 text-left font-bold" style={{ color: "rgba(26,22,18,0.5)" }}>{h}</th>
+                              <th key={h} className="px-3 py-2 text-left font-bold" style={{ color: "rgba(20,20,20,0.5)" }}>{h}</th>
                             ))}
                           </tr>
                         </thead>
                         <tbody className="divide-y" style={{ background: "white" }}>
                           {materials.map((m: any) => (
                             <tr key={m.id}>
-                              <td className="px-3 py-2 font-semibold" style={{ color: "#1a1612" }}>{m.name}</td>
-                              <td className="px-3 py-2" style={{ color: "rgba(26,22,18,0.6)" }}>{m.quantityApproved ?? m.quantityRequested}</td>
-                              <td className="px-3 py-2" style={{ color: "rgba(26,22,18,0.6)" }}>{m.unit}</td>
-                              <td className="px-3 py-2 font-semibold" style={{ color: "#C8952A" }}>
+                              <td className="px-3 py-2 font-semibold" style={{ color: "#141414" }}>{m.name}</td>
+                              <td className="px-3 py-2" style={{ color: "rgba(20,20,20,0.6)" }}>{m.quantityApproved ?? m.quantityRequested}</td>
+                              <td className="px-3 py-2" style={{ color: "rgba(20,20,20,0.6)" }}>{m.unit}</td>
+                              <td className="px-3 py-2 font-semibold" style={{ color: "#FF3C00" }}>
                                 {m.totalCost ? MXN(m.totalCost) : "—"}
                               </td>
                               <td className="px-3 py-2">
@@ -271,18 +271,18 @@ function PrintView({ data, onClose }: { data: any; onClose: () => void }) {
               {/* Bitácora section */}
               {(report.type === "bitacora" || report.type === "avance") && (
                 <section>
-                  <h2 className="font-black text-base mb-3 pb-2 border-b" style={{ color: "#1a1612", fontFamily: "'Bebas Neue', sans-serif", letterSpacing: "0.04em", borderColor: "rgba(0,0,0,0.08)" }}>
+                  <h2 className="font-black text-base mb-3 pb-2 border-b" style={{ color: "#141414", fontFamily: "'Bebas Neue', sans-serif", letterSpacing: "0.04em", borderColor: "rgba(0,0,0,0.08)" }}>
                     BITÁCORA DE TRABAJO ({summary.totalLogs} entradas)
                   </h2>
 
                   {logs.length === 0 ? (
-                    <p className="text-sm text-center py-6" style={{ color: "rgba(26,22,18,0.35)" }}>Sin entradas de bitácora en el período seleccionado</p>
+                    <p className="text-sm text-center py-6" style={{ color: "rgba(20,20,20,0.35)" }}>Sin entradas de bitácora en el período seleccionado</p>
                   ) : (
                     <div className="space-y-3">
                       {logs.map((log: any) => (
-                        <div key={log.id} className="rounded-xl p-4" style={{ background: "#FAFAF9", border: "1px solid rgba(0,0,0,0.06)" }}>
+                        <div key={log.id} className="rounded-xl p-4" style={{ background: "#FAFAFA", border: "1px solid rgba(0,0,0,0.06)" }}>
                           <div className="flex items-center justify-between mb-1.5">
-                            <span className="font-black text-sm" style={{ color: "#1a1612" }}>
+                            <span className="font-black text-sm" style={{ color: "#141414" }}>
                               {format(new Date(log.logDate + "T12:00:00"), "EEEE dd 'de' MMMM", { locale: es })}
                             </span>
                             {log.isSubmitted && (
@@ -290,10 +290,10 @@ function PrintView({ data, onClose }: { data: any; onClose: () => void }) {
                                 style={{ background: "#10B98115", color: "#10B981" }}>Firmada</span>
                             )}
                           </div>
-                          <p className="text-xs leading-relaxed mb-2" style={{ color: "rgba(26,22,18,0.7)" }}>{log.activity}</p>
-                          {log.observations && <p className="text-xs leading-relaxed" style={{ color: "rgba(26,22,18,0.45)" }}>📝 {log.observations}</p>}
-                          {log.workersInvolved && <p className="text-xs mt-1" style={{ color: "rgba(26,22,18,0.45)" }}>👷 {log.workersInvolved}</p>}
-                          {log.materialsUsed && <p className="text-xs mt-1" style={{ color: "rgba(26,22,18,0.45)" }}>🏗️ {log.materialsUsed}</p>}
+                          <p className="text-xs leading-relaxed mb-2" style={{ color: "rgba(20,20,20,0.7)" }}>{log.activity}</p>
+                          {log.observations && <p className="text-xs leading-relaxed" style={{ color: "rgba(20,20,20,0.45)" }}>📝 {log.observations}</p>}
+                          {log.workersInvolved && <p className="text-xs mt-1" style={{ color: "rgba(20,20,20,0.45)" }}>👷 {log.workersInvolved}</p>}
+                          {log.materialsUsed && <p className="text-xs mt-1" style={{ color: "rgba(20,20,20,0.45)" }}>🏗️ {log.materialsUsed}</p>}
                         </div>
                       ))}
                     </div>
@@ -304,14 +304,14 @@ function PrintView({ data, onClose }: { data: any; onClose: () => void }) {
               {/* Footer */}
               <div className="border-t pt-6 flex items-end justify-between" style={{ borderColor: "rgba(0,0,0,0.08)" }}>
                 <div>
-                  <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: "rgba(26,22,18,0.35)" }}>Generado por</p>
-                  <p className="text-sm font-bold" style={{ color: "#1a1612" }}>{report.generatedByName}</p>
-                  <p className="text-xs" style={{ color: "rgba(26,22,18,0.4)" }}>
+                  <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: "rgba(20,20,20,0.35)" }}>Generado por</p>
+                  <p className="text-sm font-bold" style={{ color: "#141414" }}>{report.generatedByName}</p>
+                  <p className="text-xs" style={{ color: "rgba(20,20,20,0.4)" }}>
                     {format(new Date(report.createdAt), "dd 'de' MMMM yyyy, HH:mm", { locale: es })}
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-[10px] uppercase tracking-wider mb-4" style={{ color: "rgba(26,22,18,0.35)" }}>Firma de conformidad</p>
+                  <p className="text-[10px] uppercase tracking-wider mb-4" style={{ color: "rgba(20,20,20,0.35)" }}>Firma de conformidad</p>
                   <div className="w-40 border-b" style={{ borderColor: "rgba(0,0,0,0.2)" }} />
                 </div>
               </div>
@@ -419,7 +419,7 @@ export default function Reportes() {
     }
   };
 
-  const typeColor = REPORT_TYPES.find(t => t.value === form.type)?.color ?? "#C8952A";
+  const typeColor = REPORT_TYPES.find(t => t.value === form.type)?.color ?? "#FF3C00";
 
   const inputCls = "w-full px-3 py-2.5 rounded-xl text-sm outline-none";
   const inputStyle = { background: "rgba(255,255,255,0.07)", border: "1.5px solid rgba(255,255,255,0.12)", color: "white" };
@@ -440,7 +440,7 @@ export default function Reportes() {
               alt="Reportes"
               className="absolute inset-0 w-full h-full object-cover"
             />
-            <div className="absolute inset-0" style={{ background: "linear-gradient(135deg, rgba(26,22,18,0.92) 0%, rgba(26,22,18,0.6) 100%)" }} />
+            <div className="absolute inset-0" style={{ background: "linear-gradient(135deg, rgba(20,20,20,0.92) 0%, rgba(20,20,20,0.6) 100%)" }} />
             <div className="relative z-10 p-6 flex items-end justify-between h-full" style={{ minHeight: 160 }}>
               <div>
                 <span className="text-[10px] font-black tracking-widest px-2 py-1 rounded-md mb-2 inline-block"
@@ -471,7 +471,7 @@ export default function Reportes() {
               {([["saved", "Reportes guardados"], ["builder", "Constructor inteligente"]] as const).map(([v, label]) => (
                 <button key={v} type="button" onClick={() => setTab(v)}
                   className="flex-1 py-2.5 rounded-xl text-sm font-bold transition-all"
-                  style={{ background: tab === v ? "white" : "transparent", color: tab === v ? "#1a1612" : "rgba(26,22,18,0.5)", boxShadow: tab === v ? "0 1px 4px rgba(0,0,0,0.08)" : "none" }}>
+                  style={{ background: tab === v ? "white" : "transparent", color: tab === v ? "#141414" : "rgba(20,20,20,0.5)", boxShadow: tab === v ? "0 1px 4px rgba(0,0,0,0.08)" : "none" }}>
                   {label}
                 </button>
               ))}
@@ -492,7 +492,7 @@ export default function Reportes() {
                 exit={{ opacity: 0, height: 0 }}
                 className="overflow-hidden">
                 <form onSubmit={handleCreate} className="rounded-3xl p-6 space-y-5"
-                  style={{ background: "linear-gradient(135deg, #1a1612 0%, #2d2419 100%)", border: "1.5px solid rgba(200,149,42,0.2)" }}>
+                  style={{ background: "linear-gradient(135deg, #141414 0%, #262626 100%)", border: "1.5px solid rgba(255,60,0,0.2)" }}>
                   <h3 className="font-black text-white text-lg" style={{ fontFamily: "'Bebas Neue', sans-serif", letterSpacing: "0.04em" }}>
                     Nuevo Reporte
                   </h3>
@@ -585,8 +585,8 @@ export default function Reportes() {
           ) : reports.length === 0 ? (
             <div className="text-center py-16 rounded-2xl" style={{ background: "rgba(0,0,0,0.03)", border: "1.5px dashed rgba(0,0,0,0.1)" }}>
               <div className="text-4xl mb-3">📊</div>
-              <p className="font-bold text-sm" style={{ color: "rgba(26,22,18,0.5)" }}>Sin reportes generados</p>
-              <p className="text-xs mt-1" style={{ color: "rgba(26,22,18,0.35)" }}>
+              <p className="font-bold text-sm" style={{ color: "rgba(20,20,20,0.5)" }}>Sin reportes generados</p>
+              <p className="text-xs mt-1" style={{ color: "rgba(20,20,20,0.35)" }}>
                 {canCreate ? 'Usa el botón "Nuevo reporte" para crear el primero.' : "Aún no hay reportes disponibles."}
               </p>
             </div>
@@ -611,16 +611,16 @@ export default function Reportes() {
                     {/* Info */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap mb-0.5">
-                        <p className="font-black text-sm truncate" style={{ color: "#1a1612" }}>{report.title}</p>
+                        <p className="font-black text-sm truncate" style={{ color: "#141414" }}>{report.title}</p>
                         <span className="text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0"
                           style={{ background: `${rt?.color ?? "#999"}12`, color: rt?.color ?? "#999" }}>
                           {rt?.label ?? report.type}
                         </span>
                       </div>
-                      <p className="text-xs" style={{ color: "rgba(26,22,18,0.45)" }}>
+                      <p className="text-xs" style={{ color: "rgba(20,20,20,0.45)" }}>
                         🏗️ {report.projectName ?? "—"}
                       </p>
-                      <p className="text-xs mt-0.5" style={{ color: "rgba(26,22,18,0.35)" }}>
+                      <p className="text-xs mt-0.5" style={{ color: "rgba(20,20,20,0.35)" }}>
                         {format(new Date(report.createdAt), "dd/MM/yyyy HH:mm", { locale: es })} · {report.generatedByName}
                         {(report.dateFrom || report.dateTo) && (
                           <span> · {report.dateFrom ? format(new Date(report.dateFrom + "T12:00:00"), "dd MMM", { locale: es }) : "?"} — {report.dateTo ? format(new Date(report.dateTo + "T12:00:00"), "dd MMM", { locale: es }) : "Hoy"}</span>
@@ -633,9 +633,9 @@ export default function Reportes() {
                       onClick={() => openPrint(report.id)}
                       disabled={loadingPrint === report.id}
                       className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold flex-shrink-0 transition-all disabled:opacity-50"
-                      style={{ background: `${rt?.color ?? "#C8952A"}15`, color: rt?.color ?? "#C8952A", border: `1px solid ${rt?.color ?? "#C8952A"}30` }}>
+                      style={{ background: `${rt?.color ?? "#FF3C00"}15`, color: rt?.color ?? "#FF3C00", border: `1px solid ${rt?.color ?? "#FF3C00"}30` }}>
                       {loadingPrint === report.id ? (
-                        <div className="w-4 h-4 border-2 rounded-full animate-spin" style={{ borderColor: "transparent", borderTopColor: rt?.color ?? "#C8952A" }} />
+                        <div className="w-4 h-4 border-2 rounded-full animate-spin" style={{ borderColor: "transparent", borderTopColor: rt?.color ?? "#FF3C00" }} />
                       ) : (
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
                           <path strokeLinecap="round" strokeLinejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.056 48.056 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5zm-3 0h.008v.008H15V10.5z" />

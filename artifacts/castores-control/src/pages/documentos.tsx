@@ -20,7 +20,7 @@ const CATEGORY_META: Record<string, { label: string; icon: string; color: string
   blueprint: { label: "Plano",      icon: "📐", color: "#3B82F6" },
   permit:    { label: "Permiso",    icon: "✅", color: "#10B981" },
   report:    { label: "Reporte",    icon: "📊", color: "#8B5CF6" },
-  invoice:   { label: "Factura",    icon: "💰", color: "#C8952A" },
+  invoice:   { label: "Factura",    icon: "💰", color: "#FF3C00" },
   photo:     { label: "Fotografía", icon: "📷", color: "#EF4444" },
   other:     { label: "Otro",       icon: "📁", color: "#6B7280" },
 };

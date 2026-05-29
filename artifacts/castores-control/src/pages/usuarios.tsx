@@ -20,7 +20,7 @@ const ROLE_LABELS: Record<string, string> = {
   worker: "Trabajador", proveedor: "Proveedor",
 };
 const ROLE_COLORS: Record<string, string> = {
-  admin: "#C8952A", supervisor: "#3B82F6", client: "#10B981",
+  admin: "#FF3C00", supervisor: "#3B82F6", client: "#10B981",
   worker: "#EF4444", proveedor: "#8B5CF6",
 };
 const STATUS_LABELS: Record<string, string> = {
@@ -179,13 +179,13 @@ export default function Usuarios() {
           title="Equipo de Trabajo"
           subtitle="Gestión de accesos, roles y aprobaciones del personal de CASTORES"
           imageUrl="https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=1400&q=80&fit=crop"
-          accentColor="#C8952A"
+          accentColor="#FF3C00"
           badge="GESTIÓN DE PERSONAL"
         >
           <div className="mt-1 flex flex-wrap gap-2">
             <button onClick={openCreate}
               className="text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-1.5"
-              style={{ background: "rgba(200,149,42,0.25)", border: "1px solid rgba(200,149,42,0.5)", color: "#fff" }}>
+              style={{ background: "rgba(255,60,0,0.25)", border: "1px solid rgba(255,60,0,0.5)", color: "#fff" }}>
               + Agregar Usuario
             </button>
             <button onClick={() => setWorkerModalOpen(true)}
@@ -211,36 +211,36 @@ export default function Usuarios() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
               className="rounded-2xl overflow-hidden"
-              style={{ border: "1.5px solid rgba(200,149,42,0.3)", background: "rgba(200,149,42,0.04)" }}
+              style={{ border: "1.5px solid rgba(255,60,0,0.3)", background: "rgba(255,60,0,0.04)" }}
             >
-              <div className="px-5 py-3.5 border-b flex items-center gap-2.5" style={{ borderColor: "rgba(200,149,42,0.2)" }}>
-                <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white" style={{ background: "#C8952A" }}>
+              <div className="px-5 py-3.5 border-b flex items-center gap-2.5" style={{ borderColor: "rgba(255,60,0,0.2)" }}>
+                <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white" style={{ background: "#FF3C00" }}>
                   {pendingUsers.length}
                 </div>
                 <div>
-                  <h3 className="font-bold text-sm" style={{ color: "#1a1612" }}>Solicitudes de acceso pendientes</h3>
+                  <h3 className="font-bold text-sm" style={{ color: "#141414" }}>Solicitudes de acceso pendientes</h3>
                   <p className="text-xs" style={{ color: "rgba(0,0,0,0.4)" }}>Revisa y aprueba o rechaza cada solicitud</p>
                 </div>
               </div>
 
-              <div className="divide-y" style={{ borderColor: "rgba(200,149,42,0.12)" }}>
+              <div className="divide-y" style={{ borderColor: "rgba(255,60,0,0.12)" }}>
                 {pendingUsers.map((user: any) => (
                   <div key={user.id} className="px-5 py-3.5 flex items-center gap-3">
                     <Avatar className="h-10 w-10 shrink-0">
-                      <AvatarFallback className="font-bold text-sm" style={{ background: "rgba(200,149,42,0.12)", color: "#C8952A" }}>
+                      <AvatarFallback className="font-bold text-sm" style={{ background: "rgba(255,60,0,0.12)", color: "#FF3C00" }}>
                         {user.name.charAt(0).toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
-                      <p className="font-bold text-sm text-[#1a1612] truncate">{user.name}</p>
-                      <p className="text-xs text-[#1a1612]/40 truncate">{user.email}</p>
+                      <p className="font-bold text-sm text-[#141414] truncate">{user.name}</p>
+                      <p className="text-xs text-[#141414]/40 truncate">{user.email}</p>
                       <div className="flex items-center gap-1.5 mt-1">
                         <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
-                          style={{ background: `${ROLE_COLORS[user.role] ?? "#C8952A"}15`, color: ROLE_COLORS[user.role] ?? "#C8952A", border: `1px solid ${ROLE_COLORS[user.role] ?? "#C8952A"}25` }}>
+                          style={{ background: `${ROLE_COLORS[user.role] ?? "#FF3C00"}15`, color: ROLE_COLORS[user.role] ?? "#FF3C00", border: `1px solid ${ROLE_COLORS[user.role] ?? "#FF3C00"}25` }}>
                           {ROLE_LABELS[user.role] ?? user.role}
                         </span>
                         {user.company && (
-                          <span className="text-[10px] text-[#1a1612]/35">{user.company}</span>
+                          <span className="text-[10px] text-[#141414]/35">{user.company}</span>
                         )}
                       </div>
                     </div>
@@ -277,7 +277,7 @@ export default function Usuarios() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {activeUsers.map((user: any, i: number) => {
-              const color = ROLE_COLORS[user.role] ?? "#C8952A";
+              const color = ROLE_COLORS[user.role] ?? "#FF3C00";
               const isRejected = user.approvalStatus === "rejected";
               return (
                 <motion.div key={user.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
@@ -461,7 +461,7 @@ export default function Usuarios() {
                     <Button type="button" variant="outline" onClick={close}
                       className="flex-1 rounded-xl border-black/10">Cancelar</Button>
                     <Button type="submit" disabled={submitting} className="flex-1 rounded-xl font-bold"
-                      style={{ background: "#C8952A", color: "#fff" }}>
+                      style={{ background: "#FF3C00", color: "#fff" }}>
                       {submitting ? "Guardando..." : modal.mode === "create" ? "Crear Usuario" : "Guardar Cambios"}
                     </Button>
                   </div>
@@ -642,7 +642,7 @@ function AddWorkerNoEmailModal({
               </button>
               <button onClick={onSubmit} disabled={busy}
                 className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-50"
-                style={{ background: "#C8952A" }}
+                style={{ background: "#FF3C00" }}
                 data-testid="button-submit-worker">
                 {busy ? "Creando..." : "Crear"}
               </button>
@@ -711,7 +711,7 @@ function CredentialsShareView({
         <p className="text-sm text-gray-500 mt-1">{result.name}</p>
       </div>
 
-      <div className="rounded-2xl p-4 space-y-2 text-center" style={{ background: "#1a1612" }}>
+      <div className="rounded-2xl p-4 space-y-2 text-center" style={{ background: "#141414" }}>
         <p className="text-[10px] uppercase tracking-widest font-bold text-amber-300">
           Código de trabajador
         </p>
@@ -754,7 +754,7 @@ function CredentialsShareView({
         </button>
         <button onClick={onPdf} disabled={pdfBusy}
           className="flex items-center gap-3 w-full px-4 py-3 rounded-xl font-bold text-white disabled:opacity-50"
-          style={{ background: "#C8952A" }}
+          style={{ background: "#FF3C00" }}
           data-testid="button-share-pdf">
           <span className="text-xl">🖨️</span>
           <span className="flex-1 text-left">
@@ -769,7 +769,7 @@ function CredentialsShareView({
 
       <button onClick={onClose}
         className="w-full py-3 rounded-xl font-bold text-white"
-        style={{ background: "#1a1612" }}
+        style={{ background: "#141414" }}
         data-testid="button-credentials-done">
         Listo
       </button>

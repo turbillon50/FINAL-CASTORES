@@ -65,7 +65,7 @@ export class ErrorBoundary extends Component<GlobalProps, GlobalState> {
             style={{
               fontSize: 22,
               fontWeight: 800,
-              color: "#1a1612",
+              color: "#141414",
               marginBottom: 8,
             }}
           >
@@ -78,7 +78,7 @@ export class ErrorBoundary extends Component<GlobalProps, GlobalState> {
           <pre
             style={{
               fontSize: 12,
-              color: "#1a1612",
+              color: "#141414",
               background: "#f8f4ef",
               border: "1px solid #e7dccc",
               borderRadius: 10,
@@ -107,8 +107,8 @@ export class ErrorBoundary extends Component<GlobalProps, GlobalState> {
               style={{
                 padding: "10px 16px",
                 borderRadius: 10,
-                border: "1px solid #C8952A",
-                background: "#C8952A",
+                border: "1px solid #FF3C00",
+                background: "#FF3C00",
                 color: "#fff",
                 fontWeight: 700,
                 fontSize: 13,
@@ -127,7 +127,7 @@ export class ErrorBoundary extends Component<GlobalProps, GlobalState> {
                 borderRadius: 10,
                 border: "1px solid #d6c7ad",
                 background: "#fff",
-                color: "#1a1612",
+                color: "#141414",
                 fontWeight: 700,
                 fontSize: 13,
                 cursor: "pointer",
@@ -147,7 +147,7 @@ export class ErrorBoundary extends Component<GlobalProps, GlobalState> {
                 borderRadius: 10,
                 border: "1px solid #d6c7ad",
                 background: "#fff",
-                color: "#1a1612",
+                color: "#141414",
                 fontWeight: 700,
                 fontSize: 13,
                 cursor: "pointer",
@@ -204,17 +204,17 @@ export class TabErrorBoundary extends Component<TabProps, TabState> {
           }}
         >
           <div className="text-4xl mb-2">⚠️</div>
-          <h3 className="font-bold text-base mb-1" style={{ color: "#1a1612" }}>
+          <h3 className="font-bold text-base mb-1" style={{ color: "#141414" }}>
             Esta sección tuvo un error
           </h3>
-          <p className="text-xs mb-3" style={{ color: "rgba(26,22,18,0.55)" }}>
+          <p className="text-xs mb-3" style={{ color: "rgba(20,20,20,0.55)" }}>
             {this.state.error.message ||
               "Ocurrió un problema cargando esta pestaña."}
           </p>
           <button
             onClick={this.reset}
             className="px-4 py-2 rounded-xl font-bold text-sm text-white"
-            style={{ background: "linear-gradient(135deg, #C8952A, #E8A830)" }}
+            style={{ background: "linear-gradient(135deg, #FF3C00, #E8A830)" }}
           >
             Reintentar
           </button>

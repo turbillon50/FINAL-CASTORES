@@ -10,7 +10,7 @@ const FEATURES = [
     ),
     title: "Bitácora Digital",
     desc: "Registra avances de obra con fotos, firmas digitales de supervisor y cliente, y trazabilidad completa.",
-    color: "#C8952A",
+    color: "#FF3C00",
   },
   {
     icon: (
@@ -65,7 +65,7 @@ const FEATURES = [
 ];
 
 const ROLES_INFO = [
-  { role: "Administrador", desc: "Control total del sistema, aprobación de usuarios y configuración.", color: "#C8952A", icon: "🏗️" },
+  { role: "Administrador", desc: "Control total del sistema, aprobación de usuarios y configuración.", color: "#FF3C00", icon: "🏗️" },
   { role: "Supervisor", desc: "Gestión de obras en campo, firma de bitácoras y control de materiales.", color: "#3B82F6", icon: "👷" },
   { role: "Cliente", desc: "Seguimiento de avances, aprobación de bitácoras y acceso a reportes.", color: "#10B981", icon: "🏢" },
   { role: "Trabajador", desc: "Registro de actividades diarias y consulta de asignaciones.", color: "#EF4444", icon: "🔧" },
@@ -84,21 +84,21 @@ export default function Explorar() {
             <div className="w-8 h-8 rounded-lg bg-white shadow flex items-center justify-center overflow-hidden">
               <img src="/castores-logo.jpeg" alt="CASTORES" className="h-6 w-auto object-contain" />
             </div>
-            <span className="font-black text-[#1a1612] text-sm tracking-wide uppercase" style={{ fontFamily: "'Bebas Neue', sans-serif", letterSpacing: "0.08em" }}>
+            <span className="font-black text-[#141414] text-sm tracking-wide uppercase" style={{ fontFamily: "'Bebas Neue', sans-serif", letterSpacing: "0.08em" }}>
               Castores Control
             </span>
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => setLocation("/")}
-              className="text-[#1a1612]/50 text-sm font-medium px-3 py-1.5 rounded-lg hover:bg-black/5 transition-colors"
+              className="text-[#141414]/50 text-sm font-medium px-3 py-1.5 rounded-lg hover:bg-black/5 transition-colors"
             >
               Inicio
             </button>
             <button
               onClick={() => setLocation("/sign-up")}
               className="text-sm font-bold px-4 py-2 rounded-xl text-white transition-all hover:opacity-90"
-              style={{ background: "#C8952A" }}
+              style={{ background: "#FF3C00" }}
             >
               Registrarme
             </button>
@@ -109,14 +109,14 @@ export default function Explorar() {
       {/* Hero */}
       <section className="max-w-5xl mx-auto px-5 pt-14 pb-12 text-center">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
-          <p className="text-[#C8952A] text-xs font-bold uppercase tracking-[0.3em] mb-3">Sistema de Control Operacional</p>
+          <p className="text-[#FF3C00] text-xs font-bold uppercase tracking-[0.3em] mb-3">Sistema de Control Operacional</p>
           <h1
-            className="text-[#1a1612] text-[clamp(2.5rem,7vw,4.5rem)] leading-[0.95] font-black uppercase mb-4"
+            className="text-[#141414] text-[clamp(2.5rem,7vw,4.5rem)] leading-[0.95] font-black uppercase mb-4"
             style={{ fontFamily: "'Bebas Neue', sans-serif" }}
           >
             La plataforma digital<br />para tu obra
           </h1>
-          <p className="text-[#1a1612]/55 text-base max-w-xl mx-auto leading-relaxed">
+          <p className="text-[#141414]/55 text-base max-w-xl mx-auto leading-relaxed">
             Bitácoras con firma digital, control de materiales, documentos y reportes —
             todo en un sistema diseñado para la construcción mexicana.
           </p>
@@ -124,14 +124,14 @@ export default function Explorar() {
             <button
               onClick={() => setLocation("/sign-up")}
               className="px-8 py-3 rounded-2xl font-bold text-white text-sm tracking-wide transition-all hover:opacity-90 active:scale-[0.98]"
-              style={{ background: "linear-gradient(135deg, #C8952A, #a87520)" }}
+              style={{ background: "linear-gradient(135deg, #FF3C00, #a87520)" }}
             >
               Solicitar acceso gratis
             </button>
             <button
               onClick={() => setLocation("/")}
               className="px-8 py-3 rounded-2xl font-bold text-sm tracking-wide transition-all hover:bg-black/5"
-              style={{ color: "#1a1612", border: "1px solid rgba(0,0,0,0.12)" }}
+              style={{ color: "#141414", border: "1px solid rgba(0,0,0,0.12)" }}
             >
               Ver modo demo
             </button>
@@ -141,7 +141,7 @@ export default function Explorar() {
 
       {/* Features grid */}
       <section className="max-w-5xl mx-auto px-5 pb-14">
-        <h2 className="text-[#1a1612] font-black text-2xl mb-6 text-center" style={{ fontFamily: "'Bebas Neue', sans-serif", letterSpacing: "0.05em" }}>
+        <h2 className="text-[#141414] font-black text-2xl mb-6 text-center" style={{ fontFamily: "'Bebas Neue', sans-serif", letterSpacing: "0.05em" }}>
           Todo lo que necesitas en obra
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -157,15 +157,15 @@ export default function Explorar() {
               <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-3" style={{ background: f.color + "12", color: f.color }}>
                 {f.icon}
               </div>
-              <h3 className="font-bold text-[#1a1612] text-sm mb-1">{f.title}</h3>
-              <p className="text-[#1a1612]/50 text-xs leading-relaxed">{f.desc}</p>
+              <h3 className="font-bold text-[#141414] text-sm mb-1">{f.title}</h3>
+              <p className="text-[#141414]/50 text-xs leading-relaxed">{f.desc}</p>
             </motion.div>
           ))}
         </div>
       </section>
 
       {/* Roles section */}
-      <section className="bg-[#1a1612] py-14">
+      <section className="bg-[#141414] py-14">
         <div className="max-w-5xl mx-auto px-5">
           <h2 className="text-white font-black text-2xl mb-2 text-center" style={{ fontFamily: "'Bebas Neue', sans-serif", letterSpacing: "0.05em" }}>
             Un sistema para cada rol
@@ -187,18 +187,18 @@ export default function Explorar() {
 
       {/* CTA */}
       <section className="max-w-5xl mx-auto px-5 py-14 text-center">
-        <h2 className="text-[#1a1612] font-black text-2xl mb-3" style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
+        <h2 className="text-[#141414] font-black text-2xl mb-3" style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
           ¿Listo para digitalizar tu obra?
         </h2>
-        <p className="text-[#1a1612]/45 text-sm mb-6">El administrador aprobará tu cuenta en menos de 24 horas.</p>
+        <p className="text-[#141414]/45 text-sm mb-6">El administrador aprobará tu cuenta en menos de 24 horas.</p>
         <button
           onClick={() => setLocation("/sign-up")}
           className="px-10 py-3.5 rounded-2xl font-bold text-white text-sm tracking-wide transition-all hover:opacity-90"
-          style={{ background: "#C8952A" }}
+          style={{ background: "#FF3C00" }}
         >
           Solicitar acceso →
         </button>
-        <p className="text-[#1a1612]/25 text-[10px] uppercase tracking-[0.2em] mt-8">
+        <p className="text-[#141414]/25 text-[10px] uppercase tracking-[0.2em] mt-8">
           © {new Date().getFullYear()} CASTORES Estructuras y Construcciones
         </p>
       </section>

@@ -182,15 +182,15 @@ export function PushAutoPrompt() {
           <div
             className="pointer-events-auto rounded-2xl p-4 shadow-2xl"
             style={{
-              background: "linear-gradient(135deg, #1a1612 0%, #2d2419 100%)",
-              border: "1px solid rgba(200,149,42,0.4)",
+              background: "linear-gradient(135deg, #141414 0%, #262626 100%)",
+              border: "1px solid rgba(255,60,0,0.4)",
               boxShadow: "0 12px 40px rgba(0,0,0,0.4)",
             }}
           >
             <div className="flex items-start gap-3">
               <div
                 className="w-11 h-11 rounded-xl flex items-center justify-center text-2xl shrink-0"
-                style={{ background: "rgba(200,149,42,0.18)", border: "1px solid rgba(200,149,42,0.35)" }}
+                style={{ background: "rgba(255,60,0,0.18)", border: "1px solid rgba(255,60,0,0.35)" }}
               >
                 🔔
               </div>
@@ -207,7 +207,7 @@ export function PushAutoPrompt() {
                         onClick={enable}
                         disabled={busy}
                         className="flex-1 rounded-xl py-2.5 font-bold text-sm transition active:scale-[0.97] disabled:opacity-50"
-                        style={{ background: "#C8952A", color: "#fff", boxShadow: "0 4px 14px rgba(200,149,42,0.4)" }}
+                        style={{ background: "#FF3C00", color: "#fff", boxShadow: "0 4px 14px rgba(255,60,0,0.4)" }}
                       >
                         {busy ? "Activando..." : "Activar"}
                       </button>
