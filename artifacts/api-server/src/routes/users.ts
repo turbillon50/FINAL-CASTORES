@@ -120,6 +120,114 @@ router.get("/users", async (req, res): Promise<void> => {
   res.json(result);
 });
 
+// ─── GET /users/access-audit — cruza Clerk ↔ BD ───────────────────────────────
+// Audita el acceso real: Clerk solo da identidad; el acceso lo decide la BD
+// (approvalStatus + isActive + rol). Combina ambas fuentes y marca, por persona,
+// si tiene acceso o por qué no. Solo admin. Definido ANTES de /users/:id para
+// que "access-audit" no se interprete como un id.
+router.get("/users/access-audit", async (req, res): Promise<void> => {
+  const actor = await getRequestUserStrict(req);
+  if (!actor) { res.status(401).json({ error: "No autenticado" }); return; }
+  if (!(await hasPermission(actor.role, "adminPanelAccess"))) {
+    res.status(403).json({ error: "Solo administradores pueden auditar el acceso" });
+    return;
+  }
+
+  const dbUsers = await db.select().from(usersTable);
+  const byClerkId = new Map<string, typeof dbUsers[number]>();
+  const byEmail = new Map<string, typeof dbUsers[number]>();
+  for (const u of dbUsers) {
+    if (u.clerkId) byClerkId.set(u.clerkId, u);
+    if (u.email) byEmail.set(u.email.toLowerCase(), u);
+  }
+
+  // Trae usuarios de Clerk (identidades). getUserList puede devolver array o
+  // { data } según versión del SDK; soportamos ambas.
+  let clerkUsers: any[] = [];
+  let clerkError: string | null = null;
+  try {
+    const resp: any = await clerkClient.users.getUserList({ limit: 200 });
+    clerkUsers = Array.isArray(resp) ? resp : (resp?.data ?? []);
+  } catch (e: any) {
+    clerkError = e?.message ?? "No se pudo consultar Clerk";
+  }
+
+  const clerkEmailOf = (cu: any): string | null => {
+    const primary = cu.emailAddresses?.find((e: any) => e.id === cu.primaryEmailAddressId);
+    return (primary?.emailAddress ?? cu.emailAddresses?.[0]?.emailAddress ?? null)?.toLowerCase() ?? null;
+  };
+
+  const matchedDbIds = new Set<number>();
+  const rows: any[] = [];
+
+  // 1) Recorre Clerk: cada identidad y su estado en la BD
+  for (const cu of clerkUsers) {
+    const email = clerkEmailOf(cu);
+    const dbU = byClerkId.get(cu.id) ?? (email ? byEmail.get(email) : undefined);
+    if (dbU) matchedDbIds.add(dbU.id);
+
+    const name = dbU?.name
+      || [cu.firstName, cu.lastName].filter(Boolean).join(" ").trim()
+      || email || cu.id;
+
+    let access: string;
+    if (!dbU) access = "clerk_no_account";
+    else if (dbU.approvalStatus === "rejected") access = "rejected";
+    else if (dbU.approvalStatus === "pending") access = "pending";
+    else if (!dbU.isActive) access = "inactive";
+    else access = "ok";
+
+    rows.push({
+      name,
+      email: email ?? dbU?.email ?? null,
+      role: dbU?.role ?? null,
+      approvalStatus: dbU?.approvalStatus ?? null,
+      isActive: dbU?.isActive ?? null,
+      inClerk: true,
+      inDb: !!dbU,
+      dbId: dbU?.id ?? null,
+      clerkId: cu.id,
+      lastSignInAt: cu.lastSignInAt ?? null,
+      access,
+    });
+  }
+
+  // 2) Usuarios en BD sin identidad Clerk. Los trabajadores (geocheck) usan
+  // código+PIN y NO tienen Clerk: eso es normal, se marca aparte.
+  for (const u of dbUsers) {
+    if (matchedDbIds.has(u.id)) continue;
+    const isWorkerNoEmail = u.role === "worker" && !u.email;
+    rows.push({
+      name: u.name,
+      email: u.email ?? null,
+      role: u.role,
+      approvalStatus: u.approvalStatus,
+      isActive: u.isActive,
+      inClerk: false,
+      inDb: true,
+      dbId: u.id,
+      clerkId: u.clerkId ?? null,
+      lastSignInAt: null,
+      access: isWorkerNoEmail ? "worker_code" : "db_no_clerk",
+    });
+  }
+
+  // Orden: primero lo que requiere atención, luego ok.
+  const order: Record<string, number> = {
+    clerk_no_account: 0, pending: 1, inactive: 2, rejected: 3, db_no_clerk: 4, worker_code: 5, ok: 6,
+  };
+  rows.sort((a, b) => (order[a.access] ?? 9) - (order[b.access] ?? 9));
+
+  const summary = {
+    total: rows.length,
+    ok: rows.filter((r) => r.access === "ok").length,
+    needsAttention: rows.filter((r) => ["clerk_no_account", "pending", "inactive", "rejected"].includes(r.access)).length,
+    clerkError,
+  };
+
+  res.json({ summary, rows });
+});
+
 router.post("/users", async (req, res): Promise<void> => {
   const actor = await getRequestUserStrict(req);
   if (!actor) { res.status(401).json({ error: "No autenticado" }); return; }

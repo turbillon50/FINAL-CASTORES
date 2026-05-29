@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { PageHero } from "@/components/ui/page-hero";
+import { AccessAudit } from "@/components/ui/access-audit";
 import { motion, AnimatePresence } from "framer-motion";
 import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
@@ -201,6 +202,9 @@ export default function Usuarios() {
           onClose={() => setWorkerModalOpen(false)}
           onCreated={() => { refetch(); }}
         />
+
+        {/* ─── Auditoría de acceso (Clerk ↔ BD) ─── */}
+        <AccessAudit />
 
         {/* ─── Panel de Aprobaciones Pendientes ─── */}
         <AnimatePresence>
