@@ -21,7 +21,6 @@ const SKYLINE = [
 export function PageHero({
   title,
   subtitle,
-  imageUrl,
   accentColor = "#FF3C00",
   badge,
   children,
@@ -35,16 +34,11 @@ export function PageHero({
         border: "1px solid rgba(255,255,255,0.06)",
       }}
     >
-      {/* Textura de foto opcional, en blanco y negro y muy tenue */}
-      {imageUrl && (
-        <img
-          src={imageUrl}
-          alt=""
-          aria-hidden="true"
-          className="absolute inset-0 w-full h-full object-cover"
-          style={{ filter: "grayscale(1) brightness(0.32) contrast(1.1)", opacity: 0.35 }}
-        />
-      )}
+      {/* Resplandor de acento (radial sutil, da profundidad sin fotos ajenas) */}
+      <div
+        className="absolute -top-1/2 -right-1/4 w-[70%] h-[200%] pointer-events-none"
+        style={{ background: `radial-gradient(ellipse at center, ${accentColor}1f 0%, transparent 60%)` }}
+      />
 
       {/* Skyline de barras (motivo del logo) anclado abajo a la derecha */}
       <div className="absolute bottom-0 right-0 h-full flex items-end gap-[3px] pr-6 opacity-[0.13] pointer-events-none">

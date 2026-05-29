@@ -1,5 +1,6 @@
 import { MainLayout } from "@/components/layout/main-layout";
 import { CinematicProjectCard } from "@/components/ui/cinematic-project-card";
+import { CardRail } from "@/components/ui/card-rail";
 import { PageHero } from "@/components/ui/page-hero";
 import { useListProjects, useCreateProject, useListUsers, getAuthToken } from "@workspace/api-client-react";
 import { Icons } from "@/lib/icons";
@@ -172,7 +173,6 @@ export default function Projects() {
         <PageHero
           title="Portafolio de Obras"
           subtitle="Gestiona, monitorea y controla todas las obras en ejecución"
-          imageUrl="https://images.unsplash.com/photo-1503387762-592deb58ef4e?w=1400&q=80&fit=crop"
           accentColor="#FF3C00"
           badge="GESTIÓN OPERATIVA"
         />
@@ -209,26 +209,47 @@ export default function Projects() {
           )}
         </div>
 
-        {/* Grid */}
+        {/* Listado: rieles por estatus (estilo Apple TV) cuando se navega sin
+            filtro ni búsqueda; cuadrícula cuando se filtra o busca. */}
         {isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 animate-pulse">
             {[1,2,3,4,5,6].map(i => <div key={i} className="aspect-[4/3] bg-foreground/5 rounded-2xl" />)}
           </div>
+        ) : filteredProjects.length === 0 ? (
+          <div className="text-center py-20 rounded-2xl border border-dashed border-foreground/10 bg-foreground/[0.02]">
+            <Icons.Projects className="w-10 h-10 mx-auto text-muted-foreground mb-3 opacity-30" />
+            <h3 className="text-lg font-display text-foreground mb-1">Sin resultados</h3>
+            <p className="text-muted-foreground text-sm">Ajusta los filtros o crea una nueva obra.</p>
+          </div>
+        ) : statusFilter === "all" && !search ? (
+          <div className="space-y-8">
+            {Object.entries(STATUS_META).map(([key, meta]) => {
+              const group = filteredProjects.filter((p) => p.status === key);
+              if (group.length === 0) return null;
+              return (
+                <div key={key}>
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-1 h-6 rounded-full" style={{ background: meta.color }} />
+                    <h2 className="font-display text-2xl text-foreground tracking-wide">{meta.label}</h2>
+                    <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: `${meta.color}1a`, color: meta.color }}>
+                      {group.length}
+                    </span>
+                  </div>
+                  <CardRail itemClassName="w-[300px] sm:w-[360px]">
+                    {group.map((project, index) => (
+                      <CinematicProjectCard key={project.id} project={project} index={index} />
+                    ))}
+                  </CardRail>
+                </div>
+              );
+            })}
+          </div>
         ) : (
-          <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {filteredProjects.map((project, index) => (
-                <CinematicProjectCard key={project.id} project={project} index={index} />
-              ))}
-            </div>
-            {filteredProjects.length === 0 && (
-              <div className="text-center py-20 rounded-2xl border border-dashed border-foreground/10 bg-foreground/[0.02]">
-                <Icons.Projects className="w-10 h-10 mx-auto text-muted-foreground mb-3 opacity-30" />
-                <h3 className="text-lg font-display text-foreground mb-1">Sin resultados</h3>
-                <p className="text-muted-foreground text-sm">Ajusta los filtros o crea una nueva obra.</p>
-              </div>
-            )}
-          </>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {filteredProjects.map((project, index) => (
+              <CinematicProjectCard key={project.id} project={project} index={index} />
+            ))}
+          </div>
         )}
       </div>
 

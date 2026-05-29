@@ -14,7 +14,7 @@ export default function PendingApproval() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F7F5F2] flex flex-col items-center justify-center px-4">
+    <div className="min-h-screen bg-[#FAFAFA] flex flex-col items-center justify-center px-4">
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}

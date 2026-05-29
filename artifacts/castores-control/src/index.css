@@ -181,6 +181,15 @@
     @apply hidden;
   }
 
+  /* Rieles deslizables tipo Apple TV: ocultar la barra de scroll */
+  .scrollbar-none {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+
   [contenteditable][data-placeholder]:empty::before {
     content: attr(data-placeholder);
     color: hsl(var(--muted-foreground));

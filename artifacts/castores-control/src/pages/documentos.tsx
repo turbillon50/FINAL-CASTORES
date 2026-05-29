@@ -137,7 +137,6 @@ export default function Documentos() {
         <PageHero
           title="Bóveda Documental"
           subtitle="Almacenamiento seguro de planos, contratos, permisos y evidencias"
-          imageUrl="https://images.unsplash.com/photo-1568992687947-868a62a9f521?w=1400&q=80&fit=crop"
           accentColor="#3B82F6"
           badge="GESTIÓN DOCUMENTAL"
         >

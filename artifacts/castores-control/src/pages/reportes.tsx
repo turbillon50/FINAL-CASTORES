@@ -433,13 +433,13 @@ export default function Reportes() {
       <MainLayout>
         <div className="space-y-5 pb-6">
 
-          {/* Hero */}
-          <div className="relative rounded-3xl overflow-hidden" style={{ minHeight: 160 }}>
-            <img
-              src="https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=1400&q=80&fit=crop"
-              alt="Reportes"
-              className="absolute inset-0 w-full h-full object-cover"
-            />
+          {/* Hero de marca (sin fotos ajenas) */}
+          <div className="relative rounded-3xl overflow-hidden" style={{ minHeight: 160, background: "linear-gradient(135deg,#0a0a0a 0%,#1f1f1f 60%,#141414 100%)" }}>
+            <div className="absolute bottom-0 right-0 h-full flex items-end gap-[3px] pr-6 opacity-[0.13] pointer-events-none">
+              {[0.3,0.18,0.42,0.26,0.54,0.36,0.7,0.5,0.88,1,0.82,0.58,0.7,0.4,0.52,0.28,0.4,0.2].map((h, i) => (
+                <div key={i} style={{ width: 6, height: `${h * 78}%`, background: i % 6 === 0 ? "#10B981" : "#ffffff" }} />
+              ))}
+            </div>
             <div className="absolute inset-0" style={{ background: "linear-gradient(135deg, rgba(20,20,20,0.92) 0%, rgba(20,20,20,0.6) 100%)" }} />
             <div className="relative z-10 p-6 flex items-end justify-between h-full" style={{ minHeight: 160 }}>
               <div>

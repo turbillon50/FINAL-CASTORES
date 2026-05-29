@@ -127,7 +127,6 @@ export default function AdminAuditoria() {
         <PageHero
           title="Auditoría del Sistema"
           subtitle="Historial de acciones administrativas: aprobaciones, ediciones, eliminaciones."
-          imageUrl="https://images.unsplash.com/photo-1450101499163-c8848c66ca85?w=1400&q=80&fit=crop"
           accentColor="#FF3C00"
           badge="ADMIN — TRAZABILIDAD"
         />

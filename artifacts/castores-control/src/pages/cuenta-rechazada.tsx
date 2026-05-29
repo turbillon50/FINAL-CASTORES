@@ -39,7 +39,7 @@ export default function CuentaRechazada() {
 
   return (
     <div
-      className="min-h-screen bg-[#F7F5F2] flex flex-col items-center justify-center px-4"
+      className="min-h-screen bg-[#FAFAFA] flex flex-col items-center justify-center px-4"
       style={{ paddingTop: "max(env(safe-area-inset-top), 16px)", paddingBottom: "max(env(safe-area-inset-bottom), 16px)" }}
     >
       <motion.div

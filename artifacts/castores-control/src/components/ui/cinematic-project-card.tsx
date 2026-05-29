@@ -39,19 +39,36 @@ export function CinematicProjectCard({ project, index }: CinematicProjectCardPro
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, delay: index * 0.1 }}
-      className="group relative overflow-hidden rounded-xl bg-card aspect-[16/9] sm:aspect-[4/3] lg:aspect-[16/9] shadow-lg ring-1 ring-white/5 cursor-pointer isolate"
+      transition={{ duration: 0.5, delay: index * 0.08 }}
+      whileHover={{ y: -4, transition: { type: "spring", stiffness: 320, damping: 22 } }}
+      whileTap={{ scale: 0.985 }}
+      className="group relative overflow-hidden rounded-xl bg-card aspect-[16/9] sm:aspect-[4/3] lg:aspect-[16/9] shadow-lg ring-1 ring-white/5 cursor-pointer isolate h-full"
       data-testid={`project-card-${project.id}`}
       onClick={() => { window.location.href = `/projects/${project.id}`; }}
       role="button"
       tabIndex={0}
       onKeyDown={(e) => { if (e.key === "Enter") window.location.href = `/projects/${project.id}`; }}
     >
-      <img
-        src={project.coverImageUrl || `/project-${(project.id % 5) + 1}.png`}
-        alt={project.name}
-        className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-      />
+      {project.coverImageUrl ? (
+        <img
+          src={project.coverImageUrl}
+          alt={project.name}
+          className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+        />
+      ) : (
+        // Placeholder de marca (sin fotos ajenas): negro arquitectónico +
+        // skyline de barras del logo Castores.
+        <div
+          className="absolute inset-0 transition-transform duration-700 group-hover:scale-105"
+          style={{ background: "linear-gradient(135deg, #0a0a0a 0%, #232323 60%, #141414 100%)" }}
+        >
+          <div className="absolute bottom-0 right-0 h-full flex items-end gap-[3px] pr-5 opacity-[0.16]">
+            {[0.3, 0.18, 0.4, 0.26, 0.54, 0.36, 0.7, 0.5, 0.9, 1, 0.82, 0.58, 0.7, 0.4, 0.52, 0.28].map((h, i) => (
+              <div key={i} style={{ width: 7, height: `${h * 70}%`, background: i % 6 === 0 ? "#FF3C00" : "#ffffff" }} />
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent transition-opacity duration-500 group-hover:opacity-90" />
 

@@ -116,7 +116,7 @@ export default function Login() {
   if (showAccountChoice && inviteCode) {
     const email = clerkUser?.primaryEmailAddress?.emailAddress ?? "";
     return (
-      <div className="min-h-[100dvh] flex items-center justify-center bg-[#F7F5F2] p-6">
+      <div className="min-h-[100dvh] flex items-center justify-center bg-[#FAFAFA] p-6">
         <div className="w-full max-w-sm bg-white rounded-3xl shadow-xl overflow-hidden">
           <div className="bg-[#141414] px-8 py-6 text-center">
             <div className="text-3xl mb-2">🔑</div>
@@ -166,19 +166,24 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-[100dvh] w-full flex flex-col md:flex-row overflow-hidden bg-[#F7F5F2]">
+    <div className="min-h-[100dvh] w-full flex flex-col md:flex-row overflow-hidden bg-[#FAFAFA]">
 
-      {/* ── HERO FOTO ─────────────────────────────────── */}
+      {/* ── HERO DE MARCA ─────────────────────────────── */}
       <div className="relative w-full md:w-[55%] h-[45vh] md:h-screen overflow-hidden shrink-0">
-        <img
-          src="https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=1200&q=85&fit=crop&crop=center"
-          alt="Obra de construcción CASTORES"
-          className="absolute inset-0 w-full h-full object-cover"
-          style={{ objectPosition: "center 30%" }}
-        />
+        {/* Sin fotos ajenas: negro arquitectónico + skyline del logo Castores */}
+        <div className="absolute inset-0" style={{ background: "linear-gradient(140deg,#0a0a0a 0%,#1f1f1f 55%,#141414 100%)" }} />
+        <div className="absolute inset-0 opacity-[0.06]" style={{
+          backgroundImage: "repeating-linear-gradient(0deg,transparent,transparent 39px,rgba(255,255,255,0.5) 39px,rgba(255,255,255,0.5) 40px),repeating-linear-gradient(90deg,transparent,transparent 39px,rgba(255,255,255,0.5) 39px,rgba(255,255,255,0.5) 40px)",
+        }} />
+        <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse at 50% 35%, rgba(255,60,0,0.22) 0%, transparent 60%)" }} />
+        <div className="absolute bottom-0 inset-x-0 h-2/3 flex items-end justify-center gap-[5px] opacity-[0.13] px-6 pointer-events-none">
+          {[0.22,0.34,0.2,0.42,0.28,0.52,0.36,0.66,0.48,0.82,0.62,0.94,1,0.9,0.7,0.86,0.56,0.74,0.44,0.6,0.32,0.5,0.26,0.4,0.18,0.3].map((h, i) => (
+            <div key={i} style={{ width: 8, height: `${h * 100}%`, background: i % 6 === 0 ? "#FF3C00" : "#ffffff" }} />
+          ))}
+        </div>
         <div className="absolute inset-0 bg-gradient-to-b md:bg-gradient-to-r from-black/5 via-black/25 to-black/75" />
-        <div className="hidden md:block absolute inset-y-0 right-0 w-24 bg-gradient-to-r from-transparent to-[#F7F5F2]" />
-        <div className="md:hidden absolute bottom-0 inset-x-0 h-24 bg-gradient-to-b from-transparent to-[#F7F5F2]" />
+        <div className="hidden md:block absolute inset-y-0 right-0 w-24 bg-gradient-to-r from-transparent to-[#FAFAFA]" />
+        <div className="md:hidden absolute bottom-0 inset-x-0 h-24 bg-gradient-to-b from-transparent to-[#FAFAFA]" />
 
         {/* Logo */}
         <div className="absolute top-5 left-5 flex items-center gap-2.5">

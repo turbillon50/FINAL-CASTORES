@@ -180,7 +180,6 @@ export default function Materiales() {
         <PageHero
           title="Logística de Materiales"
           subtitle="Control de inventario, solicitudes y movimientos de suministros"
-          imageUrl="https://images.unsplash.com/photo-1607400201515-c2c41c8eb8e6?w=1400&q=80&fit=crop"
           accentColor="#FF3C00"
           badge="BODEGA Y SUMINISTROS"
         >

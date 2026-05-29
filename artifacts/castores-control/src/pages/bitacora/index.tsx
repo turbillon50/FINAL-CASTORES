@@ -29,7 +29,6 @@ export default function Bitacora() {
         <PageHero
           title="Bitácora de Obra"
           subtitle="Registro oficial diario de avances, observaciones e incidencias"
-          imageUrl="https://images.unsplash.com/photo-1621905251918-48416bd8575a?w=1400&q=80&fit=crop"
           accentColor="#FF3C00"
           badge="REGISTRO OFICIAL"
         >
