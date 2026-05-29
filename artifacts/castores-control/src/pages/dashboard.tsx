@@ -1,5 +1,6 @@
 import { MainLayout } from "@/components/layout/main-layout";
 import { CinematicProjectCard } from "@/components/ui/cinematic-project-card";
+import { CardRail } from "@/components/ui/card-rail";
 import { ActivityFeed } from "@/components/ui/activity-feed";
 import { PageHero } from "@/components/ui/page-hero";
 import { CommandStats } from "@/components/ui/command-stats";
@@ -8,14 +9,6 @@ import { useGetDashboardSummary, useListProjects, useGetDashboardActivity, useGe
 import { Link } from "wouter";
 import { useAuth } from "@/lib/auth";
 import { motion } from "framer-motion";
-
-const HERO_IMAGES: Record<string, string> = {
-  admin: "https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=1400&q=80&fit=crop",
-  supervisor: "https://images.unsplash.com/photo-1581092795360-fd1ca04f0952?w=1400&q=80&fit=crop",
-  client: "https://images.unsplash.com/photo-1486325212027-8081e485255e?w=1400&q=80&fit=crop",
-  worker: "https://images.unsplash.com/photo-1541888946425-d81bb19240f5?w=1400&q=80&fit=crop",
-  proveedor: "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=1400&q=80&fit=crop",
-};
 
 const ROLE_LABELS: Record<string, string> = {
   admin: "Centro de Mando",
@@ -109,7 +102,6 @@ export default function Dashboard() {
         <PageHero
           title={ROLE_LABELS[role]}
           subtitle={ROLE_SUBTITLES[role]}
-          imageUrl={HERO_IMAGES[role]}
           accentColor={roleColor}
           badge={role === "admin" ? "Sistema Activo · CASTORES CONTROL" : undefined}
         >
@@ -173,16 +165,17 @@ export default function Dashboard() {
               </Link>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              {projects.slice(0, 4).map((project, index) => (
-                <CinematicProjectCard key={project.id} project={project} index={index} />
-              ))}
-              {projects.length === 0 && (
-                <div className="col-span-full py-14 text-center rounded-2xl border border-dashed border-foreground/10">
-                  <p className="text-muted-foreground text-sm">No hay obras activas en este momento.</p>
-                </div>
-              )}
-            </div>
+            {projects.length === 0 ? (
+              <div className="py-14 text-center rounded-2xl border border-dashed border-foreground/10">
+                <p className="text-muted-foreground text-sm">No hay obras activas en este momento.</p>
+              </div>
+            ) : (
+              <CardRail itemClassName="w-[300px] sm:w-[360px]">
+                {projects.slice(0, 8).map((project, index) => (
+                  <CinematicProjectCard key={project.id} project={project} index={index} />
+                ))}
+              </CardRail>
+            )}
 
             {/* Budget chart — admin only */}
             {role === "admin" && projects.length > 0 && (
@@ -199,14 +192,12 @@ export default function Dashboard() {
 
             {/* Map placeholder */}
             {(role === "admin" || role === "supervisor") && (
-              <div className="relative rounded-2xl overflow-hidden" style={{ height: 220, border: "1px solid rgba(0,0,0,0.07)" }}>
-                <img
-                  src="https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=1200&q=70&fit=crop"
-                  alt="Mapa de obras"
-                  className="absolute inset-0 w-full h-full object-cover"
-                  style={{ filter: "saturate(0.6) brightness(0.9)" }}
-                />
-                <div className="absolute inset-0" style={{ background: "linear-gradient(135deg,rgba(255,60,0,0.15),rgba(0,0,0,0.55))" }} />
+              <div className="relative rounded-2xl overflow-hidden" style={{ height: 220, border: "1px solid rgba(0,0,0,0.07)", background: "linear-gradient(135deg,#0a0a0a 0%,#1f1f1f 60%,#141414 100%)" }}>
+                {/* Retícula técnica (blueprint) — sin fotos ajenas */}
+                <div className="absolute inset-0 opacity-[0.10]" style={{
+                  backgroundImage: "repeating-linear-gradient(0deg,transparent,transparent 31px,rgba(255,255,255,0.6) 31px,rgba(255,255,255,0.6) 32px),repeating-linear-gradient(90deg,transparent,transparent 31px,rgba(255,255,255,0.6) 31px,rgba(255,255,255,0.6) 32px)",
+                }} />
+                <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse at 60% 40%, rgba(255,60,0,0.18) 0%, transparent 55%)" }} />
 
                 {/* Fake pins */}
                 {[

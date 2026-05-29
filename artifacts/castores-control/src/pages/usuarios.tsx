@@ -178,7 +178,6 @@ export default function Usuarios() {
         <PageHero
           title="Equipo de Trabajo"
           subtitle="Gestión de accesos, roles y aprobaciones del personal de CASTORES"
-          imageUrl="https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=1400&q=80&fit=crop"
           accentColor="#FF3C00"
           badge="GESTIÓN DE PERSONAL"
         >

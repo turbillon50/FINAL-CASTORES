@@ -138,7 +138,6 @@ export default function NewBitacoraEntry() {
         <PageHero
           title="Nueva Entrada de Bitácora"
           subtitle="Registra el avance diario, materiales, observaciones y firmas de autorización"
-          imageUrl="https://images.unsplash.com/photo-1621905251918-48416bd8575a?w=1400&q=80&fit=crop"
           accentColor="#FF3C00"
           badge="REGISTRO OFICIAL"
         />
