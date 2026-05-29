@@ -547,11 +547,22 @@ export default function ProjectDetail() {
     <MainLayout>
       {/* Hero Banner */}
       <div className="relative h-64 md:h-80 -mx-4 md:-mx-8 -mt-4 md:-mt-8 mb-8 rounded-b-3xl overflow-hidden isolate">
-        <img
-          src={project.coverImageUrl || `/project-${(project.id % 5) + 1}.png`}
-          alt={project.name}
-          className="absolute inset-0 w-full h-full object-cover"
-        />
+        {project.coverImageUrl ? (
+          <img
+            src={project.coverImageUrl}
+            alt={project.name}
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+        ) : (
+          // Sin portada propia: fondo de marca (skyline del logo), no foto ajena
+          <div className="absolute inset-0" style={{ background: "linear-gradient(135deg,#0a0a0a 0%,#232323 60%,#141414 100%)" }}>
+            <div className="absolute bottom-0 right-0 h-full flex items-end gap-1 pr-8 opacity-[0.14]">
+              {[0.3,0.18,0.42,0.26,0.54,0.36,0.7,0.5,0.9,1,0.82,0.58,0.7,0.4,0.52,0.28,0.4,0.2,0.32].map((h, i) => (
+                <div key={i} style={{ width: 9, height: `${h * 72}%`, background: i % 6 === 0 ? "#FF3C00" : "#ffffff" }} />
+              ))}
+            </div>
+          </div>
+        )}
         <div className="absolute inset-0 bg-gradient-to-t from-background via-background/80 to-transparent" />
 
         <div className="absolute inset-x-0 bottom-0 p-6 md:p-10 flex flex-col md:flex-row md:items-end justify-between gap-6 z-10 max-w-7xl mx-auto">
