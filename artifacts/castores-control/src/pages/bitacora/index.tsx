@@ -30,13 +30,13 @@ export default function Bitacora() {
           title="Bitácora de Obra"
           subtitle="Registro oficial diario de avances, observaciones e incidencias"
           imageUrl="https://images.unsplash.com/photo-1621905251918-48416bd8575a?w=1400&q=80&fit=crop"
-          accentColor="#C8952A"
+          accentColor="#FF3C00"
           badge="REGISTRO OFICIAL"
         >
           {canCreate && (
             <Link href="/bitacora/new">
               <button className="mt-1 text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-1.5 transition-all"
-                style={{ background: "rgba(200,149,42,0.25)", border: "1px solid rgba(200,149,42,0.5)", color: "#fff" }}>
+                style={{ background: "rgba(255,60,0,0.25)", border: "1px solid rgba(255,60,0,0.5)", color: "#fff" }}>
                 + Nueva Entrada
               </button>
             </Link>

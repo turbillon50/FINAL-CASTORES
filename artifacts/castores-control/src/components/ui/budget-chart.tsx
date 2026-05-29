@@ -19,7 +19,7 @@ export function BudgetChart({ projects }: BudgetChartProps) {
   const maxBudget = Math.max(...active.map(p => p.budget ?? 0), 1);
 
   const statusColors: Record<string, string> = {
-    active: "#C8952A",
+    active: "#FF3C00",
     completed: "#10B981",
     paused: "#F59E0B",
     cancelled: "#EF4444",
@@ -74,7 +74,7 @@ export function BudgetChart({ projects }: BudgetChartProps) {
                     animate={{ width: `${pct}%` }}
                     transition={{ delay: 0.2 + i * 0.06, duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
                     className="absolute top-0 left-0 h-full rounded-full"
-                    style={{ background: over ? "#EF4444" : "#C8952A" }}
+                    style={{ background: over ? "#EF4444" : "#FF3C00" }}
                   />
                 </div>
                 {/* Progress bar */}

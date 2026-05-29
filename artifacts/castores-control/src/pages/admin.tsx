@@ -17,7 +17,7 @@ const ROLE_ICONS: Record<string, string> = {
   admin: "🛡️", supervisor: "👷", client: "🏢", worker: "🔧", proveedor: "🚛",
 };
 const ROLE_COLORS: Record<string, string> = {
-  admin: "#C8952A", supervisor: "#3B82F6", client: "#10B981", worker: "#EF4444", proveedor: "#8B5CF6",
+  admin: "#FF3C00", supervisor: "#3B82F6", client: "#10B981", worker: "#EF4444", proveedor: "#8B5CF6",
 };
 
 type Tab = "permisos" | "usuarios" | "obras" | "invitations" | "content" | "avisos" | "manual";
@@ -173,34 +173,34 @@ function InvitationsTab() {
   return (
     <div className="space-y-6">
       {/* Generator */}
-      <div className="rounded-2xl p-6" style={{ background: "rgba(200,149,42,0.06)", border: "1px solid rgba(200,149,42,0.2)" }}>
-        <h3 className="font-black text-lg mb-1" style={{ fontFamily: "'Bebas Neue', sans-serif", letterSpacing: "0.04em", color: "#C8952A" }}>
+      <div className="rounded-2xl p-6" style={{ background: "rgba(255,60,0,0.06)", border: "1px solid rgba(255,60,0,0.2)" }}>
+        <h3 className="font-black text-lg mb-1" style={{ fontFamily: "'Bebas Neue', sans-serif", letterSpacing: "0.04em", color: "#FF3C00" }}>
           Generar nueva clave
         </h3>
-        <p className="text-xs mb-4" style={{ color: "rgba(26,22,18,0.45)" }}>La clave se puede compartir por WhatsApp para invitar a alguien al sistema con acceso inmediato.</p>
+        <p className="text-xs mb-4" style={{ color: "rgba(20,20,20,0.45)" }}>La clave se puede compartir por WhatsApp para invitar a alguien al sistema con acceso inmediato.</p>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <div>
-            <label className="text-xs font-semibold block mb-1.5" style={{ color: "rgba(26,22,18,0.55)" }}>Rol a invitar *</label>
+            <label className="text-xs font-semibold block mb-1.5" style={{ color: "rgba(20,20,20,0.55)" }}>Rol a invitar *</label>
             <select value={role} onChange={(e) => setRole(e.target.value)}
               className="w-full rounded-xl px-3 py-2.5 text-sm outline-none transition-all appearance-none cursor-pointer"
-              style={{ background: "white", border: "1px solid rgba(0,0,0,0.1)", color: "#1a1612" }}>
+              style={{ background: "white", border: "1px solid rgba(0,0,0,0.1)", color: "#141414" }}>
               {Object.entries(ROLE_LABELS).map(([v, l]) => (
                 <option key={v} value={v}>{ROLE_ICONS[v]} {l}</option>
               ))}
             </select>
           </div>
           <div>
-            <label className="text-xs font-semibold block mb-1.5" style={{ color: "rgba(26,22,18,0.55)" }}>Nombre / Descripción (opcional)</label>
+            <label className="text-xs font-semibold block mb-1.5" style={{ color: "rgba(20,20,20,0.55)" }}>Nombre / Descripción (opcional)</label>
             <input type="text" value={label} onChange={(e) => setLabel(e.target.value)}
               placeholder="Ej. Juan Pérez - Supervisor Obra Norte"
               className="w-full rounded-xl px-3 py-2.5 text-sm outline-none transition-all"
-              style={{ background: "white", border: "1px solid rgba(0,0,0,0.1)", color: "#1a1612" }} />
+              style={{ background: "white", border: "1px solid rgba(0,0,0,0.1)", color: "#141414" }} />
           </div>
           <div className="flex items-end">
             <button onClick={createInvitation} disabled={creating}
               className="w-full py-2.5 rounded-xl font-bold text-sm text-white transition-all hover:opacity-90 disabled:opacity-50"
-              style={{ background: "linear-gradient(135deg, #C8952A, #E8A830)" }}>
+              style={{ background: "linear-gradient(135deg, #FF3C00, #E8A830)" }}>
               {creating ? "Generando..." : "⚡ Generar clave"}
             </button>
           </div>
@@ -209,12 +209,12 @@ function InvitationsTab() {
 
       {/* Active codes */}
       {isLoading ? (
-        <div className="text-center py-8 text-sm" style={{ color: "rgba(26,22,18,0.35)" }}>Cargando claves...</div>
+        <div className="text-center py-8 text-sm" style={{ color: "rgba(20,20,20,0.35)" }}>Cargando claves...</div>
       ) : (
         <>
           {active.length > 0 && (
             <div>
-              <h4 className="text-xs font-black uppercase tracking-wider mb-3" style={{ color: "rgba(26,22,18,0.4)" }}>
+              <h4 className="text-xs font-black uppercase tracking-wider mb-3" style={{ color: "rgba(20,20,20,0.4)" }}>
                 Claves activas ({active.length})
               </h4>
               <div className="space-y-2">
@@ -228,21 +228,21 @@ function InvitationsTab() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-black text-lg tracking-widest font-mono" style={{ color: "#1a1612" }}>{inv.code}</span>
+                        <span className="font-black text-lg tracking-widest font-mono" style={{ color: "#141414" }}>{inv.code}</span>
                         <span className="text-xs px-2 py-0.5 rounded-full font-bold"
                           style={{ background: `${ROLE_COLORS[inv.role]}15`, color: ROLE_COLORS[inv.role] }}>
                           {ROLE_LABELS[inv.role] ?? inv.role}
                         </span>
                       </div>
-                      {inv.label && <p className="text-xs mt-0.5" style={{ color: "rgba(26,22,18,0.4)" }}>{inv.label}</p>}
-                      <p className="text-[10px] mt-0.5" style={{ color: "rgba(26,22,18,0.3)" }}>
+                      {inv.label && <p className="text-xs mt-0.5" style={{ color: "rgba(20,20,20,0.4)" }}>{inv.label}</p>}
+                      <p className="text-[10px] mt-0.5" style={{ color: "rgba(20,20,20,0.3)" }}>
                         Creado {new Date(inv.createdAt).toLocaleDateString("es-MX")}
                       </p>
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
                       <button onClick={() => copyCode(inv)}
                         className="p-2 rounded-lg font-bold text-xs transition-all hover:opacity-80"
-                        style={{ background: copiedId === inv.id ? "rgba(16,185,129,0.12)" : "rgba(0,0,0,0.06)", color: copiedId === inv.id ? "#10B981" : "rgba(26,22,18,0.5)" }}
+                        style={{ background: copiedId === inv.id ? "rgba(16,185,129,0.12)" : "rgba(0,0,0,0.06)", color: copiedId === inv.id ? "#10B981" : "rgba(20,20,20,0.5)" }}
                         title="Copiar código">
                         {copiedId === inv.id ? (
                           <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -277,16 +277,16 @@ function InvitationsTab() {
 
           {used.length > 0 && (
             <div>
-              <h4 className="text-xs font-black uppercase tracking-wider mb-3" style={{ color: "rgba(26,22,18,0.3)" }}>
+              <h4 className="text-xs font-black uppercase tracking-wider mb-3" style={{ color: "rgba(20,20,20,0.3)" }}>
                 Claves usadas / revocadas ({used.length})
               </h4>
               <div className="space-y-1.5">
                 {used.map((inv: any) => (
                   <div key={inv.id} className="flex items-center gap-3 p-3 rounded-xl opacity-50"
                     style={{ background: "rgba(0,0,0,0.03)", border: "1px solid rgba(0,0,0,0.06)" }}>
-                    <span className="font-mono text-sm font-bold line-through" style={{ color: "#1a1612" }}>{inv.code}</span>
-                    <span className="text-xs" style={{ color: "rgba(26,22,18,0.4)" }}>{ROLE_LABELS[inv.role] ?? inv.role}</span>
-                    {inv.label && <span className="text-xs" style={{ color: "rgba(26,22,18,0.35)" }}>— {inv.label}</span>}
+                    <span className="font-mono text-sm font-bold line-through" style={{ color: "#141414" }}>{inv.code}</span>
+                    <span className="text-xs" style={{ color: "rgba(20,20,20,0.4)" }}>{ROLE_LABELS[inv.role] ?? inv.role}</span>
+                    {inv.label && <span className="text-xs" style={{ color: "rgba(20,20,20,0.35)" }}>— {inv.label}</span>}
                     <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full" style={{ background: inv.usedBy ? "rgba(16,185,129,0.1)" : "rgba(239,68,68,0.1)", color: inv.usedBy ? "#10B981" : "#EF4444" }}>
                       {inv.usedBy ? "Utilizada" : "Revocada"}
                     </span>
@@ -299,8 +299,8 @@ function InvitationsTab() {
           {invitations.length === 0 && (
             <div className="text-center py-12">
               <div className="text-4xl mb-3">🔑</div>
-              <p className="text-sm font-semibold" style={{ color: "rgba(26,22,18,0.4)" }}>No hay claves generadas aún</p>
-              <p className="text-xs mt-1" style={{ color: "rgba(26,22,18,0.25)" }}>Genera una clave para invitar a alguien al sistema</p>
+              <p className="text-sm font-semibold" style={{ color: "rgba(20,20,20,0.4)" }}>No hay claves generadas aún</p>
+              <p className="text-xs mt-1" style={{ color: "rgba(20,20,20,0.25)" }}>Genera una clave para invitar a alguien al sistema</p>
             </div>
           )}
         </>
@@ -376,7 +376,7 @@ function ContentTab() {
 
   const TYPE_CONFIG: Record<string, { label: string; icon: string; color: string }> = {
     banner: { label: "Banner", icon: "🖼️", color: "#3B82F6" },
-    announcement: { label: "Anuncio", icon: "📢", color: "#C8952A" },
+    announcement: { label: "Anuncio", icon: "📢", color: "#FF3C00" },
     image: { label: "Imagen", icon: "🏙️", color: "#8B5CF6" },
   };
 
@@ -385,12 +385,12 @@ function ContentTab() {
       {/* Add button */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="font-black text-base" style={{ color: "#1a1612" }}>Contenido dinámico</h3>
-          <p className="text-xs" style={{ color: "rgba(26,22,18,0.4)" }}>Banners, anuncios e imágenes visibles para los usuarios</p>
+          <h3 className="font-black text-base" style={{ color: "#141414" }}>Contenido dinámico</h3>
+          <p className="text-xs" style={{ color: "rgba(20,20,20,0.4)" }}>Banners, anuncios e imágenes visibles para los usuarios</p>
         </div>
         <button onClick={() => setShowForm(!showForm)}
           className="px-4 py-2 rounded-xl font-bold text-sm text-white transition-all hover:opacity-90"
-          style={{ background: showForm ? "rgba(0,0,0,0.1)" : "linear-gradient(135deg, #C8952A, #E8A830)", color: showForm ? "#1a1612" : "white" }}>
+          style={{ background: showForm ? "rgba(0,0,0,0.1)" : "linear-gradient(135deg, #FF3C00, #E8A830)", color: showForm ? "#141414" : "white" }}>
           {showForm ? "Cancelar" : "+ Nuevo"}
         </button>
       </div>
@@ -400,7 +400,7 @@ function ContentTab() {
         {showForm && (
           <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}
             className="overflow-hidden">
-            <div className="rounded-2xl p-5 space-y-4" style={{ background: "rgba(200,149,42,0.05)", border: "1px solid rgba(200,149,42,0.15)" }}>
+            <div className="rounded-2xl p-5 space-y-4" style={{ background: "rgba(255,60,0,0.05)", border: "1px solid rgba(255,60,0,0.15)" }}>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                 {Object.entries(TYPE_CONFIG).map(([key, cfg]) => (
                   <button key={key} onClick={() => setForm((f) => ({ ...f, type: key }))}
@@ -408,39 +408,39 @@ function ContentTab() {
                     style={{
                       background: form.type === key ? `${cfg.color}15` : "rgba(0,0,0,0.03)",
                       border: `1.5px solid ${form.type === key ? cfg.color : "rgba(0,0,0,0.08)"}`,
-                      color: form.type === key ? cfg.color : "rgba(26,22,18,0.5)",
+                      color: form.type === key ? cfg.color : "rgba(20,20,20,0.5)",
                     }}>
                     <span>{cfg.icon}</span> {cfg.label}
                   </button>
                 ))}
               </div>
               <div>
-                <label className="text-xs font-semibold block mb-1" style={{ color: "rgba(26,22,18,0.55)" }}>Título *</label>
+                <label className="text-xs font-semibold block mb-1" style={{ color: "rgba(20,20,20,0.55)" }}>Título *</label>
                 <input type="text" value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
                   placeholder="Ej. Actualización importante del sistema"
                   className="w-full rounded-xl px-3 py-2.5 text-sm outline-none"
-                  style={{ background: "white", border: "1px solid rgba(0,0,0,0.1)", color: "#1a1612" }} />
+                  style={{ background: "white", border: "1px solid rgba(0,0,0,0.1)", color: "#141414" }} />
               </div>
               <div>
-                <label className="text-xs font-semibold block mb-1" style={{ color: "rgba(26,22,18,0.55)" }}>Descripción</label>
+                <label className="text-xs font-semibold block mb-1" style={{ color: "rgba(20,20,20,0.55)" }}>Descripción</label>
                 <textarea value={form.body} onChange={(e) => setForm((f) => ({ ...f, body: e.target.value }))}
                   placeholder="Texto adicional del anuncio..."
                   rows={3} className="w-full rounded-xl px-3 py-2.5 text-sm outline-none resize-none"
-                  style={{ background: "white", border: "1px solid rgba(0,0,0,0.1)", color: "#1a1612" }} />
+                  style={{ background: "white", border: "1px solid rgba(0,0,0,0.1)", color: "#141414" }} />
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-semibold block mb-1" style={{ color: "rgba(26,22,18,0.55)" }}>URL de imagen</label>
+                  <label className="text-xs font-semibold block mb-1" style={{ color: "rgba(20,20,20,0.55)" }}>URL de imagen</label>
                   <input type="url" value={form.imageUrl} onChange={(e) => setForm((f) => ({ ...f, imageUrl: e.target.value }))}
                     placeholder="https://..."
                     className="w-full rounded-xl px-3 py-2.5 text-sm outline-none"
-                    style={{ background: "white", border: "1px solid rgba(0,0,0,0.1)", color: "#1a1612" }} />
+                    style={{ background: "white", border: "1px solid rgba(0,0,0,0.1)", color: "#141414" }} />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold block mb-1" style={{ color: "rgba(26,22,18,0.55)" }}>Visible para rol</label>
+                  <label className="text-xs font-semibold block mb-1" style={{ color: "rgba(20,20,20,0.55)" }}>Visible para rol</label>
                   <select value={form.targetRole} onChange={(e) => setForm((f) => ({ ...f, targetRole: e.target.value }))}
                     className="w-full rounded-xl px-3 py-2.5 text-sm outline-none appearance-none"
-                    style={{ background: "white", border: "1px solid rgba(0,0,0,0.1)", color: "#1a1612" }}>
+                    style={{ background: "white", border: "1px solid rgba(0,0,0,0.1)", color: "#141414" }}>
                     <option value="">Todos los roles</option>
                     {Object.entries(ROLE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                   </select>
@@ -448,7 +448,7 @@ function ContentTab() {
               </div>
               <button onClick={createItem} disabled={creating}
                 className="w-full py-2.5 rounded-xl font-bold text-sm text-white transition-all hover:opacity-90 disabled:opacity-50"
-                style={{ background: "linear-gradient(135deg, #C8952A, #E8A830)" }}>
+                style={{ background: "linear-gradient(135deg, #FF3C00, #E8A830)" }}>
                 {creating ? "Publicando..." : "📢 Publicar contenido"}
               </button>
             </div>
@@ -458,11 +458,11 @@ function ContentTab() {
 
       {/* Items list */}
       {isLoading ? (
-        <div className="text-center py-8 text-sm" style={{ color: "rgba(26,22,18,0.35)" }}>Cargando...</div>
+        <div className="text-center py-8 text-sm" style={{ color: "rgba(20,20,20,0.35)" }}>Cargando...</div>
       ) : items.length === 0 ? (
         <div className="text-center py-12">
           <div className="text-4xl mb-3">📋</div>
-          <p className="text-sm font-semibold" style={{ color: "rgba(26,22,18,0.4)" }}>No hay contenido publicado</p>
+          <p className="text-sm font-semibold" style={{ color: "rgba(20,20,20,0.4)" }}>No hay contenido publicado</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -489,16 +489,16 @@ function ContentTab() {
                           </span>
                         )}
                         {!item.isActive && (
-                          <span className="text-xs px-2 py-0.5 rounded-full font-bold" style={{ background: "rgba(0,0,0,0.06)", color: "rgba(26,22,18,0.4)" }}>Oculto</span>
+                          <span className="text-xs px-2 py-0.5 rounded-full font-bold" style={{ background: "rgba(0,0,0,0.06)", color: "rgba(20,20,20,0.4)" }}>Oculto</span>
                         )}
                       </div>
-                      <h4 className="font-bold text-sm" style={{ color: "#1a1612" }}>{item.title}</h4>
-                      {item.body && <p className="text-xs mt-1" style={{ color: "rgba(26,22,18,0.5)" }}>{item.body}</p>}
+                      <h4 className="font-bold text-sm" style={{ color: "#141414" }}>{item.title}</h4>
+                      {item.body && <p className="text-xs mt-1" style={{ color: "rgba(20,20,20,0.5)" }}>{item.body}</p>}
                     </div>
                     <div className="flex items-center gap-1.5 flex-shrink-0">
                       <button onClick={() => toggleActive(item)}
                         className="p-2 rounded-lg transition-all hover:opacity-70 text-xs"
-                        style={{ background: item.isActive ? "rgba(16,185,129,0.08)" : "rgba(0,0,0,0.05)", color: item.isActive ? "#10B981" : "rgba(26,22,18,0.4)" }}
+                        style={{ background: item.isActive ? "rgba(16,185,129,0.08)" : "rgba(0,0,0,0.05)", color: item.isActive ? "#10B981" : "rgba(20,20,20,0.4)" }}
                         title={item.isActive ? "Ocultar" : "Mostrar"}>
                         {item.isActive ? "👁️" : "🙈"}
                       </button>
@@ -568,14 +568,14 @@ function AvisosTab() {
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="font-black text-base" style={{ color: "#1a1612" }}>Enviar aviso</h3>
-        <p className="text-xs" style={{ color: "rgba(26,22,18,0.4)" }}>Los avisos aparecen como notificaciones en la app de los usuarios seleccionados.</p>
+        <h3 className="font-black text-base" style={{ color: "#141414" }}>Enviar aviso</h3>
+        <p className="text-xs" style={{ color: "rgba(20,20,20,0.4)" }}>Los avisos aparecen como notificaciones en la app de los usuarios seleccionados.</p>
       </div>
 
       <div className="rounded-2xl p-6 space-y-4" style={{ background: "rgba(0,0,0,0.02)", border: "1px solid rgba(0,0,0,0.08)" }}>
         {/* Target type selector */}
         <div>
-          <label className="text-xs font-black uppercase tracking-wider block mb-2" style={{ color: "rgba(26,22,18,0.45)" }}>Enviar a</label>
+          <label className="text-xs font-black uppercase tracking-wider block mb-2" style={{ color: "rgba(20,20,20,0.45)" }}>Enviar a</label>
           <div className="grid grid-cols-3 gap-2">
             {([
               { key: "all", label: "Todos", icon: "🌐" },
@@ -585,9 +585,9 @@ function AvisosTab() {
               <button key={opt.key} onClick={() => setTargetType(opt.key)}
                 className="flex flex-col items-center gap-1 p-3 rounded-xl text-xs font-bold transition-all"
                 style={{
-                  background: targetType === opt.key ? "rgba(200,149,42,0.1)" : "rgba(0,0,0,0.03)",
-                  border: `1.5px solid ${targetType === opt.key ? "#C8952A" : "rgba(0,0,0,0.08)"}`,
-                  color: targetType === opt.key ? "#C8952A" : "rgba(26,22,18,0.5)",
+                  background: targetType === opt.key ? "rgba(255,60,0,0.1)" : "rgba(0,0,0,0.03)",
+                  border: `1.5px solid ${targetType === opt.key ? "#FF3C00" : "rgba(0,0,0,0.08)"}`,
+                  color: targetType === opt.key ? "#FF3C00" : "rgba(20,20,20,0.5)",
                 }}>
                 <span className="text-lg">{opt.icon}</span>
                 {opt.label}
@@ -600,7 +600,7 @@ function AvisosTab() {
         <AnimatePresence mode="wait">
           {targetType === "role" && (
             <motion.div key="role" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}>
-              <label className="text-xs font-semibold block mb-1.5" style={{ color: "rgba(26,22,18,0.55)" }}>Rol destinatario</label>
+              <label className="text-xs font-semibold block mb-1.5" style={{ color: "rgba(20,20,20,0.55)" }}>Rol destinatario</label>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                 {Object.entries(ROLE_LABELS).map(([v, l]) => (
                   <button key={v} onClick={() => setTargetRole(v)}
@@ -608,7 +608,7 @@ function AvisosTab() {
                     style={{
                       background: targetRole === v ? `${ROLE_COLORS[v]}12` : "rgba(0,0,0,0.03)",
                       border: `1.5px solid ${targetRole === v ? ROLE_COLORS[v] : "rgba(0,0,0,0.08)"}`,
-                      color: targetRole === v ? ROLE_COLORS[v] : "rgba(26,22,18,0.5)",
+                      color: targetRole === v ? ROLE_COLORS[v] : "rgba(20,20,20,0.5)",
                     }}>
                     {ROLE_ICONS[v]} {l}
                   </button>
@@ -618,10 +618,10 @@ function AvisosTab() {
           )}
           {targetType === "user" && (
             <motion.div key="user" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}>
-              <label className="text-xs font-semibold block mb-1.5" style={{ color: "rgba(26,22,18,0.55)" }}>Seleccionar persona</label>
+              <label className="text-xs font-semibold block mb-1.5" style={{ color: "rgba(20,20,20,0.55)" }}>Seleccionar persona</label>
               <select value={targetUserId} onChange={(e) => setTargetUserId(e.target.value)}
                 className="w-full rounded-xl px-3 py-2.5 text-sm outline-none appearance-none"
-                style={{ background: "white", border: "1px solid rgba(0,0,0,0.1)", color: "#1a1612" }}>
+                style={{ background: "white", border: "1px solid rgba(0,0,0,0.1)", color: "#141414" }}>
                 <option value="">Selecciona un usuario...</option>
                 {users.filter((u: any) => u.approvalStatus === "approved").map((u: any) => (
                   <option key={u.id} value={u.id}>{u.name} — {ROLE_LABELS[u.role] ?? u.role}</option>
@@ -633,31 +633,31 @@ function AvisosTab() {
 
         {/* Title & message */}
         <div>
-          <label className="text-xs font-semibold block mb-1.5" style={{ color: "rgba(26,22,18,0.55)" }}>Título del aviso *</label>
+          <label className="text-xs font-semibold block mb-1.5" style={{ color: "rgba(20,20,20,0.55)" }}>Título del aviso *</label>
           <input type="text" value={title} onChange={(e) => setTitle(e.target.value)}
             placeholder="Ej. Reunión obligatoria mañana a las 8am"
             className="w-full rounded-xl px-3 py-2.5 text-sm outline-none"
-            style={{ background: "white", border: "1px solid rgba(0,0,0,0.1)", color: "#1a1612" }} />
+            style={{ background: "white", border: "1px solid rgba(0,0,0,0.1)", color: "#141414" }} />
         </div>
         <div>
-          <label className="text-xs font-semibold block mb-1.5" style={{ color: "rgba(26,22,18,0.55)" }}>Mensaje *</label>
+          <label className="text-xs font-semibold block mb-1.5" style={{ color: "rgba(20,20,20,0.55)" }}>Mensaje *</label>
           <textarea value={message} onChange={(e) => setMessage(e.target.value)}
             placeholder="Escribe el mensaje del aviso aquí..."
             rows={4} className="w-full rounded-xl px-3 py-2.5 text-sm outline-none resize-none"
-            style={{ background: "white", border: "1px solid rgba(0,0,0,0.1)", color: "#1a1612" }} />
+            style={{ background: "white", border: "1px solid rgba(0,0,0,0.1)", color: "#141414" }} />
         </div>
 
         {/* Preview */}
         {(title || message) && (
-          <div className="rounded-xl p-4" style={{ background: "rgba(200,149,42,0.06)", border: "1px solid rgba(200,149,42,0.15)" }}>
-            <p className="text-[10px] font-black uppercase tracking-wider mb-2" style={{ color: "rgba(26,22,18,0.35)" }}>Vista previa</p>
+          <div className="rounded-xl p-4" style={{ background: "rgba(255,60,0,0.06)", border: "1px solid rgba(255,60,0,0.15)" }}>
+            <p className="text-[10px] font-black uppercase tracking-wider mb-2" style={{ color: "rgba(20,20,20,0.35)" }}>Vista previa</p>
             <div className="flex gap-3">
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: "rgba(200,149,42,0.15)" }}>
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: "rgba(255,60,0,0.15)" }}>
                 <span className="text-sm">🔔</span>
               </div>
               <div>
-                <p className="text-sm font-bold" style={{ color: "#1a1612" }}>{title || "Título del aviso"}</p>
-                <p className="text-xs mt-0.5" style={{ color: "rgba(26,22,18,0.5)" }}>{message || "Mensaje del aviso"}</p>
+                <p className="text-sm font-bold" style={{ color: "#141414" }}>{title || "Título del aviso"}</p>
+                <p className="text-xs mt-0.5" style={{ color: "rgba(20,20,20,0.5)" }}>{message || "Mensaje del aviso"}</p>
               </div>
             </div>
           </div>
@@ -665,7 +665,7 @@ function AvisosTab() {
 
         <button onClick={sendNotification} disabled={sending}
           className="w-full py-3 rounded-xl font-bold text-sm text-white transition-all hover:opacity-90 disabled:opacity-50"
-          style={{ background: "linear-gradient(135deg, #C8952A, #E8A830)" }}>
+          style={{ background: "linear-gradient(135deg, #FF3C00, #E8A830)" }}>
           {sending ? "Enviando..." : "🔔 Enviar aviso"}
         </button>
       </div>
@@ -743,7 +743,7 @@ function UsuariosTab() {
   const active = users.filter((u: any) => u.approvalStatus === "approved" && u.isActive);
   const others = users.filter((u: any) => u.approvalStatus === "rejected" || !u.isActive);
 
-  if (isLoading) return <div className="text-center py-12 text-sm" style={{ color: "rgba(26,22,18,0.4)" }}>Cargando usuarios...</div>;
+  if (isLoading) return <div className="text-center py-12 text-sm" style={{ color: "rgba(20,20,20,0.4)" }}>Cargando usuarios...</div>;
 
   const UserCard = ({ u }: { u: any }) => (
     <div className="p-4 rounded-2xl flex items-start gap-3" style={{ background: "white", border: "1px solid rgba(0,0,0,0.07)" }}>
@@ -753,14 +753,14 @@ function UsuariosTab() {
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
-          <p className="font-bold text-sm truncate" style={{ color: "#1a1612" }}>{u.name}</p>
+          <p className="font-bold text-sm truncate" style={{ color: "#141414" }}>{u.name}</p>
           <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
             style={{ background: `${ROLE_COLORS[u.role] ?? "#999"}15`, color: ROLE_COLORS[u.role] ?? "#999" }}>
             {ROLE_LABELS[u.role] ?? u.role}
           </span>
         </div>
-        <p className="text-xs truncate" style={{ color: "rgba(26,22,18,0.45)" }}>{u.email}</p>
-        {u.company && <p className="text-xs" style={{ color: "rgba(26,22,18,0.35)" }}>{u.company}</p>}
+        <p className="text-xs truncate" style={{ color: "rgba(20,20,20,0.45)" }}>{u.email}</p>
+        {u.company && <p className="text-xs" style={{ color: "rgba(20,20,20,0.35)" }}>{u.company}</p>}
 
         {/* Role editor */}
         {editingRole?.id === u.id ? (
@@ -774,7 +774,7 @@ function UsuariosTab() {
             </select>
             <button onClick={saveRole} disabled={savingRole}
               className="text-xs px-3 py-1.5 rounded-lg font-bold text-white"
-              style={{ background: "#C8952A" }}>
+              style={{ background: "#FF3C00" }}>
               {savingRole ? "..." : "Guardar"}
             </button>
             <button onClick={() => setEditingRole(null)}
@@ -801,7 +801,7 @@ function UsuariosTab() {
             {editingRole?.id !== u.id && (
               <button onClick={() => setEditingRole({ id: u.id, role: u.role })}
                 className="text-[10px] font-bold px-3 py-1.5 rounded-lg"
-                style={{ background: "rgba(0,0,0,0.06)", color: "rgba(26,22,18,0.6)" }}>
+                style={{ background: "rgba(0,0,0,0.06)", color: "rgba(20,20,20,0.6)" }}>
                 Rol ✎
               </button>
             )}
@@ -841,14 +841,14 @@ function UsuariosTab() {
           <div className="bg-white rounded-2xl p-6 w-full max-w-sm space-y-4 shadow-2xl" onClick={e => e.stopPropagation()}>
             <div className="text-center">
               <div className="text-3xl mb-2">🔑</div>
-              <h3 className="font-bold text-lg" style={{ color: "#1a1612" }}>Código generado</h3>
-              <p className="text-sm mt-1" style={{ color: "rgba(26,22,18,0.5)" }}>Para: <span className="font-semibold">{resetResult.userName}</span></p>
+              <h3 className="font-bold text-lg" style={{ color: "#141414" }}>Código generado</h3>
+              <p className="text-sm mt-1" style={{ color: "rgba(20,20,20,0.5)" }}>Para: <span className="font-semibold">{resetResult.userName}</span></p>
             </div>
             <div className="rounded-xl px-4 py-3 text-center font-mono text-2xl font-bold tracking-widest"
               style={{ background: "rgba(124,58,237,0.08)", border: "1.5px solid rgba(124,58,237,0.2)", color: "#7C3AED" }}>
               {resetResult.inv.code}
             </div>
-            <p className="text-xs text-center" style={{ color: "rgba(26,22,18,0.45)" }}>
+            <p className="text-xs text-center" style={{ color: "rgba(20,20,20,0.45)" }}>
               El usuario debe abrir:<br />
               <span className="font-mono text-[10px]">castores.info/api/invite/{resetResult.inv.code}</span>
             </p>
@@ -864,11 +864,11 @@ function UsuariosTab() {
                 toast({ title: "Link copiado" });
               }}
               className="w-full py-2.5 rounded-xl font-semibold text-sm"
-              style={{ background: "rgba(0,0,0,0.05)", color: "rgba(26,22,18,0.7)" }}>
+              style={{ background: "rgba(0,0,0,0.05)", color: "rgba(20,20,20,0.7)" }}>
               Copiar link
             </button>
             <button onClick={() => setResetResult(null)}
-              className="block w-full text-center text-xs" style={{ color: "rgba(26,22,18,0.3)" }}>
+              className="block w-full text-center text-xs" style={{ color: "rgba(20,20,20,0.3)" }}>
               Cerrar
             </button>
           </div>
@@ -880,7 +880,7 @@ function UsuariosTab() {
         <div>
           <div className="flex items-center gap-2 mb-3">
             <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-            <h3 className="font-black text-sm" style={{ color: "#1a1612" }}>
+            <h3 className="font-black text-sm" style={{ color: "#141414" }}>
               Pendientes de aprobación ({pending.length})
             </h3>
           </div>
@@ -892,11 +892,11 @@ function UsuariosTab() {
 
       {/* Active */}
       <div>
-        <h3 className="font-black text-sm mb-3" style={{ color: "#1a1612" }}>
+        <h3 className="font-black text-sm mb-3" style={{ color: "#141414" }}>
           Usuarios activos ({active.length})
         </h3>
         {active.length === 0 ? (
-          <div className="text-center py-8 text-sm" style={{ color: "rgba(26,22,18,0.4)" }}>
+          <div className="text-center py-8 text-sm" style={{ color: "rgba(20,20,20,0.4)" }}>
             Sin usuarios activos todavía.
           </div>
         ) : (
@@ -909,7 +909,7 @@ function UsuariosTab() {
       {/* Rejected / inactive */}
       {others.length > 0 && (
         <div>
-          <h3 className="font-black text-sm mb-3" style={{ color: "rgba(26,22,18,0.45)" }}>
+          <h3 className="font-black text-sm mb-3" style={{ color: "rgba(20,20,20,0.45)" }}>
             Bloqueados / rechazados ({others.length})
           </h3>
           <div className="space-y-2">
@@ -987,18 +987,18 @@ function ObrasTab() {
   const STATUS_COLORS: Record<string, string> = { active: "#10B981", completed: "#3B82F6", paused: "#F59E0B", cancelled: "#EF4444" };
 
   const inputCls = "w-full px-3 py-2 rounded-xl text-sm outline-none border";
-  const inputStyle = { border: "1.5px solid rgba(0,0,0,0.12)", background: "#FAFAF9" };
+  const inputStyle = { border: "1.5px solid rgba(0,0,0,0.12)", background: "#FAFAFA" };
 
   return (
     <div className="space-y-4">
       {/* Header + create button */}
       <div className="flex items-center justify-between">
-        <h3 className="font-black text-base" style={{ color: "#1a1612" }}>
+        <h3 className="font-black text-base" style={{ color: "#141414" }}>
           Obras / Proyectos ({projects.length})
         </h3>
         <button onClick={() => setShowForm(!showForm)}
           className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold text-white transition-all"
-          style={{ background: showForm ? "#EF4444" : "#C8952A" }}>
+          style={{ background: showForm ? "#EF4444" : "#FF3C00" }}>
           {showForm ? "✕ Cancelar" : "+ Nueva obra"}
         </button>
       </div>
@@ -1008,48 +1008,48 @@ function ObrasTab() {
         {showForm && (
           <motion.div key="obra-form" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}>
             <form onSubmit={handleCreate} className="rounded-2xl p-5 space-y-4"
-              style={{ background: "white", border: "1.5px solid rgba(200,149,42,0.3)" }}>
-              <h4 className="font-black text-sm" style={{ color: "#C8952A" }}>Nueva Obra</h4>
+              style={{ background: "white", border: "1.5px solid rgba(255,60,0,0.3)" }}>
+              <h4 className="font-black text-sm" style={{ color: "#FF3C00" }}>Nueva Obra</h4>
 
               <div className="grid grid-cols-1 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold mb-1" style={{ color: "rgba(26,22,18,0.55)" }}>Nombre *</label>
+                  <label className="block text-xs font-semibold mb-1" style={{ color: "rgba(20,20,20,0.55)" }}>Nombre *</label>
                   <input className={inputCls} style={inputStyle} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Ej: Torre Residencial Centro" required />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold mb-1" style={{ color: "rgba(26,22,18,0.55)" }}>Descripción</label>
+                  <label className="block text-xs font-semibold mb-1" style={{ color: "rgba(20,20,20,0.55)" }}>Descripción</label>
                   <textarea className={inputCls} style={inputStyle} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Descripción general de la obra" rows={2} />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-semibold mb-1" style={{ color: "rgba(26,22,18,0.55)" }}>Ubicación</label>
+                    <label className="block text-xs font-semibold mb-1" style={{ color: "rgba(20,20,20,0.55)" }}>Ubicación</label>
                     <input className={inputCls} style={inputStyle} value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} placeholder="Ciudad, Estado" />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold mb-1" style={{ color: "rgba(26,22,18,0.55)" }}>Presupuesto (MXN)</label>
+                    <label className="block text-xs font-semibold mb-1" style={{ color: "rgba(20,20,20,0.55)" }}>Presupuesto (MXN)</label>
                     <input className={inputCls} style={inputStyle} type="number" min="0" value={form.budget} onChange={e => setForm(f => ({ ...f, budget: e.target.value }))} placeholder="0.00" />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-semibold mb-1" style={{ color: "rgba(26,22,18,0.55)" }}>Fecha inicio</label>
+                    <label className="block text-xs font-semibold mb-1" style={{ color: "rgba(20,20,20,0.55)" }}>Fecha inicio</label>
                     <input className={inputCls} style={inputStyle} type="date" value={form.startDate} onChange={e => setForm(f => ({ ...f, startDate: e.target.value }))} />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold mb-1" style={{ color: "rgba(26,22,18,0.55)" }}>Fecha fin estimada</label>
+                    <label className="block text-xs font-semibold mb-1" style={{ color: "rgba(20,20,20,0.55)" }}>Fecha fin estimada</label>
                     <input className={inputCls} style={inputStyle} type="date" value={form.endDate} onChange={e => setForm(f => ({ ...f, endDate: e.target.value }))} />
                   </div>
                 </div>
                 <div className="grid grid-cols-1 gap-3">
                   <div>
-                    <label className="block text-xs font-semibold mb-1" style={{ color: "rgba(26,22,18,0.55)" }}>Cliente asignado</label>
+                    <label className="block text-xs font-semibold mb-1" style={{ color: "rgba(20,20,20,0.55)" }}>Cliente asignado</label>
                     <select className={inputCls} style={inputStyle} value={form.clientId} onChange={e => setForm(f => ({ ...f, clientId: e.target.value }))}>
                       <option value="">— Sin asignar —</option>
                       {clients.map((c: any) => <option key={c.id} value={c.id}>{c.name} ({c.company || c.email})</option>)}
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold mb-1" style={{ color: "rgba(26,22,18,0.55)" }}>Supervisor asignado</label>
+                    <label className="block text-xs font-semibold mb-1" style={{ color: "rgba(20,20,20,0.55)" }}>Supervisor asignado</label>
                     <select className={inputCls} style={inputStyle} value={form.supervisorId} onChange={e => setForm(f => ({ ...f, supervisorId: e.target.value }))}>
                       <option value="">— Sin asignar —</option>
                       {supervisors.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
@@ -1057,7 +1057,7 @@ function ObrasTab() {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold mb-1" style={{ color: "rgba(26,22,18,0.55)" }}>Estado</label>
+                  <label className="block text-xs font-semibold mb-1" style={{ color: "rgba(20,20,20,0.55)" }}>Estado</label>
                   <select className={inputCls} style={inputStyle} value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))}>
                     {Object.entries(STATUS_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                   </select>
@@ -1066,7 +1066,7 @@ function ObrasTab() {
 
               <button type="submit" disabled={saving}
                 className="w-full py-3 rounded-xl text-sm font-bold text-white disabled:opacity-50"
-                style={{ background: "#C8952A" }}>
+                style={{ background: "#FF3C00" }}>
                 {saving ? "Creando..." : "Crear Obra"}
               </button>
             </form>
@@ -1076,9 +1076,9 @@ function ObrasTab() {
 
       {/* Projects list */}
       {isLoading ? (
-        <div className="text-center py-12 text-sm" style={{ color: "rgba(26,22,18,0.4)" }}>Cargando obras...</div>
+        <div className="text-center py-12 text-sm" style={{ color: "rgba(20,20,20,0.4)" }}>Cargando obras...</div>
       ) : projects.length === 0 ? (
-        <div className="text-center py-12" style={{ color: "rgba(26,22,18,0.4)" }}>
+        <div className="text-center py-12" style={{ color: "rgba(20,20,20,0.4)" }}>
           <div className="text-4xl mb-3">🏗️</div>
           <p className="text-sm font-semibold">Sin obras registradas</p>
           <p className="text-xs mt-1">Crea la primera obra con el botón de arriba.</p>
@@ -1095,21 +1095,21 @@ function ObrasTab() {
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap mb-1">
-                    <span className="font-black text-sm" style={{ color: "#1a1612" }}>{p.name}</span>
+                    <span className="font-black text-sm" style={{ color: "#141414" }}>{p.name}</span>
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
                       style={{ background: `${STATUS_COLORS[p.status] ?? "#999"}15`, color: STATUS_COLORS[p.status] ?? "#999" }}>
                       {STATUS_LABELS[p.status] ?? p.status}
                     </span>
                   </div>
-                  {p.location && <p className="text-xs" style={{ color: "rgba(26,22,18,0.45)" }}>📍 {p.location}</p>}
-                  {p.clientName && <p className="text-xs" style={{ color: "rgba(26,22,18,0.45)" }}>👤 Cliente: {p.clientName}</p>}
-                  {p.supervisorName && <p className="text-xs" style={{ color: "rgba(26,22,18,0.45)" }}>👷 Supervisor: {p.supervisorName}</p>}
+                  {p.location && <p className="text-xs" style={{ color: "rgba(20,20,20,0.45)" }}>📍 {p.location}</p>}
+                  {p.clientName && <p className="text-xs" style={{ color: "rgba(20,20,20,0.45)" }}>👤 Cliente: {p.clientName}</p>}
+                  {p.supervisorName && <p className="text-xs" style={{ color: "rgba(20,20,20,0.45)" }}>👷 Supervisor: {p.supervisorName}</p>}
                   {p.budget && (
-                    <p className="text-xs mt-1 font-semibold" style={{ color: "#C8952A" }}>
+                    <p className="text-xs mt-1 font-semibold" style={{ color: "#FF3C00" }}>
                       💰 {new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(p.budget)}
                     </p>
                   )}
-                  <p className="text-[10px] mt-2 font-semibold uppercase tracking-wider" style={{ color: "#C8952A" }}>
+                  <p className="text-[10px] mt-2 font-semibold uppercase tracking-wider" style={{ color: "#FF3C00" }}>
                     Toca para ver, editar o eliminar →
                   </p>
                 </div>
@@ -1118,7 +1118,7 @@ function ObrasTab() {
                     onClick={(e) => { e.stopPropagation(); setLocation(`/projects/${p.id}`); }}
                     title="Ver / editar obra"
                     className="w-8 h-8 rounded-lg flex items-center justify-center transition-all hover:bg-amber-50"
-                    style={{ color: "#C8952A" }}>
+                    style={{ color: "#FF3C00" }}>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zM19.5 19.5h-15" />
                     </svg>
@@ -1150,7 +1150,7 @@ function ManualTab() {
     {
       icon: "🔑",
       title: "Sistema de Invitaciones",
-      color: "#C8952A",
+      color: "#FF3C00",
       items: [
         { q: "¿Cómo invito a alguien?", a: "Ve al tab 'Invitaciones', selecciona el rol que le corresponde, escribe su nombre (opcional) y presiona 'Generar clave'. Se crea un código único que puedes copiar o enviar directo por WhatsApp." },
         { q: "¿Qué es la clave maestra CASTORES?", a: "Es el código maestro de administrador. Solo los dueños del sistema deben conocerla. Con ella, cualquier persona puede registrarse como administrador con acceso inmediato." },
@@ -1214,7 +1214,7 @@ function ManualTab() {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="rounded-2xl p-5" style={{ background: "linear-gradient(135deg, #1a1612 0%, #2d2419 100%)" }}>
+      <div className="rounded-2xl p-5" style={{ background: "linear-gradient(135deg, #141414 0%, #262626 100%)" }}>
         <div className="flex items-center gap-3 mb-2">
           <span className="text-2xl">📖</span>
           <div>
@@ -1262,10 +1262,10 @@ function ManualTab() {
           <div className="divide-y" style={{ background: "white" }}>
             {section.items.map((item, i) => (
               <div key={i} className="px-5 py-4">
-                <p className="font-bold text-sm mb-1" style={{ color: "#1a1612" }}>
+                <p className="font-bold text-sm mb-1" style={{ color: "#141414" }}>
                   {item.q}
                 </p>
-                <p className="text-xs leading-relaxed" style={{ color: "rgba(26,22,18,0.55)" }}>
+                <p className="text-xs leading-relaxed" style={{ color: "rgba(20,20,20,0.55)" }}>
                   {item.a}
                 </p>
               </div>
@@ -1276,7 +1276,7 @@ function ManualTab() {
 
       {/* Bottom support repeat */}
       <div className="rounded-2xl p-5 text-center" style={{ background: "rgba(0,0,0,0.03)", border: "1px solid rgba(0,0,0,0.07)" }}>
-        <p className="text-xs font-semibold mb-3" style={{ color: "rgba(26,22,18,0.5)" }}>
+        <p className="text-xs font-semibold mb-3" style={{ color: "rgba(20,20,20,0.5)" }}>
           ¿No encontraste lo que buscabas?
         </p>
         <a href={SOPORTE_WA} target="_blank" rel="noopener noreferrer"
@@ -1287,7 +1287,7 @@ function ManualTab() {
           </svg>
           Contactar soporte técnico
         </a>
-        <p className="text-[10px] mt-3" style={{ color: "rgba(26,22,18,0.3)" }}>
+        <p className="text-[10px] mt-3" style={{ color: "rgba(20,20,20,0.3)" }}>
           © {new Date().getFullYear()} CASTORES Estructuras y Construcciones
         </p>
       </div>
@@ -1367,7 +1367,7 @@ function PermisosTab() {
     return (
       <div className="flex justify-center py-20">
         <div className="w-8 h-8 border-4 rounded-full animate-spin"
-          style={{ borderColor: "rgba(200,149,42,0.2)", borderTopColor: "#C8952A" }} />
+          style={{ borderColor: "rgba(255,60,0,0.2)", borderTopColor: "#FF3C00" }} />
       </div>
     );
   }
@@ -1376,14 +1376,14 @@ function PermisosTab() {
     <div className="space-y-6">
       {/* Intro */}
       <div className="rounded-2xl p-5"
-        style={{ background: "linear-gradient(135deg, rgba(200,149,42,0.08), rgba(200,149,42,0.03))", border: "1px solid rgba(200,149,42,0.25)" }}>
+        style={{ background: "linear-gradient(135deg, rgba(255,60,0,0.08), rgba(255,60,0,0.03))", border: "1px solid rgba(255,60,0,0.25)" }}>
         <div className="flex items-start gap-3">
           <div className="text-2xl">🔐</div>
           <div className="flex-1">
-            <h2 className="font-black text-lg mb-1" style={{ fontFamily: "'Bebas Neue', sans-serif", letterSpacing: "0.04em", color: "#1a1612" }}>
+            <h2 className="font-black text-lg mb-1" style={{ fontFamily: "'Bebas Neue', sans-serif", letterSpacing: "0.04em", color: "#141414" }}>
               Configuración de Permisos por Rol
             </h2>
-            <p className="text-sm" style={{ color: "rgba(26,22,18,0.65)" }}>
+            <p className="text-sm" style={{ color: "rgba(20,20,20,0.65)" }}>
               Define qué puede ver y hacer cada rol. Los cambios afectan a <strong>todos los usuarios actuales y futuros</strong> de ese rol.
             </p>
           </div>
@@ -1391,7 +1391,7 @@ function PermisosTab() {
             onClick={resetAll}
             disabled={resetting}
             className="px-3 py-2 rounded-xl text-xs font-bold whitespace-nowrap disabled:opacity-50"
-            style={{ background: "rgba(26,22,18,0.08)", color: "#1a1612", border: "1px solid rgba(26,22,18,0.15)" }}>
+            style={{ background: "rgba(20,20,20,0.08)", color: "#141414", border: "1px solid rgba(20,20,20,0.15)" }}>
             {resetting ? "..." : "↺ Restaurar"}
           </button>
         </div>
@@ -1403,7 +1403,7 @@ function PermisosTab() {
           style={{ background: "white", border: "1px solid rgba(0,0,0,0.06)" }}>
           {/* Group header */}
           <div className="px-5 py-3 border-b" style={{ background: "rgba(0,0,0,0.02)", borderColor: "rgba(0,0,0,0.06)" }}>
-            <h3 className="font-black text-sm uppercase tracking-wider" style={{ color: "#1a1612" }}>
+            <h3 className="font-black text-sm uppercase tracking-wider" style={{ color: "#141414" }}>
               {group.group}
             </h3>
           </div>
@@ -1413,7 +1413,7 @@ function PermisosTab() {
             <table className="w-full text-sm">
               <thead>
                 <tr style={{ background: "rgba(0,0,0,0.015)" }}>
-                  <th className="px-4 py-3 text-left font-semibold" style={{ color: "rgba(26,22,18,0.6)", minWidth: "260px" }}>
+                  <th className="px-4 py-3 text-left font-semibold" style={{ color: "rgba(20,20,20,0.6)", minWidth: "260px" }}>
                     Permiso
                   </th>
                   {ROLES_ORDER.map((r) => (
@@ -1430,8 +1430,8 @@ function PermisosTab() {
                 {group.items.map((item) => (
                   <tr key={item.key} className="border-t" style={{ borderColor: "rgba(0,0,0,0.04)" }}>
                     <td className="px-4 py-3">
-                      <div className="font-semibold text-[13px]" style={{ color: "#1a1612" }}>{item.label}</div>
-                      <div className="text-[11px] mt-0.5" style={{ color: "rgba(26,22,18,0.5)" }}>{item.description}</div>
+                      <div className="font-semibold text-[13px]" style={{ color: "#141414" }}>{item.label}</div>
+                      <div className="text-[11px] mt-0.5" style={{ color: "rgba(20,20,20,0.5)" }}>{item.description}</div>
                     </td>
                     {ROLES_ORDER.map((r) => {
                       const checked = draft[r]?.[item.key] ?? false;
@@ -1473,7 +1473,7 @@ function PermisosTab() {
 
       {/* Save bar — sticky at bottom showing dirty roles */}
       <div className="sticky bottom-4 rounded-2xl p-4 shadow-lg"
-        style={{ background: "linear-gradient(135deg, #1a1612, #2d2419)", border: "1px solid rgba(200,149,42,0.3)" }}>
+        style={{ background: "linear-gradient(135deg, #141414, #262626)", border: "1px solid rgba(255,60,0,0.3)" }}>
         <div className="flex items-center gap-3 flex-wrap">
           <p className="text-xs font-semibold mr-2" style={{ color: "rgba(255,255,255,0.7)" }}>
             Guardar cambios por rol:
@@ -1585,13 +1585,13 @@ export default function AdminPanel() {
     <MainLayout>
       {/* Hero */}
       <div className="rounded-3xl p-6 mb-6 relative overflow-hidden"
-        style={{ background: "linear-gradient(135deg, #1a1612 0%, #2d2419 100%)" }}>
+        style={{ background: "linear-gradient(135deg, #141414 0%, #262626 100%)" }}>
         <div className="absolute inset-0 opacity-10"
-          style={{ backgroundImage: "radial-gradient(circle at 80% 50%, #C8952A 0%, transparent 60%)" }} />
+          style={{ backgroundImage: "radial-gradient(circle at 80% 50%, #FF3C00 0%, transparent 60%)" }} />
         <div className="relative z-10">
           <div className="flex items-center gap-3 mb-1">
             <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl"
-              style={{ background: "rgba(200,149,42,0.2)", border: "1px solid rgba(200,149,42,0.3)" }}>
+              style={{ background: "rgba(255,60,0,0.2)", border: "1px solid rgba(255,60,0,0.3)" }}>
               🛡️
             </div>
             <div className="flex-1">
@@ -1605,7 +1605,7 @@ export default function AdminPanel() {
             <button
               onClick={() => setLocationGlobal("/admin/auditoria")}
               className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all hover:scale-[1.02]"
-              style={{ background: "rgba(200,149,42,0.2)", border: "1px solid rgba(200,149,42,0.4)", color: "#fff" }}
+              style={{ background: "rgba(255,60,0,0.2)", border: "1px solid rgba(255,60,0,0.4)", color: "#fff" }}
             >
               📜 Auditoría
             </button>
@@ -1620,7 +1620,7 @@ export default function AdminPanel() {
             className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold transition-all"
             style={{
               background: tab === t.key ? "white" : "transparent",
-              color: tab === t.key ? "#1a1612" : "rgba(26,22,18,0.45)",
+              color: tab === t.key ? "#141414" : "rgba(20,20,20,0.45)",
               boxShadow: tab === t.key ? "0 1px 4px rgba(0,0,0,0.1)" : "none",
             }}>
             <span>{t.icon}</span>

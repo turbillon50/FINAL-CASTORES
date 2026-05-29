@@ -62,12 +62,12 @@ export default function CuentaRechazada() {
 
         <div className="bg-white rounded-3xl p-7 shadow-sm" style={{ border: "1px solid rgba(0,0,0,0.07)" }}>
           <h1
-            className="text-[#1a1612] font-black text-xl mb-2"
+            className="text-[#141414] font-black text-xl mb-2"
             style={{ fontFamily: "'Bebas Neue', sans-serif", letterSpacing: "0.04em" }}
           >
             Solicitud rechazada
           </h1>
-          <p className="text-[#1a1612]/55 text-sm leading-relaxed mb-6">
+          <p className="text-[#141414]/55 text-sm leading-relaxed mb-6">
             El administrador no aprobó tu solicitud de acceso. Si crees que esto fue un error puedes pedir una revisión —
             te abrimos un correo con tus datos prellenados.
           </p>
@@ -75,7 +75,7 @@ export default function CuentaRechazada() {
           <a
             href={buildMailto()}
             className="block w-full py-3 rounded-xl text-sm font-bold mb-3 transition-transform active:scale-[0.98]"
-            style={{ background: "#C8952A", color: "#fff", boxShadow: "0 4px 14px rgba(200,149,42,0.35)" }}
+            style={{ background: "#FF3C00", color: "#fff", boxShadow: "0 4px 14px rgba(255,60,0,0.35)" }}
           >
             Solicitar revisión por correo
           </a>
@@ -84,10 +84,10 @@ export default function CuentaRechazada() {
             className="rounded-2xl p-3 mb-5 text-left"
             style={{ background: "rgba(0,0,0,0.03)", border: "1px solid rgba(0,0,0,0.06)" }}
           >
-            <p className="text-[10px] uppercase tracking-wider text-[#1a1612]/45 font-bold mb-1">¿Prefieres escribirnos directo?</p>
+            <p className="text-[10px] uppercase tracking-wider text-[#141414]/45 font-bold mb-1">¿Prefieres escribirnos directo?</p>
             <a
               href={`mailto:${SUPPORT_EMAIL}`}
-              className="text-[#C8952A] text-sm font-semibold break-all"
+              className="text-[#FF3C00] text-sm font-semibold break-all"
             >
               {SUPPORT_EMAIL}
             </a>
@@ -96,19 +96,19 @@ export default function CuentaRechazada() {
           <button
             onClick={() => setLocation("/")}
             className="w-full py-2.5 rounded-xl text-sm font-semibold mb-2 transition-all hover:bg-black/5"
-            style={{ color: "#1a1612", border: "1px solid rgba(0,0,0,0.12)" }}
+            style={{ color: "#141414", border: "1px solid rgba(0,0,0,0.12)" }}
           >
             Intentar con otra cuenta
           </button>
           <button
             onClick={handleSignOut}
-            className="w-full py-2.5 rounded-xl text-sm font-semibold transition-all text-[#1a1612]/55 hover:text-[#1a1612]"
+            className="w-full py-2.5 rounded-xl text-sm font-semibold transition-all text-[#141414]/55 hover:text-[#141414]"
           >
             Cerrar sesión
           </button>
         </div>
 
-        <p className="text-[#1a1612]/20 text-[10px] uppercase tracking-[0.2em] mt-6">
+        <p className="text-[#141414]/20 text-[10px] uppercase tracking-[0.2em] mt-6">
           © {new Date().getFullYear()} CASTORES Estructuras y Construcciones
         </p>
       </motion.div>

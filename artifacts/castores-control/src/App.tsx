@@ -475,21 +475,21 @@ function PwaInstallBanner({ defaultIOS }: { defaultIOS: boolean }) {
   const [tab, setTab] = useState<"ios" | "android">(defaultIOS ? "ios" : "android");
   return (
     <div className="w-full mb-5 rounded-2xl text-sm overflow-hidden"
-      style={{ border: "1px solid rgba(200,149,42,0.30)" }}>
+      style={{ border: "1px solid rgba(255,60,0,0.30)" }}>
       {/* Tabs */}
-      <div className="flex" style={{ background: "rgba(200,149,42,0.08)" }}>
+      <div className="flex" style={{ background: "rgba(255,60,0,0.08)" }}>
         {(["ios", "android"] as const).map(t => (
           <button key={t} onClick={() => setTab(t)}
             className="flex-1 py-2 text-xs font-bold transition-colors"
             style={tab === t
-              ? { background: "#C8952A", color: "#fff" }
+              ? { background: "#FF3C00", color: "#fff" }
               : { color: "#92400e" }}>
             {t === "ios" ? "🍎 iPhone / iPad" : "🤖 Android"}
           </button>
         ))}
       </div>
       {/* Contenido */}
-      <div className="p-4" style={{ background: "rgba(200,149,42,0.06)" }}>
+      <div className="p-4" style={{ background: "rgba(255,60,0,0.06)" }}>
         <p className="font-semibold text-amber-800 mb-2">📲 Instala la app en tu teléfono</p>
         {tab === "ios" ? (
           <ol className="text-amber-700 space-y-1.5">
@@ -986,7 +986,7 @@ function SignUpPage() {
 
           {/* Instrucción explícita paso a paso */}
           <div className="rounded-xl p-3 text-sm mb-4"
-            style={{ background: "rgba(200,149,42,0.08)", border: "1px solid rgba(200,149,42,0.25)" }}>
+            style={{ background: "rgba(255,60,0,0.08)", border: "1px solid rgba(255,60,0,0.25)" }}>
             <p className="font-semibold text-amber-800 mb-1">¿Qué hacer ahora?</p>
             <ol className="text-amber-700 space-y-1 list-none">
               <li>1. Abre tu app de correo</li>
@@ -1067,9 +1067,9 @@ function SignUpPage() {
   if (splash.status === "loading") {
     return (
       <div className="min-h-screen flex items-center justify-center"
-        style={{ background: "linear-gradient(135deg, #1a1612 0%, #2d2419 60%, #1a1612 100%)" }}>
+        style={{ background: "linear-gradient(135deg, #141414 0%, #262626 60%, #141414 100%)" }}>
         <div className="animate-spin rounded-full h-10 w-10 border-4"
-          style={{ borderColor: "rgba(200,149,42,0.2)", borderTopColor: "#C8952A" }} />
+          style={{ borderColor: "rgba(255,60,0,0.2)", borderTopColor: "#FF3C00" }} />
       </div>
     );
   }
@@ -1079,7 +1079,7 @@ function SignUpPage() {
     const roleIntro = ROLE_INTRO[splash.role] ?? "Vas a poder usar el sistema según tu rol asignado.";
     return (
       <div className="min-h-screen flex flex-col items-center justify-center px-5 py-10"
-        style={{ background: "linear-gradient(135deg, #1a1612 0%, #2d2419 60%, #1a1612 100%)" }}>
+        style={{ background: "linear-gradient(135deg, #141414 0%, #262626 60%, #141414 100%)" }}>
         <motion.div
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
@@ -1089,7 +1089,7 @@ function SignUpPage() {
           {/* Logo */}
           <div className="flex items-center justify-center gap-2.5 mb-8">
             <div className="w-10 h-10 rounded-xl flex items-center justify-center overflow-hidden"
-              style={{ background: "rgba(200,149,42,0.12)", border: "1px solid rgba(200,149,42,0.25)" }}>
+              style={{ background: "rgba(255,60,0,0.12)", border: "1px solid rgba(255,60,0,0.25)" }}>
               <img src={`${basePath}/castores-logo.jpeg`} alt="CASTORES" className="h-8 w-auto object-contain" />
             </div>
             <span className="font-black text-white uppercase tracking-widest text-lg"
@@ -1121,13 +1121,13 @@ function SignUpPage() {
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.4, duration: 0.4 }}
             className="rounded-2xl p-4 mb-5"
-            style={{ background: "rgba(200,149,42,0.10)", border: "1.5px solid rgba(200,149,42,0.35)" }}
+            style={{ background: "rgba(255,60,0,0.10)", border: "1.5px solid rgba(255,60,0,0.35)" }}
           >
             <div className="flex items-center gap-3">
               <span className="text-3xl">{roleIcon}</span>
               <div className="flex-1">
                 <p className="text-[10px] uppercase tracking-widest font-semibold mb-0.5"
-                  style={{ color: "#C8952A" }}>
+                  style={{ color: "#FF3C00" }}>
                   Rol asignado
                 </p>
                 <p className="text-white font-bold text-base">{roleLabel}</p>
@@ -1160,9 +1160,9 @@ function SignUpPage() {
             onClick={() => setSplash({ status: "dismissed", code: splash.code, role: splash.role })}
             className="w-full py-3.5 rounded-2xl text-sm font-bold"
             style={{
-              background: "linear-gradient(135deg, #C8952A, #E8A830)",
+              background: "linear-gradient(135deg, #FF3C00, #E8A830)",
               color: "white",
-              boxShadow: "0 4px 20px rgba(200,149,42,0.35)",
+              boxShadow: "0 4px 20px rgba(255,60,0,0.35)",
             }}
           >
             Continuar con mi registro →
@@ -1184,7 +1184,7 @@ function SignUpPage() {
   if (splash.status === "invalid") {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center px-5"
-        style={{ background: "linear-gradient(135deg, #1a1612 0%, #2d2419 60%, #1a1612 100%)" }}>
+        style={{ background: "linear-gradient(135deg, #141414 0%, #262626 60%, #141414 100%)" }}>
         <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }}
           className="w-full max-w-sm text-center">
           <div className="text-5xl mb-6">❌</div>
@@ -1241,7 +1241,7 @@ function SignUpPage() {
               <div key={s.n} className="flex items-start gap-3 bg-white rounded-xl px-4 py-3"
                 style={{ border: "1px solid rgba(0,0,0,0.06)" }}>
                 <span className="flex-shrink-0 w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center text-white"
-                  style={{ background: "#C8952A" }}>{s.n}</span>
+                  style={{ background: "#FF3C00" }}>{s.n}</span>
                 <div>
                   <p className="text-sm font-semibold text-gray-800">{s.title}</p>
                   <p className="text-xs text-gray-500 mt-0.5">{s.desc}</p>
@@ -1567,9 +1567,9 @@ function InvitePage() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center gap-4"
-      style={{ background: "linear-gradient(135deg, #1a1612 0%, #2d2419 60%, #1a1612 100%)" }}>
+      style={{ background: "linear-gradient(135deg, #141414 0%, #262626 60%, #141414 100%)" }}>
       <div className="w-12 h-12 border-4 rounded-full animate-spin"
-        style={{ borderColor: "rgba(200,149,42,0.2)", borderTopColor: "#C8952A" }} />
+        style={{ borderColor: "rgba(255,60,0,0.2)", borderTopColor: "#FF3C00" }} />
       <p className="text-sm font-semibold" style={{ color: "rgba(255,255,255,0.5)" }}>
         Verificando tu invitación...
       </p>
@@ -1751,7 +1751,7 @@ function App() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#f8f4ef] px-6">
         <div className="max-w-lg rounded-2xl border border-amber-200 bg-white p-6 text-center">
-          <h1 className="text-xl font-bold text-[#1a1612]">Configuracion pendiente de autenticacion</h1>
+          <h1 className="text-xl font-bold text-[#141414]">Configuracion pendiente de autenticacion</h1>
           <p className="mt-2 text-sm text-[#5b5146]">
             El demo esta listo para Vercel, pero falta configurar Clerk. Agrega
             `VITE_CLERK_PUBLISHABLE_KEY` en las Environment Variables del proyecto web.

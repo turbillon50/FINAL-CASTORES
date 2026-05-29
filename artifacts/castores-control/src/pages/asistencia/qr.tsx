@@ -86,7 +86,7 @@ export default function SupervisorQrPage() {
       const deeplink = `${baseUrl}/check?qr=${encodeURIComponent(data.token)}`;
       const dataUrl = await QRCode.toDataURL(deeplink, {
         width: 480, margin: 2, errorCorrectionLevel: "M",
-        color: { dark: "#1a1612", light: "#ffffff" },
+        color: { dark: "#141414", light: "#ffffff" },
       });
       setQrDataUrl(dataUrl);
       const ttl = Math.floor((new Date(data.expiresAt).getTime() - Date.now()) / 1000);
@@ -165,7 +165,7 @@ export default function SupervisorQrPage() {
             onClick={generate}
             disabled={generating || !projectId}
             className="px-5 py-2 rounded-xl text-sm font-bold text-white disabled:opacity-40"
-            style={{ background: "#C8952A" }}
+            style={{ background: "#FF3C00" }}
             data-testid="button-generate-qr"
           >
             {generating ? "..." : qr ? "Renovar" : "Generar QR"}
@@ -180,7 +180,7 @@ export default function SupervisorQrPage() {
 
         {qr && qrDataUrl ? (
           <div className="bg-white rounded-3xl border-2 p-8 text-center"
-            style={{ borderColor: secondsLeft <= 15 ? "#DC2626" : "#1a1612" }}>
+            style={{ borderColor: secondsLeft <= 15 ? "#DC2626" : "#141414" }}>
             <p className="text-xs uppercase tracking-widest font-bold text-gray-500 mb-2">
               Escanea con la cámara
             </p>
@@ -193,7 +193,7 @@ export default function SupervisorQrPage() {
               data-testid="qr-image"
             />
             <div className="mt-6 inline-block px-5 py-2 rounded-full"
-              style={{ background: "#1a1612" }}>
+              style={{ background: "#141414" }}>
               <p className="text-[10px] uppercase tracking-widest font-bold text-amber-300 mb-0.5">
                 Código manual
               </p>

@@ -57,10 +57,10 @@ export default function AdminAccessPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#f8f4ef] px-4">
       <div className="w-full max-w-md bg-white rounded-3xl p-7 shadow-sm border border-black/10">
-        <h1 className="text-[#1a1612] font-black text-2xl mb-2" style={{ fontFamily: "'Bebas Neue', sans-serif", letterSpacing: "0.05em" }}>
+        <h1 className="text-[#141414] font-black text-2xl mb-2" style={{ fontFamily: "'Bebas Neue', sans-serif", letterSpacing: "0.05em" }}>
           Activar administrador
         </h1>
-        <p className="text-sm text-[#1a1612]/55 mb-6">
+        <p className="text-sm text-[#141414]/55 mb-6">
           Esta pantalla solo se usa para activar al administrador general inicial.
           La frase se valida en el servidor y nunca se expone en frontend.
         </p>
@@ -79,7 +79,7 @@ export default function AdminAccessPage() {
             type="submit"
             disabled={loading || !phrase.trim()}
             className="w-full py-3 rounded-2xl text-white font-bold disabled:opacity-60"
-            style={{ background: "linear-gradient(135deg, #C8952A, #E8A830)" }}
+            style={{ background: "linear-gradient(135deg, #FF3C00, #E8A830)" }}
           >
             {loading ? "Validando..." : "Activar acceso"}
           </button>
@@ -87,7 +87,7 @@ export default function AdminAccessPage() {
             type="button"
             onClick={() => setLocation("/")}
             className="w-full py-2.5 rounded-xl text-sm font-semibold"
-            style={{ border: "1px solid rgba(0,0,0,0.12)", color: "rgba(26,22,18,0.7)" }}
+            style={{ border: "1px solid rgba(0,0,0,0.12)", color: "rgba(20,20,20,0.7)" }}
           >
             Volver
           </button>

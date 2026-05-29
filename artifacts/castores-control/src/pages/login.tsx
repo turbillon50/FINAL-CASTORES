@@ -118,10 +118,10 @@ export default function Login() {
     return (
       <div className="min-h-[100dvh] flex items-center justify-center bg-[#F7F5F2] p-6">
         <div className="w-full max-w-sm bg-white rounded-3xl shadow-xl overflow-hidden">
-          <div className="bg-[#1a1612] px-8 py-6 text-center">
+          <div className="bg-[#141414] px-8 py-6 text-center">
             <div className="text-3xl mb-2">🔑</div>
             <h1 className="text-white font-bold text-lg">Invitación recibida</h1>
-            <p className="text-white/50 text-sm mt-1">Código: <span className="text-[#C8952A] font-mono font-bold">{inviteCode}</span></p>
+            <p className="text-white/50 text-sm mt-1">Código: <span className="text-[#FF3C00] font-mono font-bold">{inviteCode}</span></p>
           </div>
           <div className="px-8 py-6 space-y-4">
             <p className="text-sm text-gray-600 text-center">
@@ -131,7 +131,7 @@ export default function Login() {
             <button
               onClick={handleRegisterNew}
               disabled={signingOut}
-              className="w-full bg-[#C8952A] text-white font-bold py-4 rounded-2xl text-sm tracking-wide disabled:opacity-60"
+              className="w-full bg-[#FF3C00] text-white font-bold py-4 rounded-2xl text-sm tracking-wide disabled:opacity-60"
             >
               {signingOut ? "Cerrando sesión..." : "Registrar con otro correo"}
             </button>
@@ -222,12 +222,12 @@ export default function Login() {
           {/* Título */}
           <div className="mb-8">
             <h2
-              className="text-[#1a1612] text-3xl font-black leading-tight tracking-tight"
+              className="text-[#141414] text-3xl font-black leading-tight tracking-tight"
               style={{ fontFamily: "'Bebas Neue', sans-serif", letterSpacing: "0.04em" }}
             >
               Bienvenido
             </h2>
-            <p className="text-[#1a1612]/40 text-sm mt-1">
+            <p className="text-[#141414]/40 text-sm mt-1">
               Plataforma de gestión de construcción y proyectos
             </p>
           </div>
@@ -246,9 +246,9 @@ export default function Login() {
               }}
               className="w-full flex items-center justify-center gap-2.5 py-3.5 px-5 rounded-2xl text-sm font-bold"
               style={{
-                background: "linear-gradient(135deg, #C8952A, #E8A830)",
+                background: "linear-gradient(135deg, #FF3C00, #E8A830)",
                 color: "white",
-                boxShadow: "0 4px 20px rgba(200,149,42,0.35)",
+                boxShadow: "0 4px 20px rgba(255,60,0,0.35)",
               }}
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="w-4 h-4">
@@ -292,7 +292,7 @@ export default function Login() {
               className="w-full flex items-center justify-center gap-2.5 py-3.5 px-5 rounded-2xl text-sm font-bold disabled:opacity-60"
               style={{
                 background: "white",
-                color: "#1a1612",
+                color: "#141414",
                 border: "1.5px solid rgba(0,0,0,0.1)",
                 boxShadow: "0 1px 8px rgba(0,0,0,0.06)",
               }}
@@ -307,12 +307,12 @@ export default function Login() {
             animate={{ opacity: 1 }}
             transition={{ delay: 0.5 }}
             className="mt-8 p-4 rounded-2xl"
-            style={{ background: "rgba(200,149,42,0.06)", border: "1px solid rgba(200,149,42,0.15)" }}
+            style={{ background: "rgba(255,60,0,0.06)", border: "1px solid rgba(255,60,0,0.15)" }}
           >
-            <p className="text-xs font-semibold mb-2" style={{ color: "#C8952A" }}>
+            <p className="text-xs font-semibold mb-2" style={{ color: "#FF3C00" }}>
               🔑 ¿Tienes una clave de invitación?
             </p>
-            <p className="text-[11px] leading-relaxed" style={{ color: "rgba(26,22,18,0.55)" }}>
+            <p className="text-[11px] leading-relaxed" style={{ color: "rgba(20,20,20,0.55)" }}>
               Si un administrador te compartió una clave por WhatsApp o mensaje directo, toca <span className="font-semibold">Solicitar acceso al sistema</span> y úsala en el formulario para obtener acceso inmediato.
             </p>
           </motion.div>
@@ -328,9 +328,9 @@ export default function Login() {
                 onClick={handleInstall}
                 className="mt-4 w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs font-semibold transition-all"
                 style={{
-                  background: "rgba(200,149,42,0.06)",
-                  border: "1px solid rgba(200,149,42,0.2)",
-                  color: "#C8952A",
+                  background: "rgba(255,60,0,0.06)",
+                  border: "1px solid rgba(255,60,0,0.2)",
+                  color: "#FF3C00",
                 }}
               >
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
@@ -347,7 +347,7 @@ export default function Login() {
             )}
           </AnimatePresence>
 
-          <p className="text-[#1a1612]/20 text-[10px] tracking-[0.2em] uppercase mt-8">
+          <p className="text-[#141414]/20 text-[10px] tracking-[0.2em] uppercase mt-8">
             © {new Date().getFullYear()} CASTORES Estructuras y Construcciones
           </p>
         </motion.div>

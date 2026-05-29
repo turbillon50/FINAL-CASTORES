@@ -34,7 +34,7 @@ const ROLE_SUBTITLES: Record<string, string> = {
 };
 
 const ROLE_COLORS: Record<string, string> = {
-  admin: "#C8952A",
+  admin: "#FF3C00",
   supervisor: "#3B82F6",
   client: "#10B981",
   worker: "#EF4444",
@@ -92,7 +92,7 @@ export default function Dashboard() {
       label: "Presupuesto Usado",
       value: budgetPct,
       suffix: "%",
-      color: budgetPct > 90 ? "#EF4444" : "#C8952A",
+      color: budgetPct > 90 ? "#EF4444" : "#FF3C00",
       subtext: summary?.totalBudget ? fmt(summary.totalSpent) + " de " + fmt(summary.totalBudget) : "Sin datos",
       icon: (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="w-5 h-5">
@@ -206,7 +206,7 @@ export default function Dashboard() {
                   className="absolute inset-0 w-full h-full object-cover"
                   style={{ filter: "saturate(0.6) brightness(0.9)" }}
                 />
-                <div className="absolute inset-0" style={{ background: "linear-gradient(135deg,rgba(200,149,42,0.15),rgba(0,0,0,0.55))" }} />
+                <div className="absolute inset-0" style={{ background: "linear-gradient(135deg,rgba(255,60,0,0.15),rgba(0,0,0,0.55))" }} />
 
                 {/* Fake pins */}
                 {[
@@ -216,7 +216,7 @@ export default function Dashboard() {
                 ].map((pin) => (
                   <div key={pin.label} className="absolute flex flex-col items-center gap-1" style={{ top: pin.top, left: pin.left }}>
                     <div className="w-3 h-3 rounded-full border-2 border-white animate-pulse"
-                      style={{ background: "#C8952A", boxShadow: "0 0 8px #C8952A" }} />
+                      style={{ background: "#FF3C00", boxShadow: "0 0 8px #FF3C00" }} />
                     <span className="text-[9px] font-bold text-white px-1.5 py-0.5 rounded"
                       style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(4px)" }}>
                       {pin.label}
@@ -230,7 +230,7 @@ export default function Dashboard() {
                     <p className="text-white/50 text-xs">{projects.length} obras activas georreferenciadas</p>
                   </div>
                   <span className="text-[10px] px-2.5 py-1 rounded-full font-bold"
-                    style={{ background: "rgba(200,149,42,0.25)", border: "1px solid rgba(200,149,42,0.5)", color: "#C8952A" }}>
+                    style={{ background: "rgba(255,60,0,0.25)", border: "1px solid rgba(255,60,0,0.5)", color: "#FF3C00" }}>
                     Mapa Interactivo
                   </span>
                 </div>
@@ -249,7 +249,7 @@ export default function Dashboard() {
                     { label: "Aprobar materiales pendientes", href: "/materiales", color: "#F59E0B", count: summary?.pendingMaterialRequests },
                     { label: "Revisar bitácora de obras", href: "/bitacora", color: "#3B82F6" },
                     { label: "Generar reporte semanal", href: "/reportes", color: "#10B981" },
-                    { label: "Gestionar equipo de trabajo", href: "/usuarios", color: "#C8952A" },
+                    { label: "Gestionar equipo de trabajo", href: "/usuarios", color: "#FF3C00" },
                   ].map((a) => (
                     <Link key={a.href} href={a.href}>
                       <div className="flex items-center gap-3 px-3 py-3 rounded-xl cursor-pointer transition-all hover:bg-foreground/[0.03] group">
