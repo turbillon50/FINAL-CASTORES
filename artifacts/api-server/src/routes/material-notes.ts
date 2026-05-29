@@ -414,21 +414,39 @@ function parseScanJson(raw: string): ScanResponse | null {
   try {
     const parsed = JSON.parse(slice) as Partial<ScanResponse>;
     if (!Array.isArray(parsed.items)) return null;
+
+    // Validación de números: el modelo puede devolver NaN/Infinity
+    // string o números fuera de rango. Filtramos a finitos > 0 para
+    // que la cantidad y el costo se puedan multiplicar sin riesgo.
+    // Cualquier renglón con quantityRequested inválido se descarta.
+    const validItems = parsed.items
+      .filter((it): it is { name: string; unit: string; quantityRequested: number; costPerUnit: number | null } =>
+        !!it &&
+        typeof it.name === "string" && it.name.trim().length > 0 &&
+        typeof it.unit === "string" && it.unit.trim().length > 0 &&
+        typeof it.quantityRequested === "number" &&
+        Number.isFinite(it.quantityRequested) &&
+        it.quantityRequested > 0,
+      )
+      .map((it) => ({
+        name: it.name.trim(),
+        unit: it.unit.trim().toLowerCase(),
+        quantityRequested: it.quantityRequested,
+        costPerUnit:
+          typeof it.costPerUnit === "number" && Number.isFinite(it.costPerUnit) && it.costPerUnit >= 0
+            ? it.costPerUnit
+            : null,
+      }));
+
     return {
-      supplierName: typeof parsed.supplierName === "string" ? parsed.supplierName : null,
-      folio: typeof parsed.folio === "string" ? parsed.folio : null,
-      noteDate: typeof parsed.noteDate === "string" ? parsed.noteDate : null,
-      items: parsed.items
-        .filter((it): it is { name: string; unit: string; quantityRequested: number; costPerUnit: number | null } =>
-          !!it && typeof it.name === "string" && typeof it.unit === "string" && typeof it.quantityRequested === "number",
-        )
-        .map((it) => ({
-          name: it.name.trim(),
-          unit: it.unit.trim(),
-          quantityRequested: it.quantityRequested,
-          costPerUnit: typeof it.costPerUnit === "number" ? it.costPerUnit : null,
-        })),
-      confidence: typeof parsed.confidence === "number" ? parsed.confidence : 0,
+      supplierName: typeof parsed.supplierName === "string" && parsed.supplierName.trim() ? parsed.supplierName.trim() : null,
+      folio: typeof parsed.folio === "string" && parsed.folio.trim() ? parsed.folio.trim() : null,
+      noteDate: typeof parsed.noteDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(parsed.noteDate) ? parsed.noteDate : null,
+      items: validItems,
+      confidence:
+        typeof parsed.confidence === "number" && Number.isFinite(parsed.confidence)
+          ? Math.max(0, Math.min(1, parsed.confidence))
+          : 0,
     };
   } catch {
     return null;
@@ -458,14 +476,25 @@ router.post("/material-notes/scan", async (req, res): Promise<void> => {
     res.status(400).json({ error: "Adjunta una foto válida (data URL)" });
     return;
   }
-  // Protección de costo: rechazamos fotos > 8 MB (después de la
-  // compresión en cliente típicamente quedan en ~250-500 KB).
-  if (image.length > 8 * 1024 * 1024 * 1.4) {
+  // Protección de costo: rechazamos fotos > 4 MB del data URL.
+  // Vercel ya rechaza requests > 4.5 MB al edge, así que cortamos un
+  // poco antes con un mensaje propio. El check anterior de 11.2 MB
+  // era código muerto (Vercel mataba antes).
+  if (image.length > 4 * 1024 * 1024) {
     res.status(413).json({ error: "La foto es muy pesada. Toma una nueva con menos resolución." });
     return;
   }
 
-  const model = process.env["OPENROUTER_VISION_MODEL"] ?? "anthropic/claude-sonnet-4-5";
+  // Default `google/gemini-2.5-flash` — el sweet spot precio/rendimiento
+  // de OpenRouter para OCR:
+  //   • ~$0.0001 USD por imagen (5,000 facturas = 50¢)
+  //   • Latencia 3-5 seg (vs 20-25 seg de claude-sonnet)
+  //   • OCR excelente en español, lee manuscrito y facturas impresas
+  //   • Devuelve JSON estructurado limpio
+  // El admin puede subir a `anthropic/claude-sonnet-4` si requiere más
+  // precisión en notas muy mal iluminadas, a costo de ~25x el precio
+  // y 5x el tiempo. Para el 99% de los casos gemini-2.5-flash sobra.
+  const model = process.env["OPENROUTER_VISION_MODEL"] ?? "google/gemini-2.5-flash";
   const started = Date.now();
 
   // AbortController explícito: si OpenRouter tarda demasiado (modelo
