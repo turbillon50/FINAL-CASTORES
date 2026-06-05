@@ -255,3 +255,8 @@
     inset: -1px;
   }
 }
+
+html,
+body {
+  overscroll-behavior-y: none;
+}

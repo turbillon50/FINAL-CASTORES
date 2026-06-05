@@ -470,7 +470,7 @@ export default function BitacoraDetail() {
         cuando el modal de edición está cerrado.
       */}
       {canEditLog && !editOpen && (
-        <div className="fixed bottom-0 inset-x-0 z-30 border-t border-border bg-background/95 backdrop-blur-md print:hidden">
+        <div className="fixed bottom-0 inset-x-0 z-30 border-t border-border bg-background/95 backdrop-blur-md print:hidden" style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
           <div className="max-w-5xl mx-auto px-4 py-3 flex gap-2">
             <Button
               onClick={openEdit}

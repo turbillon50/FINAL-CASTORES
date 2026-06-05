@@ -78,7 +78,7 @@ export default function Explorar() {
   return (
     <div className="min-h-screen bg-[#FAFAFA]">
       {/* Header */}
-      <header className="sticky top-0 z-20 bg-[#FAFAFA]/90 backdrop-blur-md border-b border-black/[0.06]">
+      <header className="sticky top-0 z-20 bg-[#FAFAFA]/90 backdrop-blur-md border-b border-black/[0.06]" style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}>
         <div className="max-w-5xl mx-auto px-5 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-white shadow flex items-center justify-center overflow-hidden">
