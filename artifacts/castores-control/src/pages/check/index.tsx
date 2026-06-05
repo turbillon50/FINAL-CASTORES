@@ -122,7 +122,7 @@ export default function WorkerCheckPage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const t = params.get("qr");
-    if (t) setQrToken(t);
+    if (t) setQrToken(t.replace(/\s+/g, "").toUpperCase());
   }, []);
 
   const reload = useCallback(async () => {
@@ -492,9 +492,10 @@ export default function WorkerCheckPage() {
             <input
               type="text"
               value={qrToken}
-              onChange={(e) => setQrToken(e.target.value.trim())}
+              onChange={(e) => setQrToken(e.target.value.replace(/\s+/g, "").toUpperCase())}
               placeholder="Escanea el QR del super o pégalo aquí"
               autoCorrect="off"
+              autoCapitalize="characters"
               spellCheck={false}
               className="w-full px-3 py-2.5 rounded-xl text-sm font-mono"
               style={{

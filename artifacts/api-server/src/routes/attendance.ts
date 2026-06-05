@@ -451,7 +451,11 @@ router.post("/attendance/check-out", async (req, res): Promise<void> => {
     res.status(400).json({ error: formatZodError(parsed.error) });
     return;
   }
-  const { latitude, longitude, accuracy, photoUrl, notes, qrToken } = parsed.data;
+  const { latitude, longitude, accuracy, photoUrl, notes, qrToken: rawQrToken } = parsed.data;
+  // Los tokens se generan SOLO en mayúsculas (TOKEN_ALPHABET), pero el worker
+  // puede tipearlos a mano desde el teléfono (teclado en minúsculas) o pegar
+  // con espacios. Normalizamos antes del lookup case-sensitive en Postgres.
+  const qrToken = rawQrToken?.replace(/\s+/g, "").toUpperCase() || undefined;
 
   const [open] = await db
     .select()
