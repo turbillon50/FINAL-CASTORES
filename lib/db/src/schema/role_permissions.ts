@@ -48,7 +48,7 @@ export const PERMISSION_LABELS: Record<PermissionKey, { label: string; descripti
   documentsLegalManage: { label: "Gestionar documentos legales", description: "Subir, reemplazar y eliminar documentos", group: "Documentos" },
   adminPanelAccess: { label: "Acceso al panel admin", description: "Entrar al panel administrativo de control", group: "Sistema" },
   attendanceCheckIn: { label: "Registrar mi asistencia", description: "Marcar entrada y salida de obra (PWA del trabajador)", group: "Asistencia" },
-  attendanceGenerateQr: { label: "Generar QR de salida", description: "Mostrar el código QR que los trabajadores escanean para validar su salida", group: "Asistencia" },
+  attendanceGenerateQr: { label: "Registrar asistencia de trabajadores", description: "Marcar presentes a los trabajadores de la cuadrilla (registro manual del supervisor) y mostrar QR de salida", group: "Asistencia" },
   attendanceViewAll: { label: "Ver asistencia de todos", description: "Ver dashboard de quién está en obra ahora mismo", group: "Asistencia" },
   attendanceExport: { label: "Exportar reporte de asistencia", description: "Descargar CSV para nómina y filtrar por fechas/obras", group: "Asistencia" },
 };

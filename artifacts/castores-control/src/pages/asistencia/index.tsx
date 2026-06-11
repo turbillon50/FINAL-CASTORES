@@ -152,12 +152,21 @@ export default function AsistenciaDashboardPage() {
           <div className="flex gap-2">
             {perms.has("attendanceGenerateQr") && (
               <button
-                onClick={() => setLocation("/asistencia/qr")}
+                onClick={() => setLocation("/asistencia/registro")}
                 className="px-4 py-2 rounded-xl text-sm font-bold text-white"
-                style={{ background: "#141414" }}
+                style={{ background: "#FF3C00" }}
+                data-testid="button-go-registro"
+              >
+                ✓ Registrar asistencia
+              </button>
+            )}
+            {perms.has("attendanceGenerateQr") && (
+              <button
+                onClick={() => setLocation("/asistencia/qr")}
+                className="px-4 py-2 rounded-xl text-sm font-bold text-gray-700 border border-gray-200"
                 data-testid="button-go-qr"
               >
-                📱 Mostrar QR
+                📱 QR
               </button>
             )}
             {perms.has("attendanceExport") && (

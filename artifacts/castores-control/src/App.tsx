@@ -46,6 +46,7 @@ const WorkerChangePin = lazy(() => import("@/pages/check/change-pin"));
 // Geocheck — dashboard admin/supervisor + QR
 const AsistenciaDashboard = lazy(() => import("@/pages/asistencia/index"));
 const AsistenciaQr = lazy(() => import("@/pages/asistencia/qr"));
+const AsistenciaRegistro = lazy(() => import("@/pages/asistencia/registro"));
 
 function RouteFallback() {
   return (
@@ -1721,6 +1722,9 @@ function Router() {
       </Route>
       <Route path="/asistencia/qr">
         {() => <ProtectedRoute component={AsistenciaQr} />}
+      </Route>
+      <Route path="/asistencia/registro">
+        {() => <ProtectedRoute component={AsistenciaRegistro} />}
       </Route>
       <Route component={NotFound} />
     </Switch>

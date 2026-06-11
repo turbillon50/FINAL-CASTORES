@@ -562,6 +562,83 @@ const QR_TTL_MS = 2 * 60 * 1000;
 // Alfabeto sin caracteres confundibles: sin 0/O, 1/I/L. 8 chars dan
 // 32^8 ≈ 1.1×10^12 combinaciones, más que suficiente para tokens efímeros
 // de 2 min. La UNIQUE constraint en la columna `token` hace de árbitro.
+// ───────────────────────────────────────────────────────────────
+// MANUAL CHECK-IN: el SUPERVISOR registra la asistencia de un trabajador.
+// Reemplaza el flujo de QR (que no tuvo aceptación). El supervisor elige al
+// trabajador, lo marca presente y opcionalmente deja una nota ("llegó tarde").
+// SIN geofence: el supervisor reporta, no importa dónde esté. Status 'manual'.
+// ───────────────────────────────────────────────────────────────
+const ManualCheckInBody = z.object({
+  workerId: z.number().int().positive(),
+  projectId: z.number().int().positive(),
+  notes: z.string().max(500).optional(),
+});
+
+router.post("/attendance/manual-check-in", async (req, res): Promise<void> => {
+  const user = await getRequestUser(req);
+  if (!user) { res.status(401).json({ error: "No autenticado" }); return; }
+  // El supervisor (y admin) ya tienen attendanceGenerateQr; reusamos ese
+  // permiso: representa "gestión de asistencia de la cuadrilla".
+  if (!(await hasPermission(user.role, "attendanceGenerateQr"))) {
+    res.status(403).json({ error: "No tienes permiso para registrar asistencia de trabajadores" });
+    return;
+  }
+  const parsed = ManualCheckInBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: formatZodError(parsed.error) });
+    return;
+  }
+  const { workerId, projectId, notes } = parsed.data;
+
+  // El trabajador debe existir.
+  const [worker] = await db.select().from(usersTable).where(eq(usersTable.id, workerId));
+  if (!worker) { res.status(404).json({ error: "Trabajador no encontrado" }); return; }
+
+  // La obra debe existir.
+  const [project] = await db.select().from(projectsTable).where(eq(projectsTable.id, projectId));
+  if (!project) { res.status(404).json({ error: "Obra no encontrada" }); return; }
+
+  // No permitir doble entrada abierta del mismo trabajador.
+  const [existing] = await db
+    .select({ id: checkInsTable.id, projectId: checkInsTable.projectId })
+    .from(checkInsTable)
+    .where(and(eq(checkInsTable.userId, workerId), isNull(checkInsTable.checkOutAt)));
+  if (existing) {
+    res.status(409).json({
+      error: "Ese trabajador ya tiene una entrada abierta hoy.",
+      openCheckInId: existing.id,
+      openProjectId: existing.projectId,
+    });
+    return;
+  }
+
+  // Registro manual: sin geofence, status 'manual'. Guardamos quién lo
+  // registró en la nota para trazabilidad.
+  const trazabilidad = `Registrado por ${user.name ?? user.email ?? "supervisor"}`;
+  const notaFinal = notes?.trim() ? `${notes.trim()} — ${trazabilidad}` : trazabilidad;
+
+  const [row] = await db
+    .insert(checkInsTable)
+    .values({
+      userId: workerId,
+      projectId,
+      checkInLatitude: null,
+      checkInLongitude: null,
+      checkInAccuracy: null,
+      checkInDistanceMeters: null,
+      checkInPhotoUrl: null,
+      checkInStatus: "manual",
+      checkInNotes: notaFinal,
+    })
+    .returning();
+
+  res.status(201).json({
+    checkIn: row,
+    worker: { id: worker.id, name: worker.name, workerCode: worker.workerCode },
+    project: { id: project.id, name: project.name },
+  });
+});
+
 const TOKEN_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 function generateShortToken(): string {
   const bytes = randomBytes(8);
