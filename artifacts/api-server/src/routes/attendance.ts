@@ -572,6 +572,9 @@ const ManualCheckInBody = z.object({
   workerId: z.number().int().positive(),
   projectId: z.number().int().positive(),
   notes: z.string().max(500).optional(),
+  // Foto de evidencia tomada por el supervisor (mismo formato y tope que
+  // CheckOutBody: data URL comprimida client-side o URL publica).
+  photoUrl: z.string().max(1_400_000).optional().or(z.literal("")),
 });
 
 router.post("/attendance/manual-check-in", async (req, res): Promise<void> => {
@@ -588,7 +591,7 @@ router.post("/attendance/manual-check-in", async (req, res): Promise<void> => {
     res.status(400).json({ error: formatZodError(parsed.error) });
     return;
   }
-  const { workerId, projectId, notes } = parsed.data;
+  const { workerId, projectId, notes, photoUrl } = parsed.data;
 
   // El trabajador debe existir.
   const [worker] = await db.select().from(usersTable).where(eq(usersTable.id, workerId));
@@ -626,7 +629,7 @@ router.post("/attendance/manual-check-in", async (req, res): Promise<void> => {
       checkInLongitude: null,
       checkInAccuracy: null,
       checkInDistanceMeters: null,
-      checkInPhotoUrl: null,
+      checkInPhotoUrl: photoUrl?.trim() ? photoUrl : null,
       checkInStatus: "manual",
       checkInNotes: notaFinal,
     })
@@ -637,6 +640,90 @@ router.post("/attendance/manual-check-in", async (req, res): Promise<void> => {
     worker: { id: worker.id, name: worker.name, workerCode: worker.workerCode },
     project: { id: project.id, name: project.name },
   });
+});
+
+// ────────────────────────────────────────────────────────────────────
+// MANUAL CHECK-OUT: el SUPERVISOR cierra la entrada abierta de un
+// trabajador (la "S" del flujo E/S). Sin geofence, status 'manual',
+// guarda quien valido la salida en checkOutValidatedBy.
+// ────────────────────────────────────────────────────────────────────
+const ManualCheckOutBody = z.object({
+  workerId: z.number().int().positive(),
+  notes: z.string().max(500).optional(),
+  photoUrl: z.string().max(1_400_000).optional().or(z.literal("")),
+});
+
+router.post("/attendance/manual-check-out", async (req, res): Promise<void> => {
+  const user = await getRequestUser(req);
+  if (!user) { res.status(401).json({ error: "No autenticado" }); return; }
+  if (!(await hasPermission(user.role, "attendanceGenerateQr"))) {
+    res.status(403).json({ error: "No tienes permiso para registrar asistencia de trabajadores" });
+    return;
+  }
+  const parsed = ManualCheckOutBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: formatZodError(parsed.error) });
+    return;
+  }
+  const { workerId, notes, photoUrl } = parsed.data;
+
+  const [open] = await db
+    .select()
+    .from(checkInsTable)
+    .where(and(eq(checkInsTable.userId, workerId), isNull(checkInsTable.checkOutAt)))
+    .orderBy(desc(checkInsTable.checkInAt))
+    .limit(1);
+  if (!open) {
+    res.status(404).json({ error: "Ese trabajador no tiene una entrada abierta para cerrar." });
+    return;
+  }
+
+  const trazabilidad = `Salida registrada por ${user.name ?? user.email ?? "supervisor"}`;
+  const notaFinal = notes?.trim() ? `${notes.trim()} — ${trazabilidad}` : trazabilidad;
+  const now = new Date();
+  const totalMinutes = Math.max(0, Math.round((now.getTime() - new Date(open.checkInAt).getTime()) / 60_000));
+
+  const [row] = await db
+    .update(checkInsTable)
+    .set({
+      checkOutAt: now,
+      checkOutStatus: "manual",
+      checkOutPhotoUrl: photoUrl?.trim() ? photoUrl : null,
+      checkOutNotes: notaFinal,
+      checkOutValidatedBy: user.id,
+      totalMinutes,
+    })
+    .where(eq(checkInsTable.id, open.id))
+    .returning();
+
+  res.json({ checkIn: row });
+});
+
+// ────────────────────────────────────────────────────────────────────
+// Estado del dia para la pantalla de registro del supervisor: todas las
+// entradas abiertas + las cerradas de las ultimas 18h. Permiso del
+// supervisor (attendanceGenerateQr), no requiere attendanceViewAll.
+// ────────────────────────────────────────────────────────────────────
+router.get("/attendance/registro-estado", async (req, res): Promise<void> => {
+  const user = await getRequestUser(req);
+  if (!user) { res.status(401).json({ error: "No autenticado" }); return; }
+  if (!(await hasPermission(user.role, "attendanceGenerateQr"))) {
+    res.status(403).json({ error: "No tienes permiso para ver asistencia de trabajadores" });
+    return;
+  }
+  const since = new Date(Date.now() - 18 * 3600 * 1000);
+  const rows = await db
+    .select({
+      id: checkInsTable.id,
+      userId: checkInsTable.userId,
+      projectId: checkInsTable.projectId,
+      checkInAt: checkInsTable.checkInAt,
+      checkOutAt: checkInsTable.checkOutAt,
+    })
+    .from(checkInsTable)
+    .where(sql`${checkInsTable.checkOutAt} IS NULL OR ${checkInsTable.checkInAt} >= ${since}`)
+    .orderBy(desc(checkInsTable.checkInAt));
+  res.json(rows);
 });
 
 const TOKEN_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
