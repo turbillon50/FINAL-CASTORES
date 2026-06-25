@@ -1728,7 +1728,7 @@ function Router() {
         {() => <ProtectedRoute component={AsistenciaRegistro} />}
       </Route>
       <Route path="/asistencia/dashboard">
-        <ProtectedRoute><Suspense fallback={<PageLoader />}><AsistenciaDashboardView /></Suspense></ProtectedRoute>
+        <ProtectedRoute><Suspense fallback={<RouteFallback />}><AsistenciaDashboardView /></Suspense></ProtectedRoute>
       </Route>
       <Route component={NotFound} />
     </Switch>
