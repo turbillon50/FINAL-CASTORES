@@ -493,7 +493,7 @@ router.post("/material-notes/scan", async (req, res): Promise<void> => {
   try {
     // Google AI Studio — Gemini 2.0 Flash gratis (1500 req/día)
     const geminiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
       {
         method: "POST",
         signal: controller.signal,
