@@ -616,8 +616,10 @@ router.post("/attendance/manual-check-in", async (req, res): Promise<void> => {
   }
 
   // Registro manual: sin geofence, status 'manual'. Guardamos quién lo
-  // registró en la nota para trazabilidad.
-  const trazabilidad = `Registrado por ${user.name ?? user.email ?? "supervisor"}`;
+  // registró en la nota para trazabilidad. getRequestUser solo devuelve
+  // id/role, así que resolvemos el nombre del actor desde la BD.
+  const [actor] = await db.select({ name: usersTable.name }).from(usersTable).where(eq(usersTable.id, user.id));
+  const trazabilidad = `Registrado por ${actor?.name ?? "supervisor"}`;
   const notaFinal = notes?.trim() ? `${notes.trim()} — ${trazabilidad}` : trazabilidad;
 
   const [row] = await db
@@ -678,7 +680,8 @@ router.post("/attendance/manual-check-out", async (req, res): Promise<void> => {
     return;
   }
 
-  const trazabilidad = `Salida registrada por ${user.name ?? user.email ?? "supervisor"}`;
+  const [actor] = await db.select({ name: usersTable.name }).from(usersTable).where(eq(usersTable.id, user.id));
+  const trazabilidad = `Salida registrada por ${actor?.name ?? "supervisor"}`;
   const notaFinal = notes?.trim() ? `${notes.trim()} — ${trazabilidad}` : trazabilidad;
   const now = new Date();
   const totalMinutes = Math.max(0, Math.round((now.getTime() - new Date(open.checkInAt).getTime()) / 60_000));
@@ -783,6 +786,24 @@ router.post("/attendance/qr", async (req, res): Promise<void> => {
 // ──────────────────────────────────────────────────────────────────────────
 // DASHBOARD: lista de check-ins (filtrable por obra/fecha/estado)
 // ──────────────────────────────────────────────────────────────────────────
+// CDMX es UTC-6 fijo (México abolió el horario de verano en 2022). Los
+// filtros 'from'/'to' llegan como días de CDMX ('YYYY-MM-DD'), así que las
+// fronteras del rango se anclan a -06:00 y no a UTC. Sin esto, un check-in de
+// la tarde en CDMX (que en UTC ya es el día siguiente) se salía de la ventana
+// del día y "brincaba" de día en el dashboard y el CSV.
+const CDMX_OFFSET = "-06:00";
+const dayStart = (day: string) => new Date(`${day}T00:00:00.000${CDMX_OFFSET}`);
+const dayEnd = (day: string) => new Date(`${day}T23:59:59.999${CDMX_OFFSET}`);
+
+// Formateo de fecha/hora en CDMX para el CSV de nómina (antes salía en UTC ISO,
+// lo que confundía al leer horas de entrada/salida mexicanas).
+const cdmxDateTimeFmt = new Intl.DateTimeFormat("es-MX", {
+  timeZone: "America/Mexico_City",
+  year: "numeric", month: "2-digit", day: "2-digit",
+  hour: "2-digit", minute: "2-digit", hour12: false,
+});
+const fmtCDMX = (d: Date | null | undefined): string => (d ? cdmxDateTimeFmt.format(d) : "");
+
 const ListQuery = z.object({
   projectId: z.coerce.number().int().positive().optional(),
   userId: z.coerce.number().int().positive().optional(),
@@ -810,8 +831,8 @@ router.get("/attendance", async (req, res): Promise<void> => {
   const conditions = [];
   if (projectId) conditions.push(eq(checkInsTable.projectId, projectId));
   if (userId) conditions.push(eq(checkInsTable.userId, userId));
-  if (from) conditions.push(gte(checkInsTable.checkInAt, new Date(`${from}T00:00:00Z`)));
-  if (to) conditions.push(lte(checkInsTable.checkInAt, new Date(`${to}T23:59:59Z`)));
+  if (from) conditions.push(gte(checkInsTable.checkInAt, dayStart(from)));
+  if (to) conditions.push(lte(checkInsTable.checkInAt, dayEnd(to)));
   if (status === "open") conditions.push(isNull(checkInsTable.checkOutAt));
   if (status === "closed") conditions.push(sql`${checkInsTable.checkOutAt} IS NOT NULL`);
 
@@ -870,8 +891,8 @@ router.get("/attendance/export.csv", async (req, res): Promise<void> => {
   const { projectId, from, to } = parsed.data;
 
   const conditions = [
-    gte(checkInsTable.checkInAt, new Date(`${from}T00:00:00Z`)),
-    lte(checkInsTable.checkInAt, new Date(`${to}T23:59:59Z`)),
+    gte(checkInsTable.checkInAt, dayStart(from)),
+    lte(checkInsTable.checkInAt, dayEnd(to)),
   ];
   if (projectId) conditions.push(eq(checkInsTable.projectId, projectId));
 
@@ -898,8 +919,8 @@ router.get("/attendance/export.csv", async (req, res): Promise<void> => {
       csvCell(r.userName),
       csvCell(r.userCode),
       csvCell(r.projectName),
-      csvCell(r.ci.checkInAt.toISOString()),
-      csvCell(r.ci.checkOutAt?.toISOString() ?? ""),
+      csvCell(fmtCDMX(r.ci.checkInAt)),
+      csvCell(fmtCDMX(r.ci.checkOutAt)),
       csvCell(r.ci.totalMinutes ?? ""),
       csvCell(r.ci.checkInStatus),
       csvCell(r.ci.checkOutStatus ?? ""),

@@ -37,7 +37,11 @@ async function authedFetch(path: string, init?: RequestInit): Promise<Response> 
 }
 
 function hora(d: string | Date): string {
-  return new Date(d).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" });
+  // Siempre en horario de la Ciudad de México (UTC-6 fijo) para que la hora
+  // de E/S no brinque de día según la TZ del dispositivo del supervisor.
+  return new Date(d).toLocaleTimeString("es-MX", {
+    hour: "2-digit", minute: "2-digit", timeZone: "America/Mexico_City",
+  });
 }
 
 /**

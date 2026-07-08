@@ -38,19 +38,28 @@ async function authedFetch(path: string): Promise<Response> {
   return fetch(`${apiUrl(path)}${qs ? sep + qs : ""}`, { headers, credentials: "include" });
 }
 
+// Toda la asistencia se muestra y agrupa en horario de la Ciudad de México.
+// Sin forzar la zona, el navegador (o el runtime) formatea en su TZ local y
+// un check-in de la tarde en CDMX (que en UTC ya es el día siguiente) se
+// renderizaba con el día brincado. CDMX = UTC-6 fijo desde 2022.
+const CDMX_TZ = "America/Mexico_City";
+
 function todayISO(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  // "Hoy" según CDMX, no según la TZ del dispositivo — así el filtro por
+  // defecto cae en el día correcto aunque el equipo esté en otra zona.
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: CDMX_TZ, year: "numeric", month: "2-digit", day: "2-digit",
+  }).format(new Date());
 }
 
 function formatTime(iso: string): string {
   const d = new Date(iso);
-  return d.toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" });
+  return d.toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit", timeZone: CDMX_TZ });
 }
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
-  return d.toLocaleDateString("es-MX", { day: "2-digit", month: "short" });
+  return d.toLocaleDateString("es-MX", { day: "2-digit", month: "short", timeZone: CDMX_TZ });
 }
 
 export default function AsistenciaDashboardPage() {
