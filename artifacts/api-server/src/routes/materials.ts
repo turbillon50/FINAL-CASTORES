@@ -6,6 +6,7 @@ import { resolveAuthedUser } from "../lib/authContext";
 import { hasPermission } from "../lib/permissions";
 import { getAccessibleProjectIds, canAccessProject } from "../lib/projectAccess";
 import { logAdminOverride } from "../lib/adminOverride";
+import { redactForClient } from "../lib/clientRedaction";
 import { formatZodError } from "../lib/zodError";
 import {
   CreateMaterialBody,
@@ -52,7 +53,9 @@ router.get("/materials", async (req, res): Promise<void> => {
     if (parsed.data.status) materials = materials.filter((m) => m.status === parsed.data.status);
   }
 
-  res.json(await Promise.all(materials.map(enrichMaterial)));
+  // Blindaje de precios: el rol "client" ve nombre/cantidad/unidad/estado pero
+  // NUNCA costPerUnit/totalCost ni otros montos. Otros roles sin cambio.
+  res.json(redactForClient(await Promise.all(materials.map(enrichMaterial)), user.role));
 });
 
 router.post("/materials", async (req, res): Promise<void> => {
@@ -156,7 +159,8 @@ router.get("/materials/:id", async (req, res): Promise<void> => {
   const allowed = await canAccessProject(user, material.projectId);
   if (!allowed) { res.status(403).json({ error: "Acceso denegado" }); return; }
 
-  res.json(await enrichMaterial(material));
+  // Ver GET /materials: montos redactados para el rol "client".
+  res.json(redactForClient(await enrichMaterial(material), user.role));
 });
 
 router.patch("/materials/:id", async (req, res): Promise<void> => {

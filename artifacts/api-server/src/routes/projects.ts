@@ -6,6 +6,7 @@ import { getRequestUser, getRequestUserStrict } from "../lib/getRequestUser";
 import { getAccessibleProjectIds, canAccessProject } from "../lib/projectAccess";
 import { hasPermission } from "../lib/permissions";
 import { isAdmin, logAdminOverride } from "../lib/adminOverride";
+import { redactForClient } from "../lib/clientRedaction";
 import { formatZodError } from "../lib/zodError";
 import {
   CreateProjectBody,
@@ -91,10 +92,12 @@ router.get("/projects", async (req, res): Promise<void> => {
     matSpentMap.set(m.projectId, prev + (m.totalCost ?? (m.costPerUnit ?? 0) * m.quantityRequested));
   }
 
-  res.json(enriched.map((p) => ({
+  // Blindaje de precios: el rol "client" conserva nombre/avance/cliente/fechas
+  // pero budget y spentAmount se nulean. Otros roles sin cambio.
+  res.json(redactForClient(enriched.map((p) => ({
     ...p,
     spentAmount: (p.spentAmount && p.spentAmount > 0) ? p.spentAmount : (matSpentMap.get(p.id) ?? 0),
-  })));
+  })), user.role));
 });
 
 router.post("/projects", async (req, res): Promise<void> => {
@@ -135,7 +138,8 @@ router.get("/projects/:id", async (req, res): Promise<void> => {
     return;
   }
 
-  res.json(await enrichProject(project));
+  // Blindaje de precios: budget/spentAmount nulos para el rol "client".
+  res.json(redactForClient(await enrichProject(project), user.role));
 });
 
 // ─── Project Assignments (admin-only) ───────────────────────────────────────
@@ -419,7 +423,9 @@ router.get("/projects/:id/progress", async (req, res): Promise<void> => {
     budgetUsedPercent = Math.round((effectiveSpent / project.budget) * 100);
   }
 
-  res.json({
+  // Blindaje de precios: el rol "client" conserva avance/fechas pero
+  // budget/budgetUsedPercent y todos los costos de material se nulean.
+  res.json(redactForClient({
     projectId: project.id,
     progressPercent: project.progressPercent,
     totalLogs: logs.length,
@@ -431,7 +437,7 @@ router.get("/projects/:id/progress", async (req, res): Promise<void> => {
     budgetUsedPercent,
     daysElapsed,
     daysRemaining,
-  });
+  }, user.role));
 });
 
 export default router;

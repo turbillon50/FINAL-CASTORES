@@ -12,6 +12,7 @@ import {
 } from "@workspace/db";
 import { resolveAuthedUser } from "../lib/authContext";
 import { getAccessibleProjectIds } from "../lib/projectAccess";
+import { redactForClient } from "../lib/clientRedaction";
 
 const router: IRouter = Router();
 
@@ -121,7 +122,8 @@ router.get("/dashboard/summary", async (req, res): Promise<void> => {
     return sum + effectiveSpent;
   }, 0);
 
-  res.json({
+  // Blindaje de precios: totalBudget/totalSpent nulos para el rol "client".
+  res.json(redactForClient({
     activeProjects,
     completedProjects,
     totalProjects: projects.length,
@@ -133,7 +135,7 @@ router.get("/dashboard/summary", async (req, res): Promise<void> => {
     totalLogsToday: todayLogs.length,
     totalBudget,
     totalSpent,
-  });
+  }, user.role));
 });
 
 router.get("/dashboard/activity", async (req, res): Promise<void> => {
@@ -231,14 +233,16 @@ router.get("/dashboard/material-stats", async (req, res): Promise<void> => {
     .map(([month, stats]) => ({ month, ...stats }))
     .sort((a, b) => a.month.localeCompare(b.month));
 
-  res.json({
+  // Blindaje de precios: para el rol "client" se nulean totalMaterialCost y los
+  // totalCost dentro de mostUsedMaterials/monthlyUsage. Conserva cantidades.
+  res.json(redactForClient({
     totalMaterialRequests: materials.length,
     pendingRequests: materials.filter((m) => m.status === "pending").length,
     approvedRequests: materials.filter((m) => m.status === "approved").length,
     totalMaterialCost: materials.reduce((sum, m) => sum + (m.totalCost ?? 0), 0),
     mostUsedMaterials,
     monthlyUsage,
-  });
+  }, user.role));
 });
 
 export default router;

@@ -70,6 +70,11 @@ router.get("/material-notes", async (req, res): Promise<void> => {
   const user = await resolveAuthedUser(req);
   if (!user) { res.status(401).json({ error: "No autenticado" }); return; }
 
+  // Las notas de mostrador son facturas escaneadas CON precios de proveedor.
+  // El cliente obtiene material + cantidad desde el reporte, no de aquí, así
+  // que bloquear el acceso es seguro y evita la fuga de costos de compra.
+  if (user.role === "client") { res.status(403).json({ error: "No disponible para tu rol" }); return; }
+
   const accessibleIds = await getAccessibleProjectIds(user);
 
   let rows = await db
@@ -129,6 +134,9 @@ router.get("/material-notes", async (req, res): Promise<void> => {
 router.get("/material-notes/:id", async (req, res): Promise<void> => {
   const user = await resolveAuthedUser(req);
   if (!user) { res.status(401).json({ error: "No autenticado" }); return; }
+
+  // Ver comentario en GET /material-notes: el cliente no ve facturas de proveedor.
+  if (user.role === "client") { res.status(403).json({ error: "No disponible para tu rol" }); return; }
 
   const id = Number(req.params["id"]);
   if (!Number.isFinite(id) || id <= 0) { res.status(400).json({ error: "ID inválido" }); return; }
