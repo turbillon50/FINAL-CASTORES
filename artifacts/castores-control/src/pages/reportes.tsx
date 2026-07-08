@@ -46,6 +46,9 @@ const MXN = (v: number) => new Intl.NumberFormat("es-MX", { style: "currency", c
 // ─── Print view ───────────────────────────────────────────────────────────────
 function PrintView({ data, onClose }: { data: any; onClose: () => void }) {
   const { report, project, logs, materials, summary } = data;
+  // El server marca pricesRedacted para el rol cliente: en ese caso el reporte
+  // muestra material + cantidad, sin costos, montos ni totales.
+  const pricesRedacted = !!data.pricesRedacted;
 
   const typeLabel = REPORT_TYPES.find(t => t.value === report.type)?.label ?? report.type;
 
@@ -162,7 +165,8 @@ function PrintView({ data, onClose }: { data: any; onClose: () => void }) {
                       { label: "Avance", value: `${project.progressPercent ?? 0}%` },
                       { label: "Cliente", value: project.clientName ?? "—" },
                       { label: "Supervisor", value: project.supervisorName ?? "—" },
-                      { label: "Presupuesto", value: project.budget ? MXN(project.budget) : "—" },
+                      // Presupuesto se omite en la vista de cliente (sin precios).
+                      ...(pricesRedacted ? [] : [{ label: "Presupuesto", value: project.budget ? MXN(project.budget) : "—" }]),
                       { label: "Inicio", value: project.startDate ? format(new Date(project.startDate + "T12:00:00"), "dd/MM/yyyy") : "—" },
                     ].map(({ label, value }) => (
                       <div key={label} className="rounded-lg p-3" style={{ background: "#FAFAFA", border: "1px solid rgba(0,0,0,0.06)" }}>
@@ -182,7 +186,7 @@ function PrintView({ data, onClose }: { data: any; onClose: () => void }) {
                       <div className="h-3 rounded-full overflow-hidden" style={{ background: "rgba(0,0,0,0.08)" }}>
                         <div className="h-full rounded-full transition-all" style={{ width: `${project.progressPercent ?? 0}%`, background: "linear-gradient(90deg, #FF3C00, #FF7A3C)" }} />
                       </div>
-                      {project.budget ? (
+                      {!pricesRedacted && project.budget ? (
                         <div className="flex justify-between mt-3">
                           <div className="text-center">
                             <p className="text-[10px]" style={{ color: "rgba(20,20,20,0.4)" }}>Presupuesto total</p>
@@ -223,7 +227,7 @@ function PrintView({ data, onClose }: { data: any; onClose: () => void }) {
                         <span className="text-xs font-bold" style={{ color }}>{label}: {val}</span>
                       </div>
                     ))}
-                    {summary.totalMaterialCost > 0 && (
+                    {!pricesRedacted && summary.totalMaterialCost > 0 && (
                       <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg ml-auto"
                         style={{ background: "#FF3C0010", border: "1px solid #FF3C0030" }}>
                         <span className="text-xs font-bold" style={{ color: "#FF3C00" }}>
@@ -240,7 +244,10 @@ function PrintView({ data, onClose }: { data: any; onClose: () => void }) {
                       <table className="w-full text-xs">
                         <thead>
                           <tr style={{ background: "#F4F4F5" }}>
-                            {["Material", "Cantidad", "Unidad", "Costo Total", "Estatus"].map(h => (
+                            {(pricesRedacted
+                              ? ["Material", "Cantidad", "Unidad", "Estatus"]
+                              : ["Material", "Cantidad", "Unidad", "Costo Total", "Estatus"]
+                            ).map(h => (
                               <th key={h} className="px-3 py-2 text-left font-bold" style={{ color: "rgba(20,20,20,0.5)" }}>{h}</th>
                             ))}
                           </tr>
@@ -251,9 +258,11 @@ function PrintView({ data, onClose }: { data: any; onClose: () => void }) {
                               <td className="px-3 py-2 font-semibold" style={{ color: "#141414" }}>{m.name}</td>
                               <td className="px-3 py-2" style={{ color: "rgba(20,20,20,0.6)" }}>{m.quantityApproved ?? m.quantityRequested}</td>
                               <td className="px-3 py-2" style={{ color: "rgba(20,20,20,0.6)" }}>{m.unit}</td>
-                              <td className="px-3 py-2 font-semibold" style={{ color: "#FF3C00" }}>
-                                {m.totalCost ? MXN(m.totalCost) : "—"}
-                              </td>
+                              {!pricesRedacted && (
+                                <td className="px-3 py-2 font-semibold" style={{ color: "#FF3C00" }}>
+                                  {m.totalCost ? MXN(m.totalCost) : "—"}
+                                </td>
+                              )}
                               <td className="px-3 py-2">
                                 <span className="px-2 py-0.5 rounded-full text-[10px] font-bold"
                                   style={{ background: `${STATUS_COLORS[m.status] ?? "#999"}15`, color: STATUS_COLORS[m.status] ?? "#999" }}>

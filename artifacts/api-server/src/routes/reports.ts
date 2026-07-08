@@ -183,7 +183,31 @@ router.get("/reports/:id/data", async (req, res): Promise<void> => {
   const effectiveSpent =
     project?.spentAmount && project.spentAmount > 0 ? project.spentAmount : totalMaterialCost;
 
+  // Vista de cliente: el rol "client" ve material + cantidad solicitada, pero
+  // NUNCA precios, costos, montos ni totales. La redacción se hace aquí (server)
+  // para que no baste con ocultar en la UI — el JSON tampoco lleva los montos.
+  // El admin/contratista y el supervisor siguen viendo todo.
+  const isClient = user.role === "client";
+
+  const safeMaterials = isClient
+    ? materials.map((m) => ({
+        id: m.id,
+        projectId: m.projectId,
+        name: m.name,
+        description: m.description,
+        unit: m.unit,
+        quantityRequested: m.quantityRequested,
+        quantityApproved: null,
+        costPerUnit: null,
+        totalCost: null,
+        status: m.status,
+        createdAt: m.createdAt,
+      }))
+    : materials;
+
   res.json({
+    // Bandera para que la UI sepa que debe esconder columnas/bloques de precio.
+    pricesRedacted: isClient,
     report: {
       ...report,
       projectName: project?.name ?? null,
@@ -192,24 +216,25 @@ router.get("/reports/:id/data", async (req, res): Promise<void> => {
     project: project
       ? {
           ...project,
-          spentAmount: effectiveSpent,
+          budget: isClient ? null : (project.budget ?? null),
+          spentAmount: isClient ? null : effectiveSpent,
           clientName,
           supervisorName,
         }
       : null,
     logs,
-    materials,
+    materials: safeMaterials,
     summary: {
       totalLogs: logs.length,
       totalMaterials: materials.length,
       approvedMaterials: approvedMaterials.length,
       pendingMaterials: pendingMaterials.length,
       rejectedMaterials: rejectedMaterials.length,
-      totalMaterialCost,
-      pendingMaterialCost,
+      totalMaterialCost: isClient ? null : totalMaterialCost,
+      pendingMaterialCost: isClient ? null : pendingMaterialCost,
       progressPercent: project?.progressPercent ?? 0,
-      budget: project?.budget ?? null,
-      spentAmount: effectiveSpent,
+      budget: isClient ? null : (project?.budget ?? null),
+      spentAmount: isClient ? null : effectiveSpent,
     },
   });
 });
