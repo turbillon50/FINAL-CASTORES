@@ -271,6 +271,16 @@ router.patch("/projects/:id", async (req, res): Promise<void> => {
   for (const [k, v] of Object.entries(parsed.data)) {
     if (v !== null && v !== undefined) data[k] = v;
   }
+  // clientId / supervisorId sí aceptan null explícito: el select de "Editar
+  // obra" manda null para "Sin asignar". El loop de arriba descarta null,
+  // así que estos dos los tratamos aparte para que desasignar también
+  // persista (no solo reasignar a otro usuario).
+  for (const k of ["clientId", "supervisorId"] as const) {
+    if (k in parsed.data) {
+      const v = (parsed.data as Record<string, unknown>)[k];
+      data[k] = v === undefined || v === null ? null : v;
+    }
+  }
   // Whitelist sólo los keys conocidos de extras para no abrir un agujero
   // (PatchProjectExtras.passthrough() acepta cualquier key extra para que
   // zod no falle, pero no queremos que cualquier campo random caiga en la

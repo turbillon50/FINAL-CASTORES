@@ -351,6 +351,18 @@ export default function ProjectDetail() {
     query: { queryKey: ["get-project-progress", projectId], enabled: !!projectId }
   });
 
+  // Usuarios para reasignar cliente y supervisor desde el modal de edición.
+  // Solo el admin edita obras, así que solo él necesita cargar la lista.
+  const { data: usersForSelect = [] } = useQuery<any[]>({
+    queryKey: ["all-users-for-project-edit"],
+    queryFn: () => teamFetch("/users"),
+    enabled: isAdmin,
+  });
+  const clientOptions = usersForSelect.filter((u) => u.role === "client");
+  // El supervisor de la obra puede ser un supervisor o el propio admin
+  // (contratista chico que supervisa de frente).
+  const supervisorOptions = usersForSelect.filter((u) => u.role === "supervisor" || u.role === "admin");
+
   if (projectLoading) {
     return <MainLayout><div className="p-8 text-muted-foreground">Cargando...</div></MainLayout>;
   }
@@ -381,6 +393,8 @@ export default function ProjectDetail() {
     setEditForm({
       name: project.name ?? "",
       description: project.description ?? "",
+      clientId: project.clientId ?? "",
+      supervisorId: project.supervisorId ?? "",
       location: project.location ?? "",
       latitude: project.latitude ?? "",
       longitude: project.longitude ?? "",
@@ -451,6 +465,13 @@ export default function ProjectDetail() {
       const f = editForm;
       if (f.name !== project.name) payload.name = f.name;
       if (f.description !== (project.description ?? "")) payload.description = f.description || null;
+      // Reasignar cliente / supervisor: "" en el select = Sin asignar (null).
+      if (String(f.clientId ?? "") !== String(project.clientId ?? "")) {
+        payload.clientId = f.clientId === "" || f.clientId == null ? null : Number(f.clientId);
+      }
+      if (String(f.supervisorId ?? "") !== String(project.supervisorId ?? "")) {
+        payload.supervisorId = f.supervisorId === "" || f.supervisorId == null ? null : Number(f.supervisorId);
+      }
       if (f.location !== (project.location ?? "")) payload.location = f.location || null;
       if (String(f.latitude) !== String(project.latitude ?? "")) payload.latitude = f.latitude === "" ? null : Number(f.latitude);
       if (String(f.longitude) !== String(project.longitude ?? "")) payload.longitude = f.longitude === "" ? null : Number(f.longitude);
@@ -924,6 +945,32 @@ export default function ProjectDetail() {
               <Field label="Descripción">
                 <textarea className="edit-input min-h-[70px]" value={editForm.description ?? ""} onChange={e => setEditForm({ ...editForm, description: e.target.value })} />
               </Field>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Cliente">
+                  <select
+                    className="edit-input"
+                    value={String(editForm.clientId ?? "")}
+                    onChange={e => setEditForm({ ...editForm, clientId: e.target.value })}
+                  >
+                    <option value="">Sin asignar</option>
+                    {clientOptions.map((u) => (
+                      <option key={u.id} value={u.id}>{u.name}{u.email ? ` — ${u.email}` : ""}</option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Supervisor">
+                  <select
+                    className="edit-input"
+                    value={String(editForm.supervisorId ?? "")}
+                    onChange={e => setEditForm({ ...editForm, supervisorId: e.target.value })}
+                  >
+                    <option value="">Sin asignar</option>
+                    {supervisorOptions.map((u) => (
+                      <option key={u.id} value={u.id}>{u.name}{u.email ? ` — ${u.email}` : ""}</option>
+                    ))}
+                  </select>
+                </Field>
+              </div>
               <Field label="Ubicación (texto)">
                 <input className="edit-input" placeholder="Ej. Av. Reforma 123, CDMX" value={editForm.location ?? ""} onChange={e => setEditForm({ ...editForm, location: e.target.value })} />
               </Field>
