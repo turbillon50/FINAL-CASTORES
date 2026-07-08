@@ -110,7 +110,7 @@ export default function Projects() {
           name: form.name,
           description: form.description || null,
           location: form.location || null,
-          budget: form.budget ? Number(form.budget) : null,
+          budget: form.budget ? parseFloat(form.budget) : null,
           startDate: form.startDate || null,
           endDate: form.endDate || null,
           supervisorId: form.supervisorId ? Number(form.supervisorId) : null,
@@ -347,7 +347,7 @@ export default function Projects() {
 
                   <div>
                     <label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold block mb-1.5">Presupuesto (MXN)</label>
-                    <Input type="number" min="0" step="1000" placeholder="0.00" value={form.budget}
+                    <Input type="number" min="0" step="0.01" inputMode="decimal" placeholder="0.00" value={form.budget}
                       onChange={e => setForm(f => ({ ...f, budget: e.target.value }))}
                       className="h-11 rounded-xl border-black/10" />
                   </div>
