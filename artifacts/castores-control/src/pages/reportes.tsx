@@ -387,7 +387,10 @@ export default function Reportes() {
   // Use the same permission key the backend checks for write operations on
   // bitácora/reports work — supervisors retain it by default and an admin
   // can revoke it from /admin → Permisos to demote a specific role.
-  const canCreate = permissions.has("bitacoraCreate") || permissions.isRole("admin", "supervisor");
+  // El cliente también puede generar, pero solo "materiales" (sin precios).
+  const isClientRole = permissions.isRole("client");
+  const canCreate = permissions.has("bitacoraCreate") || permissions.isRole("admin", "supervisor") || isClientRole;
+  const availableTypes = isClientRole ? REPORT_TYPES.filter((t) => t.value === "materiales") : REPORT_TYPES;
   // El Constructor inteligente vive en modo administrativo: agrega datos
   // cross-obra (gasto, horas, bitácora) que solo el admin debe consolidar.
   const canUseBuilder = permissions.has("adminPanelAccess");
@@ -400,7 +403,7 @@ export default function Reportes() {
     try {
       const payload: Record<string, any> = {
         title: form.title.trim(),
-        type: form.type,
+        type: isClientRole ? "materiales" : form.type,
         projectId: parseInt(form.projectId),
       };
       if (form.dateFrom) payload.dateFrom = form.dateFrom;
@@ -511,11 +514,11 @@ export default function Reportes() {
                   <div>
                     <label className="block text-xs font-semibold mb-2" style={{ color: "rgba(255,255,255,0.5)" }}>Tipo de reporte</label>
                     <div className="grid grid-cols-1 gap-2">
-                      {REPORT_TYPES.map((t) => (
+                      {availableTypes.map((t) => (
                         <label key={t.value}
                           className="flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all"
                           style={{
-                            background: form.type === t.value ? `${t.color}15` : "rgba(255,255,255,0.04)",
+                            background: (isClientRole || form.type === t.value) ? `${t.color}15` : "rgba(255,255,255,0.04)",
                             border: `1.5px solid ${form.type === t.value ? t.color + "50" : "rgba(255,255,255,0.08)"}`,
                           }}>
                           <input type="radio" name="type" value={t.value} checked={form.type === t.value}

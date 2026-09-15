@@ -54,14 +54,22 @@ router.get("/reports", async (req, res): Promise<void> => {
 router.post("/reports", async (req, res): Promise<void> => {
   const user = await getRequestUser(req);
   if (!user) { res.status(401).json({ error: "No autenticado" }); return; }
-  if (user.role !== "admin" && user.role !== "supervisor") {
-    res.status(403).json({ error: "Solo administradores o supervisores pueden generar reportes" });
+  // Admin y supervisor generan cualquier tipo. El cliente (pedido de Juan,
+  // jul-2026) puede generar SOLO el reporte de materiales de su propia obra:
+  // ve material, cantidad y estatus, nunca precios (la redacción vive en
+  // GET /reports/:id/data — pricesRedacted).
+  if (user.role !== "admin" && user.role !== "supervisor" && user.role !== "client") {
+    res.status(403).json({ error: "No tienes permiso para generar reportes" });
     return;
   }
 
   const parsed = CreateReportBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: formatZodError(parsed.error) });
+    return;
+  }
+  if (user.role === "client" && parsed.data.type !== "materiales") {
+    res.status(403).json({ error: "Como cliente solo puedes generar el reporte de materiales" });
     return;
   }
 
