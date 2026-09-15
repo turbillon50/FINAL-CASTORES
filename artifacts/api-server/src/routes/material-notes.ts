@@ -412,6 +412,26 @@ type ScanResponse = {
   confidence: number;
 };
 
+// Mapea lo que devuelve el modelo ("pieza", "PZAS", "galón", "kilos"…) a las
+// unidades que acepta el formulario (UNITS en material-notes-view.tsx). Lo
+// que no reconoce se deja en minúsculas tal cual para que el usuario lo corrija.
+const UNIT_ALIASES: Record<string, string> = {
+  pieza: "pza", piezas: "pza", pzas: "pza", pz: "pza", pc: "pza", pcs: "pza", unidad: "pza", unidades: "pza", u: "pza",
+  kilo: "kg", kilos: "kg", kgs: "kg", kilogramo: "kg", kilogramos: "kg",
+  tonelada: "ton", toneladas: "ton", tons: "ton", t: "ton",
+  metro: "m", metros: "m", mts: "m", ml: "m",
+  m2: "m²", "mt2": "m²", "metro cuadrado": "m²", "metros cuadrados": "m²",
+  m3: "m³", "mt3": "m³", "metro cubico": "m³", "metro cúbico": "m³", "metros cubicos": "m³", "metros cúbicos": "m³",
+  litro: "lt", litros: "lt", l: "lt", lts: "lt", galon: "lt", "galón": "lt", galones: "lt", gal: "lt",
+  sacos: "saco", bulto: "saco", bultos: "saco", costal: "saco", costales: "saco",
+  rollos: "rollo", cajas: "caja", juegos: "juego", kit: "juego", varillas: "varilla",
+  servicio: "serv", servicios: "serv", notas: "nota", tramos: "tramo",
+};
+function normalizeUnit(raw: string): string {
+  const u = raw.trim().toLowerCase().replace(/\.$/, "");
+  return UNIT_ALIASES[u] ?? u;
+}
+
 function parseScanJson(raw: string): ScanResponse | null {
   // Algunos modelos siguen agregando ```json wrappers o texto antes/después.
   // Buscamos el primer { y el último } para extraer el JSON crudo.
@@ -438,7 +458,7 @@ function parseScanJson(raw: string): ScanResponse | null {
       )
       .map((it) => ({
         name: it.name.trim(),
-        unit: it.unit.trim().toLowerCase(),
+        unit: normalizeUnit(it.unit),
         quantityRequested: it.quantityRequested,
         costPerUnit:
           typeof it.costPerUnit === "number" && Number.isFinite(it.costPerUnit) && it.costPerUnit >= 0
@@ -461,6 +481,41 @@ function parseScanJson(raw: string): ScanResponse | null {
   }
 }
 
+/**
+ * Llama a Gemini directo (generativelanguage.googleapis.com) con la imagen
+ * y el prompt de extracción. Devuelve el texto crudo del modelo o el error
+ * HTTP. Modelo configurable vía GEMINI_VISION_MODEL (default gemini-2.5-flash).
+ */
+async function scanWithGemini(
+  key: string,
+  imageDataUrl: string,
+  signal: AbortSignal,
+): Promise<{ ok: true; text: string; model: string } | { ok: false; status: number; detail: string; model: string }> {
+  const model = process.env["GEMINI_VISION_MODEL"] ?? "gemini-2.5-flash";
+  const m = /^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/.exec(imageDataUrl);
+  if (!m) return { ok: false, status: 400, detail: "data URL inválido", model };
+  const [, mimeType, data] = m;
+  const r = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`,
+    {
+      method: "POST",
+      signal,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ role: "user", parts: [{ text: SCAN_SYSTEM_PROMPT }, { inlineData: { mimeType, data } }] }],
+        // maxOutputTokens 8192 + thinking apagado: con 2000 tokens una factura de
+        // 16 renglones se truncaba (MAX_TOKENS) porque el "pensamiento" del
+        // modelo consume del mismo presupuesto. Medido con la factura FF147589.
+        generationConfig: { temperature: 0.1, maxOutputTokens: 8192, responseMimeType: "application/json", thinkingConfig: { thinkingBudget: 0 } },
+      }),
+    },
+  );
+  if (!r.ok) return { ok: false, status: r.status, detail: await r.text().catch(() => ""), model };
+  const j = (await r.json()) as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
+  const text = (j.candidates?.[0]?.content?.parts ?? []).map((p) => p.text ?? "").join("");
+  return { ok: true, text, model };
+}
+
 router.post("/material-notes/scan", async (req, res): Promise<void> => {
   const user = await resolveAuthedUser(req);
   if (!user) { res.status(401).json({ error: "No autenticado" }); return; }
@@ -469,8 +524,12 @@ router.post("/material-notes/scan", async (req, res): Promise<void> => {
     return;
   }
 
+  // Motor principal: Gemini directo (GEMINI_API_KEY). OpenRouter queda solo
+  // como respaldo si no hay llave de Gemini — Luis dejó de usar OpenRouter
+  // (sep-2026) y la cuenta puede quedar sin saldo en cualquier momento.
+  const geminiKey = process.env["GEMINI_API_KEY"];
   const apiKey = process.env["OPENROUTER_API_KEY"];
-  if (!apiKey) {
+  if (!geminiKey && !apiKey) {
     res.status(503).json({
       ok: false,
       pending: true,
@@ -513,6 +572,33 @@ router.post("/material-notes/scan", async (req, res): Promise<void> => {
   const timeoutId = setTimeout(() => controller.abort(), 50_000);
 
   try {
+    if (geminiKey) {
+      const gemini = await scanWithGemini(geminiKey, image, controller.signal);
+      if (gemini.ok) {
+        const parsed = parseScanJson(gemini.text);
+        if (!parsed) {
+          logger.warn({ model: gemini.model, content: gemini.text.slice(0, 300) }, "scan: respuesta de Gemini no parseable");
+          res.status(502).json({
+            error: "No pudimos leer la foto. Asegúrate de que se vean los renglones y el folio. Mientras, captura los conceptos manualmente.",
+          });
+          return;
+        }
+        logger.info({ ms: Date.now() - started, itemCount: parsed.items.length, confidence: parsed.confidence, model: gemini.model }, "scan: extract completo (gemini)");
+        res.json({ ok: true, ...parsed });
+        return;
+      }
+      logger.error({ status: gemini.status, detail: gemini.detail.slice(0, 300) }, "scan: Gemini rechazó la petición");
+      if (!apiKey) {
+        let userMessage = "El servicio de visión rechazó la foto. Inténtalo de nuevo en un momento.";
+        if (gemini.status === 400 || gemini.status === 403) userMessage = "API key de Gemini inválida o sin permisos. Avísale al administrador.";
+        else if (gemini.status === 429) userMessage = "Demasiados escaneos en poco tiempo. Espera 30 segundos.";
+        else if (gemini.status >= 500) userMessage = "El servicio de visión está caído. Captura manual por ahora.";
+        res.status(502).json({ error: userMessage, diagnostic: `Gemini HTTP ${gemini.status}: ${gemini.detail.slice(0, 200)}` });
+        return;
+      }
+      // Hay OpenRouter como respaldo: seguimos por esa vía.
+    }
+    if (!apiKey) { res.status(503).json({ ok: false, pending: true, message: "Escaneo no configurado." }); return; }
     const orRes = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       signal: controller.signal,
@@ -537,7 +623,7 @@ router.post("/material-notes/scan", async (req, res): Promise<void> => {
         ],
         // temperature baja: queremos extraer lo que está, no inventar.
         temperature: 0.1,
-        max_tokens: 2000,
+        max_tokens: 8000,
       }),
     });
 
