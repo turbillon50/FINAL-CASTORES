@@ -11,6 +11,13 @@ import {
   ListReportsQueryParams,
 } from "@workspace/api-zod";
 
+// Día calendario en hora de México (obras en Monterrey/CDMX, misma zona).
+// Antes se usaba toISOString() (UTC): una checada de las 20:00 en Mty caía en
+// el día siguiente del reporte. Ver reporte de Juan del 1-jul-2026.
+const MX_TZ = "America/Mexico_City";
+const mxDay = (d: Date): string =>
+  new Intl.DateTimeFormat("en-CA", { timeZone: MX_TZ, year: "numeric", month: "2-digit", day: "2-digit" }).format(d);
+
 const router: IRouter = Router();
 
 async function enrichReport(r: typeof reportsTable.$inferSelect) {
@@ -75,7 +82,7 @@ router.post("/reports", async (req, res): Promise<void> => {
     .values({
       ...parsed.data,
       generatedById: user.id,
-      summary: `Reporte de ${typeLabel} generado el ${new Date().toLocaleDateString("es-MX")} por usuario #${user.id}`,
+      summary: `Reporte de ${typeLabel} generado el ${new Date().toLocaleDateString("es-MX", { timeZone: MX_TZ })} por usuario #${user.id}`,
     })
     .returning();
 
@@ -161,7 +168,7 @@ router.get("/reports/:id/data", async (req, res): Promise<void> => {
   // Materials for this project
   const allMaterials = await db.select().from(materialsTable).where(eq(materialsTable.projectId, report.projectId));
   const materials = allMaterials.filter((m) => {
-    const d = m.createdAt.toISOString().split("T")[0];
+    const d = mxDay(m.createdAt);
     if (dateFrom && d < dateFrom) return false;
     if (dateTo && d > dateTo) return false;
     return true;
@@ -281,7 +288,7 @@ router.post("/reports/builder", async (req, res): Promise<void> => {
 
   const [me] = await db.select({ name: usersTable.name }).from(usersTable).where(eq(usersTable.id, user.id));
   const round1 = (n: number) => Math.round(n * 10) / 10;
-  const dayOf = (d: Date) => d.toISOString().split("T")[0];
+  const dayOf = (d: Date) => mxDay(d);
 
   // Gasto efectivo por obra: usa spentAmount si está mantenido (>0); si no,
   // cae al costo de materiales aprobados (evita "Gastado: $0" con materiales

@@ -76,7 +76,7 @@ router.get("/dashboard/summary", async (req, res): Promise<void> => {
     .from(notificationsTable)
     .where(eq(notificationsTable.userId, user.id));
 
-  const today = new Date().toISOString().split("T")[0];
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Mexico_City", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date()); // día en hora MX, no UTC
   let todayLogs: { id: number }[];
   if (accessibleIds === null) {
     todayLogs = await db.select({ id: workLogsTable.id }).from(workLogsTable).where(eq(workLogsTable.logDate, today));
