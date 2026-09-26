@@ -405,14 +405,59 @@ type ScanResponse = {
 };
 
 function parseScanJson(raw: string): ScanResponse | null {
-  // Algunos modelos siguen agregando ```json wrappers o texto antes/después.
-  // Buscamos el primer { y el último } para extraer el JSON crudo.
-  const start = raw.indexOf("{");
-  const end = raw.lastIndexOf("}");
-  if (start < 0 || end <= start) return null;
-  const slice = raw.slice(start, end + 1);
+  // Limpiar markdown fences (```json ... ```) que Gemini suele agregar.
+  let cleaned = raw.trim();
+  cleaned = cleaned.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/i, "");
+
+  // Buscamos el primer { para empezar el JSON.
+  const start = cleaned.indexOf("{");
+  if (start < 0) return null;
+
+  // Intento 1: parseo directo del { ... último }
+  const end = cleaned.lastIndexOf("}");
+  let parsed: Partial<ScanResponse> | null = null;
+  if (end > start) {
+    try {
+      parsed = JSON.parse(cleaned.slice(start, end + 1)) as Partial<ScanResponse>;
+    } catch {
+      parsed = null;
+    }
+  }
+
+  // Intento 2 (recuperación): el JSON viene truncado por maxOutputTokens.
+  // Reparamos cerrando el array de items y el objeto. Extraemos cada item
+  // completo con regex y reconstruimos un JSON válido para no perder la nota.
+  if (!parsed || !Array.isArray((parsed as Partial<ScanResponse>).items)) {
+    try {
+      const body = cleaned.slice(start);
+      const supplierMatch = body.match(/"supplierName"\s*:\s*("(?:[^"\\]|\\.)*"|null)/);
+      const folioMatch = body.match(/"folio"\s*:\s*("(?:[^"\\]|\\.)*"|null)/);
+      const dateMatch = body.match(/"noteDate"\s*:\s*("(?:[^"\\]|\\.)*"|null)/);
+
+      // Cada item completo: { ... } dentro del array items
+      const itemRegex = /\{[^{}]*"name"[^{}]*\}/g;
+      const itemMatches = body.match(itemRegex) ?? [];
+      const items: unknown[] = [];
+      for (const im of itemMatches) {
+        try { items.push(JSON.parse(im)); } catch { /* item incompleto, descartar */ }
+      }
+
+      if (items.length > 0) {
+        parsed = {
+          supplierName: supplierMatch ? JSON.parse(supplierMatch[1]) : null,
+          folio: folioMatch ? JSON.parse(folioMatch[1]) : null,
+          noteDate: dateMatch ? JSON.parse(dateMatch[1]) : null,
+          items: items as ScanResponse["items"],
+          confidence: 0.6,
+        };
+      }
+    } catch {
+      parsed = null;
+    }
+  }
+
+  if (!parsed) return null;
   try {
-    const parsed = JSON.parse(slice) as Partial<ScanResponse>;
     if (!Array.isArray(parsed.items)) return null;
 
     // Validación de números: el modelo puede devolver NaN/Infinity
@@ -476,7 +521,7 @@ router.post("/material-notes/scan", async (req, res): Promise<void> => {
     res.status(400).json({ error: "Adjunta una foto válida (data URL)" });
     return;
   }
-  if (image.length > 4 * 1024 * 1024) {
+  if (image.length > 8 * 1024 * 1024) {
     res.status(413).json({ error: "La foto es muy pesada. Toma una nueva con menos resolución." });
     return;
   }
@@ -505,7 +550,7 @@ router.post("/material-notes/scan", async (req, res): Promise<void> => {
               { inline_data: { mime_type: mimeType, data: base64Data } },
             ],
           }],
-          generationConfig: { temperature: 0.1, maxOutputTokens: 2000 },
+          generationConfig: { temperature: 0.1, maxOutputTokens: 8192 },
         }),
       }
     );
@@ -525,12 +570,31 @@ router.post("/material-notes/scan", async (req, res): Promise<void> => {
       candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
     };
     const rawContent = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+    logger.info({ rawContent: rawContent.slice(0, 500), imageLen: image.length }, "scan: raw Gemini response");
     const parsed = parseScanJson(rawContent);
 
     if (!parsed) {
       logger.warn({ content: rawContent.slice(0, 300) }, "scan: respuesta de Gemini no parseable");
-      res.status(502).json({
-        error: "No pudimos leer la foto. Asegúrate de que se vean bien los renglones. Captura los conceptos manualmente.",
+      // Devolvemos 200 ok:false — no es un error del servidor, es que
+      // la imagen no tenía conceptos legibles. El frontend muestra un
+      // toast amigable y no lo trata como excepción.
+      res.json({
+        ok: false,
+        items: [],
+        confidence: 0,
+        message: "No pudimos leer la foto. Asegúrate de que se vean bien los renglones. Captura los conceptos manualmente.",
+      });
+      return;
+    }
+
+    // Items vacíos: Gemini respondió pero no encontró conceptos (imagen ilegible o no es una nota)
+    if (parsed.items.length === 0) {
+      logger.warn({ confidence: parsed.confidence }, "scan: Gemini no extrajo conceptos (items vacíos)");
+      res.json({
+        ok: false,
+        items: [],
+        confidence: parsed.confidence,
+        message: "La foto no tiene conceptos reconocibles. Asegúrate de enfocar bien la nota y que haya buena luz.",
       });
       return;
     }

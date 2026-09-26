@@ -1,22 +1,10 @@
 /**
  * Comprime una imagen client-side antes de mandarla al server.
  *
- * Por qué: cuando subimos varias fotos de obra (cada una de 3-5 MB del
- * iPhone) directamente como data URL, el body del POST se va a 30+ MB
- * y Vercel rechaza con 413 (límite de 4.5 MB por request). En el server
- * tampoco tenemos un blob storage, así que la imagen vive en la columna
- * de Postgres como texto base64 — comprimirla a 200-400 KB hace toda
- * la diferencia entre "creo la obra" y "Vercel cierra la conexión".
- *
- * Estrategia:
- *   - Cargar el archivo como `<img>`.
- *   - Renderizar a un canvas con un lado máximo de `maxDim` (default
- *     1920px), preservando proporciones.
- *   - Exportar como JPEG con calidad 0.78. Pierde transparencia pero
- *     gana ~10x compresión vs PNG. Aceptable para fotos de obra y
- *     renders; los planos PDF/DWG no pasan por aquí.
- *   - Si el resultado todavía es más grande que el original (caso raro
- *     de imágenes ya muy comprimidas), devolvemos el data URL original.
+ * FIX iOS Safari (2026-06): loadImage ahora usa createObjectURL en vez de
+ * asignar el data URL directamente a img.src. En iOS, los data URLs de
+ * imágenes grandes (>2MB) disparan onerror antes de cargar — el blob URL
+ * no tiene ese límite y funciona de forma confiable en Safari/PWA.
  */
 export async function compressImageFile(
   file: File,
@@ -25,17 +13,13 @@ export async function compressImageFile(
   const maxDim = opts?.maxDim ?? 1920;
   const quality = opts?.quality ?? 0.78;
 
-  // Si NO es imagen, devuelve el data URL crudo. Útil cuando el mismo
-  // helper se usa para "documentos" donde el usuario podría subir un PDF.
   if (!file.type.startsWith("image/")) return await readAsDataUrl(file);
-
-  // SVG: mejor enviarlo tal cual; comprimirlo a canvas pierde el vector.
   if (file.type === "image/svg+xml") return await readAsDataUrl(file);
 
-  const original = await readAsDataUrl(file);
-
   try {
-    const img = await loadImage(original);
+    // iOS fix: usar blob URL para cargar la imagen, evita el límite de
+    // ~2MB que tiene Safari al asignar data URLs a img.src directamente.
+    const img = await loadImageFromFile(file);
     const ratio = Math.min(1, maxDim / Math.max(img.width, img.height));
     const w = Math.round(img.width * ratio);
     const h = Math.round(img.height * ratio);
@@ -44,13 +28,27 @@ export async function compressImageFile(
     canvas.width = w;
     canvas.height = h;
     const ctx = canvas.getContext("2d");
-    if (!ctx) return original;
+    if (!ctx) return await readAsDataUrl(file);
     ctx.drawImage(img, 0, 0, w, h);
 
-    const compressed = canvas.toDataURL("image/jpeg", quality);
-    return compressed.length < original.length ? compressed : original;
+    return new Promise<string>((resolve) => {
+      canvas.toBlob(
+        async (blob) => {
+          if (!blob) { resolve(await readAsDataUrl(file)); return; }
+          // Si la compresión no ayudó (imagen ya muy comprimida), devolver original
+          if (blob.size >= file.size) { resolve(await readAsDataUrl(file)); return; }
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = async () => resolve(await readAsDataUrl(file));
+          reader.readAsDataURL(blob);
+        },
+        "image/jpeg",
+        quality,
+      );
+    });
   } catch {
-    return original;
+    // Fallback: si falla la compresión, mandar la imagen sin comprimir
+    return await readAsDataUrl(file);
   }
 }
 
@@ -70,11 +68,22 @@ function readAsDataUrl(file: File): Promise<string> {
   });
 }
 
-function loadImage(src: string): Promise<HTMLImageElement> {
+/**
+ * Carga una imagen desde un File usando createObjectURL.
+ * Compatible con iOS Safari — evita el límite de ~2MB de img.src con data URL.
+ */
+function loadImageFromFile(file: File): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
     const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error("Image load failed"));
-    img.src = src;
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(img);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("No se pudo cargar la imagen"));
+    };
+    img.src = url;
   });
 }

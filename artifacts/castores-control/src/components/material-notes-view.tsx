@@ -659,7 +659,14 @@ function NewNoteModal({
       const apiErr = err as { data?: { error?: string; message?: string; diagnostic?: string } };
       if (apiErr?.data?.error) msg = apiErr.data.error;
       else if (apiErr?.data?.message) msg = apiErr.data.message;
-      else if (err instanceof Error) msg = err.message;
+      else if (err instanceof Error) {
+        // Error de carga de imagen (ej. iOS Safari)
+        if (err.message.includes("cargar la imagen") || err.message.includes("load")) {
+          msg = "No se pudo leer la foto. Intenta de nuevo o elige una imagen diferente.";
+        } else {
+          msg = err.message;
+        }
+      }
       if (apiErr?.data?.diagnostic) diag = apiErr.data.diagnostic;
       toast({
         variant: "destructive",
