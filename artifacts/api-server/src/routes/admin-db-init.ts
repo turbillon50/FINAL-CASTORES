@@ -332,6 +332,19 @@ export const INIT_SQL = `${INIT_SQL_BASE}\n\n${INIT_SQL_ATTENDANCE}`;
 export const INIT_SQL_CHUNKS: Array<{ name: string; sql: string }> = [
   { name: "base-schema", sql: INIT_SQL_BASE },
   { name: "attendance-schema", sql: INIT_SQL_ATTENDANCE },
+  // Foto de la factura/nota física de cada nota de mostrador. Tabla aparte
+  // (no columna en material_notes) para que el listado de notas no cargue
+  // cientos de KB de base64 por renglón: la foto se pide sola al abrir.
+  {
+    name: "material-note-receipts",
+    sql: `CREATE TABLE IF NOT EXISTS "material_note_receipts" (
+  "note_id" integer PRIMARY KEY,
+  "image" text NOT NULL,
+  "uploaded_by_id" integer,
+  "created_at" timestamptz NOT NULL DEFAULT NOW(),
+  "updated_at" timestamptz NOT NULL DEFAULT NOW()
+);`,
+  },
 ];
 
 // Seed: matriz de permisos por defecto para los 5 roles. Idempotente.

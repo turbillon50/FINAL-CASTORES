@@ -45,6 +45,7 @@ export type MaterialNote = {
   totalAmount: number;
   status: string;
   itemCount: number;
+  hasReceipt?: boolean;
   createdAt: string;
 };
 
@@ -260,6 +261,49 @@ function NoteRow({
   const [editDescription, setEditDescription] = useState("");
   const [editItems, setEditItems] = useState<FormItem[]>([{ ...EMPTY_ITEM }]);
   const [editSaving, setEditSaving] = useState(false);
+  // Foto de la factura
+  const [receiptOpen, setReceiptOpen] = useState(false);
+  const [receiptSrc, setReceiptSrc] = useState<string | null>(null);
+  const [receiptLoading, setReceiptLoading] = useState(false);
+  const [receiptUploading, setReceiptUploading] = useState(false);
+  const receiptInputRef = useRef<HTMLInputElement | null>(null);
+
+  const openReceipt = async () => {
+    if (receiptSrc) { setReceiptOpen(true); return; }
+    setReceiptLoading(true);
+    try {
+      const r = await customFetch<{ image: string }>(`/api/material-notes/${note.id}/receipt`);
+      setReceiptSrc(r.image);
+      setReceiptOpen(true);
+    } catch (e) {
+      const apiErr = e as { data?: { error?: string } };
+      toast({ variant: "destructive", title: "No se pudo abrir la factura", description: apiErr?.data?.error ?? (e instanceof Error ? e.message : "Error") });
+    } finally {
+      setReceiptLoading(false);
+    }
+  };
+
+  const onReceiptFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (e.target) e.target.value = "";
+    if (!file) return;
+    setReceiptUploading(true);
+    try {
+      const dataUrl = await compressImageFile(file);
+      await customFetch(`/api/material-notes/${note.id}/receipt`, {
+        method: "PUT",
+        body: JSON.stringify({ image: dataUrl }),
+      });
+      setReceiptSrc(dataUrl);
+      onEdited();
+      toast({ title: note.hasReceipt ? "Foto de la factura actualizada" : "Foto de la factura guardada" });
+    } catch (err) {
+      const apiErr = err as { data?: { error?: string } };
+      toast({ variant: "destructive", title: "No se guardó la foto", description: apiErr?.data?.error ?? (err instanceof Error ? err.message : "Error") });
+    } finally {
+      setReceiptUploading(false);
+    }
+  };
   const { toast } = useToast();
 
   const openEdit = () => {
@@ -364,6 +408,11 @@ function NoteRow({
             {note.folio && note.supplierName && (
               <span className="text-[10px] text-muted-foreground uppercase tracking-wider">F-{note.folio}</span>
             )}
+            {note.hasReceipt && (
+              <span title="Tiene foto de la factura" className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md" style={{ background: "rgba(255,60,0,0.08)", color: "#FF3C00" }}>
+                🧾 Factura
+              </span>
+            )}
           </div>
           <p className="text-xs text-muted-foreground mt-0.5 truncate">
             {note.noteDate} · {note.itemCount} {note.itemCount === 1 ? "concepto" : "conceptos"}
@@ -417,6 +466,43 @@ function NoteRow({
                   {note.description}
                 </p>
               )}
+              <input
+                ref={receiptInputRef}
+                type="file"
+                accept="image/*"
+                onChange={onReceiptFileSelected}
+                className="hidden"
+              />
+              <div className="pt-2 flex flex-wrap gap-2 border-t border-card-border/60">
+                {note.hasReceipt ? (
+                  <>
+                    <button
+                      onClick={openReceipt}
+                      disabled={receiptLoading || receiptUploading}
+                      className="text-xs font-semibold px-3 py-2 rounded-lg disabled:opacity-50"
+                      style={{ background: "rgba(255,60,0,0.08)", color: "#FF3C00" }}
+                    >
+                      {receiptLoading ? "Abriendo…" : "🧾 Ver foto de la factura"}
+                    </button>
+                    <button
+                      onClick={() => receiptInputRef.current?.click()}
+                      disabled={receiptLoading || receiptUploading}
+                      className="text-xs font-semibold px-3 py-2 rounded-lg border border-card-border text-muted-foreground disabled:opacity-50"
+                    >
+                      {receiptUploading ? "Subiendo…" : "Cambiar foto"}
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={() => receiptInputRef.current?.click()}
+                    disabled={receiptUploading}
+                    className="text-xs font-semibold px-3 py-2 rounded-lg border-2 border-dashed disabled:opacity-50"
+                    style={{ borderColor: "rgba(255,60,0,0.4)", color: "#FF3C00" }}
+                  >
+                    {receiptUploading ? "Subiendo foto…" : "📎 Adjuntar foto de la factura"}
+                  </button>
+                )}
+              </div>
               <div className="pt-2 flex justify-between items-center">
                 <button
                   onClick={openEdit}
@@ -433,6 +519,50 @@ function NoteRow({
                   {deleting ? "Eliminando…" : "🗑️ Eliminar nota"}
                 </button>
               </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ─── Visor de la foto de la factura ───────────────────────────── */}
+      <AnimatePresence>
+        {receiptOpen && receiptSrc && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[60] flex flex-col"
+            style={{ background: "rgba(0,0,0,0.92)" }}
+            onClick={() => setReceiptOpen(false)}
+          >
+            <div className="flex items-center justify-between px-4 py-3 text-white" onClick={(e) => e.stopPropagation()}>
+              <p className="text-sm font-semibold truncate">
+                🧾 {note.supplierName?.trim() || "Factura"}{note.folio ? ` · F-${note.folio}` : ""} · {note.noteDate}
+              </p>
+              <div className="flex items-center gap-2 shrink-0">
+                <a
+                  href={receiptSrc}
+                  download={`factura-nota-${note.id}.jpg`}
+                  className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20"
+                >
+                  Descargar
+                </a>
+                <button
+                  onClick={() => setReceiptOpen(false)}
+                  aria-label="Cerrar"
+                  className="w-9 h-9 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/20"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="w-5 h-5">
+                    <path d="M18 6L6 18M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <div className="flex-1 min-h-0 overflow-auto flex items-center justify-center p-3">
+              <img
+                src={receiptSrc}
+                alt="Foto de la factura"
+                className="max-w-full max-h-full object-contain rounded-lg"
+                onClick={(e) => e.stopPropagation()}
+              />
             </div>
           </motion.div>
         )}
@@ -561,6 +691,20 @@ function NewNoteModal({
   const [submitting, setSubmitting] = useState(false);
   const [scanning, setScanning] = useState(false);
   const scanInputRef = useRef<HTMLInputElement | null>(null);
+  // La foto se guarda con la nota aunque la lectura automática falle.
+  const [receiptImage, setReceiptImage] = useState<string | null>(null);
+  const attachInputRef = useRef<HTMLInputElement | null>(null);
+
+  const onAttachFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (e.target) e.target.value = "";
+    if (!file) return;
+    try {
+      setReceiptImage(await compressImageFile(file));
+    } catch {
+      toast({ variant: "destructive", title: "No se pudo leer la foto" });
+    }
+  };
 
   const total = useMemo(
     () => items.reduce((acc, it) => {
@@ -602,6 +746,8 @@ function NewNoteModal({
       // necesitamos quedar bajo el límite de Vercel (4.5 MB request body)
       // y reducir costo de tokens en OpenRouter.
       const dataUrl = await compressImageFile(file);
+      // Se conserva la foto para guardarla junto con la nota.
+      setReceiptImage(dataUrl);
 
       const result = await customFetch<ScanResult>("/api/material-notes/scan", {
         method: "POST",
@@ -692,7 +838,7 @@ function NewNoteModal({
       // el server respondía 401 "No autenticado" y el toast decía
       // "Error al guardar" sin pista del por qué — ese era el bug del
       // registro reportado por el cliente.
-      await customFetch("/api/material-notes", {
+      const created = await customFetch<{ receiptSaved?: boolean }>("/api/material-notes", {
         method: "POST",
         body: JSON.stringify({
           projectId: Number(projectId),
@@ -707,8 +853,16 @@ function NewNoteModal({
             costPerUnit: it.costPerUnit ? Number(it.costPerUnit) : null,
             notes: it.notes.trim() || null,
           })),
+          receiptImage,
         }),
       });
+      if (receiptImage && created?.receiptSaved === false) {
+        toast({
+          variant: "destructive",
+          title: "La nota se guardó, pero la foto no",
+          description: "Ábrela y usa «Adjuntar foto de la factura» para subirla de nuevo.",
+        });
+      }
       onCreated();
     } catch (e) {
       toast({ variant: "destructive", title: "No se guardó la nota", description: e instanceof Error ? e.message : "Error desconocido" });
@@ -795,6 +949,49 @@ function NewNoteModal({
               <span className="inline-block w-3 h-3 rounded-full border-2 border-current border-t-transparent animate-spin ml-1" />
             )}
           </button>
+
+          {/* Foto de la factura: queda guardada con la nota */}
+          <input
+            ref={attachInputRef}
+            type="file"
+            accept="image/*"
+            onChange={onAttachFileSelected}
+            className="hidden"
+          />
+          {receiptImage ? (
+            <div className="flex items-center gap-3 p-2 rounded-xl border border-black/10">
+              <img src={receiptImage} alt="Foto de la factura" className="w-14 h-14 rounded-lg object-cover shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-foreground">🧾 Foto de la factura adjunta</p>
+                <p className="text-[11px] text-muted-foreground">Se guardará junto con la nota.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => attachInputRef.current?.click()}
+                disabled={submitting || scanning}
+                className="text-[11px] font-semibold text-primary hover:underline disabled:opacity-50"
+              >
+                Cambiar
+              </button>
+              <button
+                type="button"
+                onClick={() => setReceiptImage(null)}
+                disabled={submitting || scanning}
+                className="text-[11px] font-semibold text-destructive hover:underline disabled:opacity-50"
+              >
+                Quitar
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => attachInputRef.current?.click()}
+              disabled={submitting || scanning}
+              className="w-full text-[11px] font-semibold text-muted-foreground hover:text-foreground py-1 disabled:opacity-50"
+            >
+              📎 Solo adjuntar la foto de la factura (sin leerla)
+            </button>
+          )}
 
           {/* Renglones dinámicos */}
           <div className="space-y-2">

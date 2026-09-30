@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { and, eq, desc, inArray } from "drizzle-orm";
 import {
   db,
+  pool,
   materialNotesTable,
   materialsTable,
   projectsTable,
@@ -13,6 +14,39 @@ import { canAccessProject, getAccessibleProjectIds } from "../lib/projectAccess"
 import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
+
+// ── Fotos de facturas ──────────────────────────────────────────────
+// Límite propio bajo el tope de 4.5 MB de Vercel por request.
+const MAX_RECEIPT_CHARS = 4 * 1024 * 1024;
+
+function validReceiptImage(v: unknown): v is string {
+  return typeof v === "string" && v.startsWith("data:image/") && v.length <= MAX_RECEIPT_CHARS;
+}
+
+async function saveReceipt(noteId: number, image: string, userId: number): Promise<void> {
+  await pool.query(
+    `INSERT INTO material_note_receipts (note_id, image, uploaded_by_id)
+     VALUES ($1, $2, $3)
+     ON CONFLICT (note_id) DO UPDATE SET image = EXCLUDED.image,
+       uploaded_by_id = EXCLUDED.uploaded_by_id, updated_at = NOW()`,
+    [noteId, image, userId],
+  );
+}
+
+async function receiptNoteIds(noteIds: number[]): Promise<Set<number>> {
+  if (noteIds.length === 0) return new Set();
+  try {
+    const r = await pool.query<{ note_id: number }>(
+      `SELECT note_id FROM material_note_receipts WHERE note_id = ANY($1::int[])`,
+      [noteIds],
+    );
+    return new Set(r.rows.map((x) => Number(x.note_id)));
+  } catch (err) {
+    // Si la tabla aún no existe (migración en curso), la lista no se cae.
+    logger.warn({ err }, "receiptNoteIds failed");
+    return new Set();
+  }
+}
 
 type IncomingItem = {
   name?: string;
@@ -31,6 +65,7 @@ type IncomingNoteBody = {
   description?: string | null;
   status?: string;
   items?: IncomingItem[];
+  receiptImage?: string | null;
 };
 
 function validateItem(it: IncomingItem | undefined, idx: number): string | null {
@@ -111,6 +146,7 @@ router.get("/material-notes", async (req, res): Promise<void> => {
     db.select({ id: usersTable.id, name: usersTable.name }).from(usersTable).where(inArray(usersTable.id, userIds)),
     db.select({ noteId: materialsTable.noteId, id: materialsTable.id }).from(materialsTable).where(inArray(materialsTable.noteId, rows.map((r) => r.id))),
   ]);
+  const withReceipt = await receiptNoteIds(rows.map((r) => r.id));
   const projectMap = new Map(projects.map((p) => [p.id, p.name]));
   const userMap = new Map(users.map((u) => [u.id, u.name]));
   const countMap = new Map<number, number>();
@@ -124,6 +160,7 @@ router.get("/material-notes", async (req, res): Promise<void> => {
     projectName: projectMap.get(r.projectId) ?? null,
     createdByName: userMap.get(r.createdById) ?? null,
     itemCount: countMap.get(r.id) ?? 0,
+    hasReceipt: withReceipt.has(r.id),
   })));
 });
 
@@ -150,7 +187,8 @@ router.get("/material-notes/:id", async (req, res): Promise<void> => {
 
   const items = await db.select().from(materialsTable).where(eq(materialsTable.noteId, id)).orderBy(materialsTable.id);
 
-  res.json({ ...note, items });
+  const withReceipt = await receiptNoteIds([id]);
+  res.json({ ...note, items, hasReceipt: withReceipt.has(id) });
 });
 
 /**
@@ -185,6 +223,10 @@ router.post("/material-notes", async (req, res): Promise<void> => {
   }
   if (!(await canAccessProject(user, body.projectId))) {
     res.status(403).json({ error: "Sin acceso a esta obra" }); return;
+  }
+
+  if (body.receiptImage != null && !validReceiptImage(body.receiptImage)) {
+    res.status(400).json({ error: "La foto de la factura no es válida o pesa más de 4 MB" }); return;
   }
 
   const total = sumTotal(body.items);
@@ -230,10 +272,82 @@ router.post("/material-notes", async (req, res): Promise<void> => {
       return { note, items: inserted };
     });
 
-    res.status(201).json(result);
+    let receiptSaved = false;
+    if (body.receiptImage) {
+      try {
+        await saveReceipt(result.note.id, body.receiptImage, user.id);
+        receiptSaved = true;
+      } catch (err) {
+        // La nota ya quedó; la foto se puede adjuntar después desde la nota.
+        logger.error({ err, noteId: result.note.id }, "POST /material-notes: receipt save failed");
+      }
+    }
+    res.status(201).json({ ...result, receiptSaved });
   } catch (err) {
     logger.error({ err }, "POST /material-notes failed");
     res.status(500).json({ error: "No se pudo guardar la nota" });
+  }
+});
+
+/**
+ * GET /api/material-notes/:id/receipt — la foto de la factura (data URL).
+ * Mismas reglas de acceso que el detalle: el cliente no la ve.
+ */
+router.get("/material-notes/:id/receipt", async (req, res): Promise<void> => {
+  const user = await resolveAuthedUser(req);
+  if (!user) { res.status(401).json({ error: "No autenticado" }); return; }
+  if (user.role === "client") { res.status(403).json({ error: "No disponible para tu rol" }); return; }
+
+  const id = Number(req.params["id"]);
+  if (!Number.isFinite(id) || id <= 0) { res.status(400).json({ error: "ID inválido" }); return; }
+
+  const [note] = await db.select().from(materialNotesTable).where(eq(materialNotesTable.id, id));
+  if (!note) { res.status(404).json({ error: "Nota no encontrada" }); return; }
+  if (!(await canAccessProject(user, note.projectId))) {
+    res.status(403).json({ error: "Sin acceso a esta obra" }); return;
+  }
+
+  const r = await pool.query<{ image: string; updated_at: string }>(
+    `SELECT image, updated_at FROM material_note_receipts WHERE note_id = $1`, [id],
+  );
+  if (r.rows.length === 0) { res.status(404).json({ error: "Esta nota no tiene foto" }); return; }
+  res.setHeader("Cache-Control", "private, max-age=300");
+  res.json({ image: r.rows[0].image, updatedAt: r.rows[0].updated_at });
+});
+
+/**
+ * PUT /api/material-notes/:id/receipt — adjunta o reemplaza la foto.
+ * Solo el creador de la nota o quien puede aprobar materiales.
+ */
+router.put("/material-notes/:id/receipt", async (req, res): Promise<void> => {
+  const user = await resolveAuthedUser(req);
+  if (!user) { res.status(401).json({ error: "No autenticado" }); return; }
+
+  const id = Number(req.params["id"]);
+  if (!Number.isFinite(id) || id <= 0) { res.status(400).json({ error: "ID inválido" }); return; }
+
+  const [note] = await db.select().from(materialNotesTable).where(eq(materialNotesTable.id, id));
+  if (!note) { res.status(404).json({ error: "Nota no encontrada" }); return; }
+
+  const canApprove = await hasPermission(user.role, "materialsApprove");
+  if (note.createdById !== user.id && !canApprove) {
+    res.status(403).json({ error: "Solo el creador o un aprobador puede cambiar la foto" }); return;
+  }
+  if (!(await canAccessProject(user, note.projectId))) {
+    res.status(403).json({ error: "Sin acceso a esta obra" }); return;
+  }
+
+  const { image } = req.body as { image?: unknown };
+  if (!validReceiptImage(image)) {
+    res.status(400).json({ error: "Adjunta una foto válida (máx. 4 MB)" }); return;
+  }
+
+  try {
+    await saveReceipt(id, image, user.id);
+    res.json({ ok: true });
+  } catch (err) {
+    logger.error({ err, noteId: id }, "PUT receipt failed");
+    res.status(500).json({ error: "No se pudo guardar la foto" });
   }
 });
 
@@ -265,6 +379,8 @@ router.delete("/material-notes/:id", async (req, res): Promise<void> => {
       await tx.delete(materialsTable).where(eq(materialsTable.noteId, id));
       await tx.delete(materialNotesTable).where(eq(materialNotesTable.id, id));
     });
+    await pool.query(`DELETE FROM material_note_receipts WHERE note_id = $1`, [id])
+      .catch((err: unknown) => logger.warn({ err, noteId: id }, "receipt cleanup failed"));
     res.sendStatus(204);
   } catch (err) {
     logger.error({ err, noteId: id }, "DELETE /material-notes/:id failed");
