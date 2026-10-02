@@ -470,8 +470,8 @@ router.patch("/material-notes/:id", async (req, res): Promise<void> => {
  *
  * Body: { image: "data:image/jpeg;base64,..." }
  *
- * Llama a OpenRouter con un modelo de visión (default
- * anthropic/claude-sonnet-4-5, configurable vía OPENROUTER_VISION_MODEL).
+ * Llama a Gemini directo con un modelo de visión (default
+ * gemini-2.5-flash, configurable vía GEMINI_VISION_MODEL).
  * Pide extraer cabecera y renglones de una nota de proveedor mexicana
  * (Cemex, Acero, ferreterías, etc.) y devuelve JSON estructurado listo
  * para pre-rellenar el formulario.
@@ -480,7 +480,7 @@ router.patch("/material-notes/:id", async (req, res): Promise<void> => {
  * crea la nota automáticamente, solo extrae los datos para que el
  * dueño confirme/corrija.
  *
- * Sin OPENROUTER_API_KEY configurada → 503 con mensaje claro. El
+ * Sin GEMINI_API_KEY configurada → 503 con mensaje claro. El
  * frontend muestra el botón como "próximamente" en ese caso.
  */
 const SCAN_SYSTEM_PROMPT = `Eres un asistente experto en leer notas, recibos, facturas y remisiones de proveedores de construcción mexicanos. La imagen puede ser:
@@ -640,16 +640,13 @@ router.post("/material-notes/scan", async (req, res): Promise<void> => {
     return;
   }
 
-  // Motor principal: Gemini directo (GEMINI_API_KEY). OpenRouter queda solo
-  // como respaldo si no hay llave de Gemini — Luis dejó de usar OpenRouter
-  // (sep-2026) y la cuenta puede quedar sin saldo en cualquier momento.
+  // Motor único: Gemini directo (GEMINI_API_KEY). Sin llave → 503 claro.
   const geminiKey = process.env["GEMINI_API_KEY"];
-  const apiKey = process.env["OPENROUTER_API_KEY"];
-  if (!geminiKey && !apiKey) {
+  if (!geminiKey) {
     res.status(503).json({
       ok: false,
       pending: true,
-      message: "El escaneo automático aún no está configurado. Captura los conceptos manualmente — el admin lo activará cuando agregue la llave del servicio.",
+      message: "El escaneo automático no está configurado (falta GEMINI_API_KEY). Captura los conceptos manualmente — el admin lo activará cuando agregue la llave del servicio.",
     });
     return;
   }
@@ -668,145 +665,57 @@ router.post("/material-notes/scan", async (req, res): Promise<void> => {
     return;
   }
 
-  // Default `google/gemini-2.5-flash` — el sweet spot precio/rendimiento
-  // de OpenRouter para OCR:
-  //   • ~$0.0001 USD por imagen (5,000 facturas = 50¢)
-  //   • Latencia 3-5 seg (vs 20-25 seg de claude-sonnet)
-  //   • OCR excelente en español, lee manuscrito y facturas impresas
-  //   • Devuelve JSON estructurado limpio
-  // El admin puede subir a `anthropic/claude-sonnet-4` si requiere más
-  // precisión en notas muy mal iluminadas, a costo de ~25x el precio
-  // y 5x el tiempo. Para el 99% de los casos gemini-2.5-flash sobra.
-  const model = process.env["OPENROUTER_VISION_MODEL"] ?? "google/gemini-2.5-flash";
   const started = Date.now();
 
-  // AbortController explícito: si OpenRouter tarda demasiado (modelo
+  // AbortController explícito: si Gemini tarda demasiado (modelo
   // ocupado, factura con 20+ renglones, etc.), abortamos limpio en
   // 50 seg para que el catch agarre el error en vez de que Vercel
   // mate la función entera con un timeout opaco.
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 50_000);
+  let model = process.env["GEMINI_VISION_MODEL"] ?? "gemini-2.5-flash";
 
   try {
-    if (geminiKey) {
-      const gemini = await scanWithGemini(geminiKey, image, controller.signal);
-      if (gemini.ok) {
-        const parsed = parseScanJson(gemini.text);
-        if (!parsed) {
-          logger.warn({ model: gemini.model, content: gemini.text.slice(0, 300) }, "scan: respuesta de Gemini no parseable");
-          res.status(502).json({
-            error: "No pudimos leer la foto. Asegúrate de que se vean los renglones y el folio. Mientras, captura los conceptos manualmente.",
-          });
-          return;
-        }
-        logger.info({ ms: Date.now() - started, itemCount: parsed.items.length, confidence: parsed.confidence, model: gemini.model }, "scan: extract completo (gemini)");
-        res.json({ ok: true, ...parsed });
-        return;
-      }
-      logger.error({ status: gemini.status, detail: gemini.detail.slice(0, 300) }, "scan: Gemini rechazó la petición");
-      if (!apiKey) {
-        let userMessage = "El servicio de visión rechazó la foto. Inténtalo de nuevo en un momento.";
-        if (gemini.status === 400 || gemini.status === 403) userMessage = "API key de Gemini inválida o sin permisos. Avísale al administrador.";
-        else if (gemini.status === 429) userMessage = "Demasiados escaneos en poco tiempo. Espera 30 segundos.";
-        else if (gemini.status >= 500) userMessage = "El servicio de visión está caído. Captura manual por ahora.";
-        res.status(502).json({ error: userMessage, diagnostic: `Gemini HTTP ${gemini.status}: ${gemini.detail.slice(0, 200)}` });
-        return;
-      }
-      // Hay OpenRouter como respaldo: seguimos por esa vía.
-    }
-    if (!apiKey) { res.status(503).json({ ok: false, pending: true, message: "Escaneo no configurado." }); return; }
-    const orRes = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      signal: controller.signal,
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey}`,
-        // OpenRouter pide HTTP-Referer + X-Title como buena práctica para
-        // aparecer correctamente en su dashboard de uso.
-        "HTTP-Referer": "https://castores.info",
-        "X-Title": "Castores Control — Note OCR",
-      },
-      body: JSON.stringify({
-        model,
-        messages: [
-          {
-            role: "user",
-            content: [
-              { type: "text", text: SCAN_SYSTEM_PROMPT },
-              { type: "image_url", image_url: { url: image } },
-            ],
-          },
-        ],
-        // temperature baja: queremos extraer lo que está, no inventar.
-        temperature: 0.1,
-        max_tokens: 8000,
-      }),
-    });
-
-    if (!orRes.ok) {
-      const detail = await orRes.text().catch(() => "");
-      logger.error({ status: orRes.status, detail: detail.slice(0, 500), model }, "scan: OpenRouter rechazó la petición");
-      // Damos diagnóstico real al frontend para no dejar al usuario
-      // sin pistas. Cubrimos los casos comunes que vimos:
-      //  401 → key inválida / sin créditos
-      //  402 → sin saldo en OpenRouter
-      //  404 → modelo mal escrito (variable de entorno OPENROUTER_VISION_MODEL)
-      //  413 → imagen muy grande
-      //  429 → rate limit
+    const gemini = await scanWithGemini(geminiKey, image, controller.signal);
+    model = gemini.model;
+    if (!gemini.ok) {
+      logger.error({ status: gemini.status, detail: gemini.detail.slice(0, 300), model }, "scan: Gemini rechazó la petición");
       let userMessage = "El servicio de visión rechazó la foto. Inténtalo de nuevo en un momento.";
-      if (orRes.status === 401) userMessage = "API key de OpenRouter inválida o sin permisos. Avísale al administrador.";
-      else if (orRes.status === 402) userMessage = "OpenRouter sin saldo. Avísale al administrador para recargar.";
-      else if (orRes.status === 404) userMessage = `Modelo "${model}" no existe en OpenRouter. Revisa la variable OPENROUTER_VISION_MODEL.`;
-      else if (orRes.status === 413) userMessage = "La foto es muy pesada. Tómala con menos resolución.";
-      else if (orRes.status === 429) userMessage = "Demasiados escaneos en poco tiempo. Espera 30 segundos.";
-      else if (orRes.status >= 500) userMessage = "OpenRouter está caído. Captura manual por ahora.";
-      res.status(502).json({
-        error: userMessage,
-        diagnostic: `HTTP ${orRes.status}: ${detail.slice(0, 200)}`,
-      });
+      if (gemini.status === 400 || gemini.status === 403) userMessage = "API key de Gemini inválida o sin permisos. Avísale al administrador.";
+      else if (gemini.status === 404) userMessage = `Modelo "${model}" no existe en Gemini. Revisa la variable GEMINI_VISION_MODEL.`;
+      else if (gemini.status === 413) userMessage = "La foto es muy pesada. Tómala con menos resolución.";
+      else if (gemini.status === 429) userMessage = "Demasiados escaneos en poco tiempo. Espera 30 segundos.";
+      else if (gemini.status >= 500) userMessage = "El servicio de visión está caído. Captura manual por ahora.";
+      res.status(502).json({ error: userMessage, diagnostic: `Gemini HTTP ${gemini.status}: ${gemini.detail.slice(0, 200)}` });
       return;
     }
 
-    const data = (await orRes.json()) as {
-      choices?: Array<{ message?: { content?: string } }>;
-      usage?: { prompt_tokens?: number; completion_tokens?: number };
-    };
-    const content = data?.choices?.[0]?.message?.content ?? "";
-    const parsed = parseScanJson(content);
-
+    const parsed = parseScanJson(gemini.text);
     if (!parsed) {
-      logger.warn({ model, content: content.slice(0, 300) }, "scan: respuesta del modelo no parseable");
+      logger.warn({ model, content: gemini.text.slice(0, 300) }, "scan: respuesta de Gemini no parseable");
       res.status(502).json({
         error: "No pudimos leer la foto. Asegúrate de que se vean los renglones y el folio. Mientras, captura los conceptos manualmente.",
       });
       return;
     }
 
-    logger.info({
-      ms: Date.now() - started,
-      itemCount: parsed.items.length,
-      confidence: parsed.confidence,
-      model,
-      tokens: data.usage,
-    }, "scan: extract completo");
-
+    logger.info({ ms: Date.now() - started, itemCount: parsed.items.length, confidence: parsed.confidence, model }, "scan: extract completo (gemini)");
     res.json({ ok: true, ...parsed });
   } catch (err) {
     const ms = Date.now() - started;
-    logger.error({ err, ms, model }, "scan: excepción al llamar OpenRouter");
-    // Mensajes humanos para los modos de falla comunes. Antes mostrábamos
-    // un genérico "No se pudo procesar la foto" que no permitía ni a
-    // soporte ni al cliente saber qué fue lo que pasó.
+    logger.error({ err, ms, model }, "scan: excepción al llamar Gemini");
+    // Mensajes humanos para los modos de falla comunes, para que soporte
+    // y el cliente sepan qué pasó.
     const isAbort =
       err instanceof Error && (err.name === "AbortError" || /aborted|timeout/i.test(err.message));
     const detail = err instanceof Error ? err.message : String(err);
     let userMessage = "No se pudo procesar la foto. Inténtalo de nuevo.";
     let status = 500;
     if (isAbort) {
-      userMessage = `El servicio de visión tardó más de 50 segundos leyendo la nota. Inténtalo con una foto más nítida o un modelo más rápido (cambia OPENROUTER_VISION_MODEL a google/gemini-2.5-flash).`;
+      userMessage = "El servicio de visión tardó más de 50 segundos leyendo la nota. Inténtalo con una foto más nítida.";
       status = 504;
     } else if (/fetch|network|ENOTFOUND|ECONN/i.test(detail)) {
-      userMessage = "No se pudo conectar con OpenRouter. Revisa tu conexión.";
+      userMessage = "No se pudo conectar con el servicio de visión. Revisa tu conexión.";
       status = 502;
     }
     res.status(status).json({
