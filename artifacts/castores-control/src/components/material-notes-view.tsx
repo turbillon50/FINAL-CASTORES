@@ -744,7 +744,7 @@ function NewNoteModal({
     try {
       // Compresión client-side: la nota suele ser 3-5MB del iPhone y
       // necesitamos quedar bajo el límite de Vercel (4.5 MB request body)
-      // y reducir costo de tokens en OpenRouter.
+      // y reducir el costo de tokens del servicio de visión (Gemini).
       const dataUrl = await compressImageFile(file);
       // Se conserva la foto para guardarla junto con la nota.
       setReceiptImage(dataUrl);
