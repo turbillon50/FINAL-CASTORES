@@ -1,3 +1,4 @@
+import { ensureAgendaSchema } from "./agendaSchema";
 import { pool } from "@workspace/db";
 import { INIT_SQL_CHUNKS, SEED_ROLE_PERMISSIONS_SQL } from "../routes/admin-db-init";
 import { logger } from "./logger";
@@ -57,6 +58,13 @@ export function runStartupMigrations(): Promise<void> {
           const detail = err instanceof Error ? err.message : String(err);
           failed.push({ name: "seed-role-permissions", detail });
           logger.error({ chunk: "seed-role-permissions", detail }, "startup-migrations: seed failed");
+        }
+        try {
+          await ensureAgendaSchema();
+        } catch (err) {
+          const detail = err instanceof Error ? err.message : String(err);
+          failed.push({ name: "agenda-schema", detail });
+          logger.error({ detail }, "startup-migrations: agenda schema failed");
         }
         if (failed.length === 0) {
           migrated = true;

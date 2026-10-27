@@ -1,0 +1,35 @@
+{
+  "name": "Agenda Castores",
+  "short_name": "Agenda",
+  "id": "/agenda",
+  "scope": "/",
+  "description": "Sistema de gestión de obra para CASTORES Estructuras y Construcciones",
+  "start_url": "/agenda",
+  "display": "standalone",
+  "display_override": [
+    "standalone",
+    "minimal-ui"
+  ],
+  "orientation": "portrait-primary",
+  "background_color": "#f6f7f4",
+  "theme_color": "#128c5a",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": [
+    "business",
+    "productivity"
+  ],
+  "lang": "es-MX"
+}

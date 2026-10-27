@@ -84,7 +84,11 @@ export default function Login() {
         setLocation(`${import.meta.env.BASE_URL}sign-up`);
       }
     } else {
-      if (isSignedIn) setLocation("/dashboard");
+      if (isSignedIn) {
+        const destination = sessionStorage.getItem("castores_return_to") === "/agenda" ? "/agenda" : "/dashboard";
+        sessionStorage.removeItem("castores_return_to");
+        setLocation(destination);
+      }
     }
   }, [isLoaded, isSignedIn, hasInviteCode, setLocation]);
 

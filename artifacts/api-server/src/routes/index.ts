@@ -19,6 +19,10 @@ import pushRouter from "./push";
 import auditRouter from "./audit";
 import attendanceRouter from "./attendance";
 
+import invoiceDiagnosticRouter from "./invoice-diagnostic";
+import agendaRouter from "./agenda";
+import agendaPublicRouter from "./agenda-public";
+
 const router: IRouter = Router();
 
 // Public routes — no auth required
@@ -38,7 +42,10 @@ router.use(adminDbInitRouter);
 // El resto de endpoints de asistencia se monta abajo con requireAuth.
 
 // Protected routes — require Clerk JWT or demo mode header
+router.use(agendaPublicRouter);
+router.use(invoiceDiagnosticRouter);
 router.use(requireAuth);
+router.use(agendaRouter);
 router.use(usersRouter);
 router.use(projectsRouter);
 router.use(logsRouter);
