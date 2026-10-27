@@ -31,37 +31,36 @@ router.post("/internal/invoice-diagnostic", async (req, res) => {
     return;
   }
   try {
-    await pool.query("SELECT 1");
+    const schema = await pool.query(
+      "SELECT to_regclass('agenda_appointments') IS NOT NULL AND to_regclass('agenda_reminders') IS NOT NULL AND to_regclass('agenda_settings') IS NOT NULL AND to_regclass('agenda_inbound') IS NOT NULL AS ready",
+    );
+    const agendaSchema = schema.rows[0]?.ready === true;
     const result = await scanWithGemini(key, image, AbortSignal.timeout(50000));
     if (!result.ok) {
-      res
-        .status(502)
-        .json({
-          database: true,
-          provider: false,
-          status: result.status,
-          code: result.code,
-          model: result.model,
-        });
+      res.status(502).json({
+        database: true,
+        agendaSchema,
+        provider: false,
+        status: result.status,
+        code: result.code,
+        model: result.model,
+      });
       return;
     }
     const parsed = parseScanJson(result.text);
-    res
-      .status(parsed ? 200 : 502)
-      .json({
-        database: true,
-        provider: true,
-        model: result.model,
-        parsed: !!parsed,
-        ...(parsed ? { result: parsed } : {}),
-      });
+    res.status(parsed ? 200 : 502).json({
+      database: true,
+      agendaSchema,
+      provider: true,
+      model: result.model,
+      parsed: !!parsed,
+      ...(parsed ? { result: parsed } : {}),
+    });
   } catch (error) {
-    res
-      .status(502)
-      .json({
-        ok: false,
-        error: error instanceof Error ? error.name : "DependencyError",
-      });
+    res.status(502).json({
+      ok: false,
+      error: error instanceof Error ? error.name : "DependencyError",
+    });
   }
 });
 export default router;
