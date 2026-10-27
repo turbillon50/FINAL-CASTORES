@@ -12,6 +12,8 @@ import { resolveAuthedUser } from "../lib/authContext";
 import { hasPermission } from "../lib/permissions";
 import { canAccessProject, getAccessibleProjectIds } from "../lib/projectAccess";
 import { logger } from "../lib/logger";
+import { randomUUID } from "node:crypto";
+import { parseScanJson, scanWithGemini, scanErrorMessage } from "../lib/invoiceScan";
 
 const router: IRouter = Router();
 
@@ -483,155 +485,6 @@ router.patch("/material-notes/:id", async (req, res): Promise<void> => {
  * Sin GEMINI_API_KEY configurada → 503 con mensaje claro. El
  * frontend muestra el botón como "próximamente" en ese caso.
  */
-const SCAN_SYSTEM_PROMPT = `Eres un asistente experto en leer notas, recibos, facturas y remisiones de proveedores de construcción mexicanos. La imagen puede ser:
-- Una foto directa de una nota física (papel)
-- Un screenshot de una imagen que el proveedor mandó por WhatsApp / correo
-- Una factura PDF capturada como imagen
-- Notas impresas o escritas a mano, con tachones, sellos o firmas
-
-Tu trabajo es EXTRAER de forma intuitiva los conceptos comprados, aunque la imagen esté arrugada, mal iluminada, o tenga formato libre. Usa contexto: si dice "5 ton de cemento gris 50kg" eso es 5 toneladas (unidad=ton, qty=5, name="Cemento gris 50kg").
-
-Devuelve EXCLUSIVAMENTE un objeto JSON con esta forma exacta:
-{
-  "supplierName": string | null,    // nombre del proveedor en mayúsculas si lo ves
-  "folio": string | null,           // número de folio / nota / remisión / factura
-  "noteDate": string | null,        // ISO YYYY-MM-DD si puedes inferir; "2024-05-12" no "12/5/24"
-  "items": [
-    {
-      "name": string,               // descripción del concepto. p. ej. "Acero 5/8 grado 60", "Cemento gris 50kg", "Varilla corrugada 3/8"
-      "unit": string,                // "kg", "ton", "saco", "pza", "m³", "m", "varilla", "lt", "caja", "rollo"
-      "quantityRequested": number,   // cantidad numérica (no string)
-      "costPerUnit": number | null   // precio unitario en MXN sin signo de pesos
-    }
-  ],
-  "confidence": number               // 0..1 — qué tan seguro estás del extract completo
-}
-
-Reglas inteligentes:
-- Si solo ves el TOTAL del renglón y la cantidad, divide para sacar el unitario.
-- Si solo ves el total general y un renglón, asume que ese total es del renglón.
-- Unidades en español, minúsculas: "kgs"→"kg", "Tons"→"ton", "SACOS"→"saco", "PZAS"→"pza".
-- Si no ves precio (solo conceptos y cantidades), pon costPerUnit: null. NO inventes.
-- Si la imagen es ilegible / no es una nota / no se distingue nada útil, devuelve items: [] y confidence: 0.
-- Importante: SOLO el JSON, sin markdown fences, sin texto antes o después.`;
-
-type ScanResponse = {
-  supplierName: string | null;
-  folio: string | null;
-  noteDate: string | null;
-  items: Array<{
-    name: string;
-    unit: string;
-    quantityRequested: number;
-    costPerUnit: number | null;
-  }>;
-  confidence: number;
-};
-
-// Mapea lo que devuelve el modelo ("pieza", "PZAS", "galón", "kilos"…) a las
-// unidades que acepta el formulario (UNITS en material-notes-view.tsx). Lo
-// que no reconoce se deja en minúsculas tal cual para que el usuario lo corrija.
-const UNIT_ALIASES: Record<string, string> = {
-  pieza: "pza", piezas: "pza", pzas: "pza", pz: "pza", pc: "pza", pcs: "pza", unidad: "pza", unidades: "pza", u: "pza",
-  kilo: "kg", kilos: "kg", kgs: "kg", kilogramo: "kg", kilogramos: "kg",
-  tonelada: "ton", toneladas: "ton", tons: "ton", t: "ton",
-  metro: "m", metros: "m", mts: "m", ml: "m",
-  m2: "m²", "mt2": "m²", "metro cuadrado": "m²", "metros cuadrados": "m²",
-  m3: "m³", "mt3": "m³", "metro cubico": "m³", "metro cúbico": "m³", "metros cubicos": "m³", "metros cúbicos": "m³",
-  litro: "lt", litros: "lt", l: "lt", lts: "lt", galon: "lt", "galón": "lt", galones: "lt", gal: "lt",
-  sacos: "saco", bulto: "saco", bultos: "saco", costal: "saco", costales: "saco",
-  rollos: "rollo", cajas: "caja", juegos: "juego", kit: "juego", varillas: "varilla",
-  servicio: "serv", servicios: "serv", notas: "nota", tramos: "tramo",
-};
-function normalizeUnit(raw: string): string {
-  const u = raw.trim().toLowerCase().replace(/\.$/, "");
-  return UNIT_ALIASES[u] ?? u;
-}
-
-function parseScanJson(raw: string): ScanResponse | null {
-  // Algunos modelos siguen agregando ```json wrappers o texto antes/después.
-  // Buscamos el primer { y el último } para extraer el JSON crudo.
-  const start = raw.indexOf("{");
-  const end = raw.lastIndexOf("}");
-  if (start < 0 || end <= start) return null;
-  const slice = raw.slice(start, end + 1);
-  try {
-    const parsed = JSON.parse(slice) as Partial<ScanResponse>;
-    if (!Array.isArray(parsed.items)) return null;
-
-    // Validación de números: el modelo puede devolver NaN/Infinity
-    // string o números fuera de rango. Filtramos a finitos > 0 para
-    // que la cantidad y el costo se puedan multiplicar sin riesgo.
-    // Cualquier renglón con quantityRequested inválido se descarta.
-    const validItems = parsed.items
-      .filter((it): it is { name: string; unit: string; quantityRequested: number; costPerUnit: number | null } =>
-        !!it &&
-        typeof it.name === "string" && it.name.trim().length > 0 &&
-        typeof it.unit === "string" && it.unit.trim().length > 0 &&
-        typeof it.quantityRequested === "number" &&
-        Number.isFinite(it.quantityRequested) &&
-        it.quantityRequested > 0,
-      )
-      .map((it) => ({
-        name: it.name.trim(),
-        unit: normalizeUnit(it.unit),
-        quantityRequested: it.quantityRequested,
-        costPerUnit:
-          typeof it.costPerUnit === "number" && Number.isFinite(it.costPerUnit) && it.costPerUnit >= 0
-            ? it.costPerUnit
-            : null,
-      }));
-
-    return {
-      supplierName: typeof parsed.supplierName === "string" && parsed.supplierName.trim() ? parsed.supplierName.trim() : null,
-      folio: typeof parsed.folio === "string" && parsed.folio.trim() ? parsed.folio.trim() : null,
-      noteDate: typeof parsed.noteDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(parsed.noteDate) ? parsed.noteDate : null,
-      items: validItems,
-      confidence:
-        typeof parsed.confidence === "number" && Number.isFinite(parsed.confidence)
-          ? Math.max(0, Math.min(1, parsed.confidence))
-          : 0,
-    };
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Llama a Gemini directo (generativelanguage.googleapis.com) con la imagen
- * y el prompt de extracción. Devuelve el texto crudo del modelo o el error
- * HTTP. Modelo configurable vía GEMINI_VISION_MODEL (default gemini-2.5-flash).
- */
-async function scanWithGemini(
-  key: string,
-  imageDataUrl: string,
-  signal: AbortSignal,
-): Promise<{ ok: true; text: string; model: string } | { ok: false; status: number; detail: string; model: string }> {
-  const model = process.env["GEMINI_VISION_MODEL"] ?? "gemini-2.5-flash";
-  const m = /^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/.exec(imageDataUrl);
-  if (!m) return { ok: false, status: 400, detail: "data URL inválido", model };
-  const [, mimeType, data] = m;
-  const r = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`,
-    {
-      method: "POST",
-      signal,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ role: "user", parts: [{ text: SCAN_SYSTEM_PROMPT }, { inlineData: { mimeType, data } }] }],
-        // maxOutputTokens 8192 + thinking apagado: con 2000 tokens una factura de
-        // 16 renglones se truncaba (MAX_TOKENS) porque el "pensamiento" del
-        // modelo consume del mismo presupuesto. Medido con la factura FF147589.
-        generationConfig: { temperature: 0.1, maxOutputTokens: 8192, responseMimeType: "application/json", thinkingConfig: { thinkingBudget: 0 } },
-      }),
-    },
-  );
-  if (!r.ok) return { ok: false, status: r.status, detail: await r.text().catch(() => ""), model };
-  const j = (await r.json()) as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
-  const text = (j.candidates?.[0]?.content?.parts ?? []).map((p) => p.text ?? "").join("");
-  return { ok: true, text, model };
-}
-
 router.post("/material-notes/scan", async (req, res): Promise<void> => {
   const user = await resolveAuthedUser(req);
   if (!user) { res.status(401).json({ error: "No autenticado" }); return; }
@@ -646,7 +499,7 @@ router.post("/material-notes/scan", async (req, res): Promise<void> => {
     res.status(503).json({
       ok: false,
       pending: true,
-      message: "El escaneo automático no está configurado (falta GEMINI_API_KEY). Captura los conceptos manualmente — el admin lo activará cuando agregue la llave del servicio.",
+      message: "El escaneo automático necesita que el administrador active el servicio. Puedes capturar los conceptos manualmente.",
     });
     return;
   }
@@ -666,6 +519,7 @@ router.post("/material-notes/scan", async (req, res): Promise<void> => {
   }
 
   const started = Date.now();
+  const reference = randomUUID().slice(0, 8);
 
   // AbortController explícito: si Gemini tarda demasiado (modelo
   // ocupado, factura con 20+ renglones, etc.), abortamos limpio en
@@ -679,20 +533,14 @@ router.post("/material-notes/scan", async (req, res): Promise<void> => {
     const gemini = await scanWithGemini(geminiKey, image, controller.signal);
     model = gemini.model;
     if (!gemini.ok) {
-      logger.error({ status: gemini.status, detail: gemini.detail.slice(0, 300), model }, "scan: Gemini rechazó la petición");
-      let userMessage = "El servicio de visión rechazó la foto. Inténtalo de nuevo en un momento.";
-      if (gemini.status === 400 || gemini.status === 403) userMessage = "API key de Gemini inválida o sin permisos. Avísale al administrador.";
-      else if (gemini.status === 404) userMessage = `Modelo "${model}" no existe en Gemini. Revisa la variable GEMINI_VISION_MODEL.`;
-      else if (gemini.status === 413) userMessage = "La foto es muy pesada. Tómala con menos resolución.";
-      else if (gemini.status === 429) userMessage = "Demasiados escaneos en poco tiempo. Espera 30 segundos.";
-      else if (gemini.status >= 500) userMessage = "El servicio de visión está caído. Captura manual por ahora.";
-      res.status(502).json({ error: userMessage, diagnostic: `Gemini HTTP ${gemini.status}: ${gemini.detail.slice(0, 200)}` });
+      logger.error({ status: gemini.status, code: gemini.code, model, reference }, "scan: Gemini rechazó la petición");
+      res.status(502).json({ error: scanErrorMessage(gemini.status, gemini.code), reference });
       return;
     }
 
     const parsed = parseScanJson(gemini.text);
     if (!parsed) {
-      logger.warn({ model, content: gemini.text.slice(0, 300) }, "scan: respuesta de Gemini no parseable");
+      logger.warn({ model, reference }, "scan: respuesta de Gemini no parseable");
       res.status(502).json({
         error: "No pudimos leer la foto. Asegúrate de que se vean los renglones y el folio. Mientras, captura los conceptos manualmente.",
       });
@@ -703,7 +551,7 @@ router.post("/material-notes/scan", async (req, res): Promise<void> => {
     res.json({ ok: true, ...parsed });
   } catch (err) {
     const ms = Date.now() - started;
-    logger.error({ err, ms, model }, "scan: excepción al llamar Gemini");
+    logger.error({ errorName: err instanceof Error ? err.name : "unknown", ms, model, reference }, "scan: excepción al llamar Gemini");
     // Mensajes humanos para los modos de falla comunes, para que soporte
     // y el cliente sepan qué pasó.
     const isAbort =
@@ -720,7 +568,7 @@ router.post("/material-notes/scan", async (req, res): Promise<void> => {
     }
     res.status(status).json({
       error: userMessage,
-      diagnostic: detail.slice(0, 240),
+      reference,
       elapsedMs: ms,
       model,
     });

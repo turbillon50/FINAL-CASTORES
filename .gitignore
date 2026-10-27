@@ -49,3 +49,10 @@ Thumbs.db
 .local/
 
 .vercel
+
+# Local credentials
+.env
+.env.*
+!.env.example
+
+.test-build/

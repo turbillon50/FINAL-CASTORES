@@ -59,7 +59,7 @@ type FormItem = {
 
 const EMPTY_ITEM: FormItem = { name: "", unit: "pza", quantityRequested: "", costPerUnit: "", notes: "" };
 
-const UNITS = ["pza", "kg", "ton", "m", "m²", "m³", "lt", "saco", "rollo", "caja", "juego", "varilla", "serv", "nota", "tramo"] as const;
+const UNITS = ["pza", "kg", "ton", "m", "m²", "m³", "lt", "gal", "saco", "rollo", "caja", "juego", "varilla", "serv", "nota", "tramo"] as const;
 
 const fmtMoney = (n: number | null | undefined) => {
   if (n == null) return "—";
@@ -289,7 +289,9 @@ function NoteRow({
     if (!file) return;
     setReceiptUploading(true);
     try {
-      const dataUrl = await compressImageFile(file);
+      let dataUrl = await compressImageFile(file, { maxDim: 3000, quality: 0.88 });
+      if (dataUrl.length > 4 * 1024 * 1024) dataUrl = await compressImageFile(file, { maxDim: 2400, quality: 0.8 });
+      if (dataUrl.length > 4 * 1024 * 1024) throw new Error("La foto es demasiado grande. Fotografía la nota por secciones.");
       await customFetch(`/api/material-notes/${note.id}/receipt`, {
         method: "PUT",
         body: JSON.stringify({ image: dataUrl }),
@@ -316,7 +318,7 @@ function NoteRow({
         ? items.map((it) => ({
             name: it.name,
             unit: it.unit,
-            quantityRequested: String(it.quantityRequested),
+            quantityRequested: it.quantityRequested == null ? "" : String(it.quantityRequested),
             costPerUnit: it.costPerUnit != null ? String(it.costPerUnit) : "",
             notes: it.notes ?? "",
           }))
@@ -635,7 +637,8 @@ function NoteRow({
                         <Input type="number" min="0" step="0.01" value={it.quantityRequested} onChange={(e) => updateEditItem(i, { quantityRequested: e.target.value })} placeholder="Cantidad" className="h-10 rounded-lg border-black/10" />
                         <Select value={it.unit} onValueChange={(v) => updateEditItem(i, { unit: v })}>
                           <SelectTrigger className="h-10 rounded-lg border-black/10"><SelectValue /></SelectTrigger>
-                          <SelectContent>{UNITS.map((u) => <SelectItem key={u} value={u}>{u}</SelectItem>)}</SelectContent>
+                          <SelectContent>{it.unit && !UNITS.includes(it.unit as typeof UNITS[number]) && <SelectItem value={it.unit}>{it.unit}</SelectItem>}
+                        {UNITS.map((u) => <SelectItem key={u} value={u}>{u}</SelectItem>)}</SelectContent>
                         </Select>
                         <Input type="number" min="0" step="0.01" value={it.costPerUnit} onChange={(e) => updateEditItem(i, { costPerUnit: e.target.value })} placeholder="$/unidad" className="h-10 rounded-lg border-black/10" />
                       </div>
@@ -727,7 +730,8 @@ function NewNoteModal({
     supplierName?: string | null;
     folio?: string | null;
     noteDate?: string | null;
-    items?: Array<{ name: string; unit: string; quantityRequested: number; costPerUnit: number | null }>;
+    items?: Array<{ name: string; unit: string; quantityRequested: number | null; costPerUnit: number | null }>;
+    warnings?: string[];
     confidence?: number;
     pending?: boolean;
     message?: string;
@@ -745,7 +749,9 @@ function NewNoteModal({
       // Compresión client-side: la nota suele ser 3-5MB del iPhone y
       // necesitamos quedar bajo el límite de Vercel (4.5 MB request body)
       // y reducir el costo de tokens del servicio de visión (Gemini).
-      const dataUrl = await compressImageFile(file);
+      let dataUrl = await compressImageFile(file, { maxDim: 3000, quality: 0.88 });
+      if (dataUrl.length > 4 * 1024 * 1024) dataUrl = await compressImageFile(file, { maxDim: 2400, quality: 0.8 });
+      if (dataUrl.length > 4 * 1024 * 1024) throw new Error("La foto es demasiado grande. Fotografía la nota por secciones.");
       // Se conserva la foto para guardarla junto con la nota.
       setReceiptImage(dataUrl);
 
@@ -781,18 +787,22 @@ function NewNoteModal({
 
       // Reemplazar renglones por los extraídos. El usuario revisa y
       // edita antes de "Guardar nota".
-      setItems(extractedItems.map((it) => ({
+      const scannedRows = extractedItems.map((it) => ({
         name: it.name,
         unit: it.unit,
-        quantityRequested: String(it.quantityRequested),
+        quantityRequested: it.quantityRequested == null ? "" : String(it.quantityRequested),
         costPerUnit: it.costPerUnit != null ? String(it.costPerUnit) : "",
         notes: "",
-      })));
+      }));
+      // Additional photos append rows, preserving edits and prior sections.
+      setItems(current => [...current.filter(it => it.name.trim() || it.costPerUnit.trim() || it.quantityRequested.trim() || it.notes.trim()), ...scannedRows]);
 
       const conf = result.confidence ?? 0;
       toast({
         title: `📷 ${extractedItems.length} concepto${extractedItems.length === 1 ? "" : "s"} extraído${extractedItems.length === 1 ? "" : "s"}`,
-        description: conf >= 0.8
+        description: result.warnings?.length
+          ? `${result.warnings.length} renglones requieren completar datos. Revisa la nota antes de guardarla.`
+          : conf >= 0.8
           ? "Revisa los datos y guarda la nota."
           : "La foto se leyó pero con baja confianza — revisa cada renglón antes de guardar.",
       });
@@ -802,15 +812,15 @@ function NewNoteModal({
       // pueda mandarnos un screenshot útil si reporta un fallo.
       let msg = "No se pudo procesar la foto.";
       let diag: string | undefined;
-      const apiErr = err as { data?: { error?: string; message?: string; diagnostic?: string } };
+      const apiErr = err as { data?: { error?: string; message?: string; reference?: string } };
       if (apiErr?.data?.error) msg = apiErr.data.error;
       else if (apiErr?.data?.message) msg = apiErr.data.message;
       else if (err instanceof Error) msg = err.message;
-      if (apiErr?.data?.diagnostic) diag = apiErr.data.diagnostic;
+      if (apiErr?.data?.reference) diag = apiErr.data.reference;
       toast({
         variant: "destructive",
         title: "Error al escanear",
-        description: diag ? `${msg}\n\nDetalle: ${diag}` : msg,
+        description: diag ? `${msg}\n\nReferencia: ${diag}` : msg,
       });
     } finally {
       setScanning(false);
@@ -1033,6 +1043,7 @@ function NewNoteModal({
                     <Select value={it.unit} onValueChange={(v) => update(i, { unit: v })}>
                       <SelectTrigger className="h-10 rounded-lg border-black/10"><SelectValue /></SelectTrigger>
                       <SelectContent>
+                        {it.unit && !UNITS.includes(it.unit as typeof UNITS[number]) && <SelectItem value={it.unit}>{it.unit}</SelectItem>}
                         {UNITS.map((u) => <SelectItem key={u} value={u}>{u}</SelectItem>)}
                       </SelectContent>
                     </Select>

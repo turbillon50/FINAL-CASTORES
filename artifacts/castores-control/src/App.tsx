@@ -21,6 +21,7 @@ import AdminAccessPage from "@/pages/admin-access";
 // el dashboard, bitácora, reportes, etc. llegan en chunks separados al
 // momento de navegarlos. Esto reduce ~400kb de la primera descarga, lo
 // que se nota mucho en redes 4G de obra.
+const Agenda = lazy(() => import("@/pages/agenda"));
 const Dashboard = lazy(() => import("@/pages/dashboard"));
 const Projects = lazy(() => import("@/pages/projects/index"));
 const ProjectDetail = lazy(() => import("@/pages/projects/[id]"));
@@ -1376,8 +1377,19 @@ function ClerkQueryClientCacheInvalidator() {
  *  Uses useLayoutEffect so auth is set before any child-component effects
  *  (e.g. React Query queryFn) can fire — prevents race-condition 403s. */
 function AuthSync() {
+  const [authLocation, navigateAfterLogin] = useLocation();
   const { getToken } = useClerkAuth();
   const { isSignedIn, user: clerkUser } = useUser();
+
+  useLayoutEffect(() => {
+    if (!isSignedIn || authLocation !== "/dashboard") return;
+    try {
+      if (sessionStorage.getItem("castores_return_to") === "/agenda") {
+        sessionStorage.removeItem("castores_return_to");
+        navigateAfterLogin("/agenda", { replace: true });
+      }
+    } catch { /* Storage may be unavailable in private browsing. */ }
+  }, [isSignedIn, authLocation, navigateAfterLogin]);
 
   useLayoutEffect(() => {
     if (isSignedIn) {
@@ -1548,6 +1560,9 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
   }
 
   if (!isSignedIn) {
+    if (window.location.pathname === "/agenda") {
+      try { sessionStorage.setItem("castores_return_to", "/agenda"); } catch { /* storage unavailable */ }
+    }
     return <Redirect to="/" />;
   }
 
@@ -1665,6 +1680,7 @@ function Router() {
       <Route path="/cuenta-rechazada" component={CuentaRechazada} />
 
       {/* Protected routes */}
+      <Route path="/agenda">{() => <ProtectedRoute component={Agenda} />}</Route>
       <Route path="/dashboard">
         {() => <ProtectedRoute component={Dashboard} />}
       </Route>

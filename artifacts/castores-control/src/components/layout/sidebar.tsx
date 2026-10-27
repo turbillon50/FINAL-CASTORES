@@ -1,3 +1,4 @@
+import { CalendarDays } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/lib/auth";
 import { motion, AnimatePresence } from "framer-motion";
@@ -9,6 +10,7 @@ import { apiUrl } from "@/lib/api-url";
 
 /* ─── All navigation lives in the overlay ───────────── */
 const ALL_NAV = [
+  { href: "/agenda", label: "Agenda", desc: "Citas y visitas", roles: ["admin"], icon: <CalendarDays className="w-6 h-6" /> },
   {
     href: "/dashboard",
     label: "Panel",
