@@ -69,7 +69,8 @@ test("agenda UI creates, rereads, prepares WhatsApp and deletes without claiming
     });
     await act(settle);
     assert.match(container.textContent, /Agenda de citas/);
-    assert.match(container.textContent, /no están activados/);
+    assert.match(container.textContent, /pulsa Enviar/);
+    assert.doesNotMatch(container.textContent, /activación|automáticos|Twilio/);
     await act(async () => {
       setInput("agenda-name", "Cliente QA");
       setInput("agenda-phone", "8112345678");

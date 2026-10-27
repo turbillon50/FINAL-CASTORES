@@ -40,20 +40,6 @@ const STATUS: Record<string, string> = {
   completada: "Completada",
   no_asistio: "No asistió",
 };
-const DELIVERY: Record<string, string> = {
-  scheduled: "Programado",
-  processing: "En proceso",
-  queued: "En cola",
-  sending: "En proceso",
-  sent: "Enviado",
-  delivered: "Entregado",
-  read: "Leído",
-  failed: "No enviado",
-  undelivered: "No entregado",
-  unknown: "Entrega por verificar",
-  cancelled: "Cancelado",
-  expired: "Vencido",
-};
 function localParts(value: string, timeZone: string) {
   const parts = Object.fromEntries(
     new Intl.DateTimeFormat("en-CA", {
@@ -165,6 +151,7 @@ export default function Agenda() {
             method: editing ? "PUT" : "POST",
             body: JSON.stringify({
               ...form,
+              optIn: false,
               ...(editing ? { version: editing.version } : {}),
             }),
           },
@@ -181,7 +168,7 @@ export default function Agenda() {
       () =>
         customFetch(`/api/agenda/appointments/${a.id}`, {
           method: "PUT",
-          body: JSON.stringify({ ...formFor(a), status, version: a.version }),
+          body: JSON.stringify({ ...formFor(a), optIn: false, status, version: a.version }),
         }),
       "Estado de la cita actualizado.",
     );
@@ -233,9 +220,6 @@ export default function Agenda() {
         ? Date.parse(b.starts_at) - Date.parse(a.starts_at)
         : Date.parse(a.starts_at) - Date.parse(b.starts_at),
     );
-  const automatic = !!(
-    query.data?.whatsapp.enabled && query.data?.whatsapp.configured
-  );
   return (
     <main className="agenda-page">
       <div className="agenda-wrap">
@@ -264,9 +248,7 @@ export default function Agenda() {
           </div>
         </div>
         <p className="agenda-note">
-          {automatic
-            ? "Recordatorios automáticos a las 24 y 2 horas previas, para clientes que los autorizaron."
-            : "Los recordatorios automáticos aún no están activados. Puedes abrir WhatsApp para enviarlos personalmente."}
+          Abre WhatsApp con el recordatorio preparado y pulsa Enviar para avisar al cliente.
         </p>
         {error && (
           <div className="agenda-error" role="alert">
@@ -373,17 +355,6 @@ export default function Agenda() {
                       </select>
                     </>
                   )}
-                  <label className="agenda-check">
-                    <input
-                      type="checkbox"
-                      checked={form.optIn}
-                      onChange={(e) => patch("optIn", e.target.checked)}
-                    />
-                    <span>
-                      El cliente autorizó recibir recordatorios de esta cita por
-                      WhatsApp.
-                    </span>
-                  </label>
                   <button type="submit" className="agenda-primary">
                     {busy
                       ? "Guardando…"
@@ -417,8 +388,8 @@ export default function Agenda() {
                 disabled={query.isPending || query.isError}
               />
               <p className="agenda-note">
-                Variables: {"{cliente} {fecha} {hora} {servicio}"}. Los envíos
-                automáticos utilizan la plantilla aprobada de WhatsApp.
+                Variables: {"{cliente} {fecha} {hora} {servicio}"}. Guarda tus cambios
+                para usarlos al abrir WhatsApp.
               </p>
               <button
                 disabled={busy || template === null}
@@ -500,16 +471,6 @@ export default function Agenda() {
                       {STATUS[a.status]}
                     </span>
                   </div>
-                  <div className="agenda-delivery">
-                    {a.reminders.map((r) => (
-                      <span key={r.id}>
-                        {r.hours} h:{" "}
-                        {r.status === "scheduled" && !automatic
-                          ? "Pendiente de activación"
-                          : DELIVERY[r.status] || r.status}
-                      </span>
-                    ))}
-                  </div>
                   <div className="agenda-actions">
                     <button
                       disabled={busy}
@@ -555,7 +516,7 @@ export default function Agenda() {
                       onClick={async () => {
                         if (
                           window.confirm(
-                            `¿Eliminar la cita de ${a.name}? Se cancelarán sus recordatorios pendientes.`,
+                            `¿Eliminar la cita de ${a.name}?`,
                           )
                         ) {
                           const ok = await perform(
