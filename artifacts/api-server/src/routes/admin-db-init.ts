@@ -1,4 +1,3 @@
-import { AGENDA_SQL } from "../lib/agenda";
 import { Router, type IRouter } from "express";
 import { pool } from "@workspace/db";
 
@@ -332,7 +331,6 @@ export const INIT_SQL = `${INIT_SQL_BASE}\n\n${INIT_SQL_ATTENDANCE}`;
 
 export const INIT_SQL_CHUNKS: Array<{ name: string; sql: string }> = [
   { name: "base-schema", sql: INIT_SQL_BASE },
-  { name: "agenda-schema", sql: AGENDA_SQL },
   { name: "attendance-schema", sql: INIT_SQL_ATTENDANCE },
   // Foto de la factura/nota física de cada nota de mostrador. Tabla aparte
   // (no columna en material_notes) para que el listado de notas no cargue

@@ -1,3 +1,4 @@
+import { ensureAgendaSchema } from "../artifacts/api-server/src/lib/agendaSchema.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
 import express from "express";
@@ -60,12 +61,54 @@ test("agenda HTTP + Postgres persistence, ownership, scheduling and webhooks", a
   };
   let appointment;
   try {
-    await t.test("invoice infrastructure diagnostic denies missing and incorrect secrets", async () => {
-      delete process.env.CRON_SECRET;
-      assert.equal((await request('/internal/invoice-diagnostic','POST',{image:'data:image/jpeg;base64,YQ=='})).status,401);
-      process.env.CRON_SECRET='test-secret';
-      assert.equal((await request('/internal/invoice-diagnostic','POST',{}, {Authorization:'Bearer wrong'})).status,401);
-    });
+    await t.test(
+      "schema setup retries after an interrupted first connection",
+      async () => {
+        const originalConnect = pool.connect;
+        pool.connect = async () => {
+          throw new Error("TLS connection interrupted");
+        };
+        try {
+          await assert.rejects(
+            ensureAgendaSchema(),
+            /TLS connection interrupted/,
+          );
+        } finally {
+          pool.connect = originalConnect;
+        }
+        await ensureAgendaSchema();
+        assert.ok(
+          (await pool.query("SELECT to_regclass('agenda_reminders') AS name"))
+            .rows[0].name,
+        );
+      },
+    );
+    await t.test(
+      "invoice infrastructure diagnostic denies missing and incorrect secrets",
+      async () => {
+        delete process.env.CRON_SECRET;
+        assert.equal(
+          (
+            await request("/internal/invoice-diagnostic", "POST", {
+              image: "data:image/jpeg;base64,YQ==",
+            })
+          ).status,
+          401,
+        );
+        process.env.CRON_SECRET = "test-secret";
+        assert.equal(
+          (
+            await request(
+              "/internal/invoice-diagnostic",
+              "POST",
+              {},
+              { Authorization: "Bearer wrong" },
+            )
+          ).status,
+          401,
+        );
+      },
+    );
     await t.test("non-admins cannot read the private agenda", async () => {
       assert.equal(
         (await request("/agenda", "GET", null, { "x-test-role": "worker" }))
@@ -219,14 +262,18 @@ test("agenda HTTP + Postgres persistence, ownership, scheduling and webhooks", a
           params,
         );
         const call = () =>
-          fetch(origin + "/api/agenda/webhooks/inbound", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/x-www-form-urlencoded",
-              "x-twilio-signature": signature,
+          fetch(
+            origin +
+              "/api/agenda/webhooks/inbound?path=agenda%2Fwebhooks%2Finbound",
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/x-www-form-urlencoded",
+                "x-twilio-signature": signature,
+              },
+              body: new URLSearchParams(params),
             },
-            body: new URLSearchParams(params),
-          });
+          );
         assert.equal((await call()).status, 200);
         assert.equal((await call()).status, 200);
         const row = (

@@ -1,3 +1,4 @@
+import { ensureAgendaSchema } from "../lib/agendaSchema";
 import { Router, type IRouter } from "express";
 import {
   secureEqual,
@@ -17,6 +18,7 @@ router.get("/agenda/cron", async (req, res) => {
     return;
   }
   res.setHeader("Cache-Control", "no-store");
+  await ensureAgendaSchema();
   res.json(await runAgendaReminders());
 });
 router.post("/agenda/webhooks/:kind", async (req, res) => {
@@ -34,6 +36,7 @@ router.post("/agenda/webhooks/:kind", async (req, res) => {
     res.sendStatus(403);
     return;
   }
+  await ensureAgendaSchema();
   if (req.params.kind === "status")
     await recordDelivery(
       String(req.query.rid || ""),

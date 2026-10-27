@@ -1,3 +1,4 @@
+import { ensureAgendaSchema } from "../lib/agendaSchema";
 import { Router, type IRouter, type Request, type Response } from "express";
 import { randomBytes, randomUUID } from "node:crypto";
 import { pool } from "@workspace/db";
@@ -20,6 +21,17 @@ router.use("/agenda", async (req, res, next) => {
       .json({ error: "La agenda es privada para administradores." });
     return;
   }
+  try {
+    await ensureAgendaSchema();
+  } catch {
+    res
+      .status(503)
+      .json({
+        error:
+          "La agenda se está preparando. Espera unos segundos e intenta de nuevo.",
+      });
+    return;
+  }
   res.locals.agendaOwner = user.id;
   res.setHeader("Cache-Control", "no-store");
   next();
@@ -37,12 +49,9 @@ function endpoint(fn: (req: Request, res: Response) => Promise<void>) {
         { errorName: error instanceof Error ? error.name : "unknown" },
         "agenda: request failed",
       );
-      res
-        .status(500)
-        .json({
-          error:
-            "No se pudo guardar o consultar la agenda. Inténtalo de nuevo.",
-        });
+      res.status(500).json({
+        error: "No se pudo guardar o consultar la agenda. Inténtalo de nuevo.",
+      });
     }
   };
 }

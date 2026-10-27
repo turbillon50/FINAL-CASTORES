@@ -1,3 +1,4 @@
+import { ensureAgendaSchema } from "../lib/agendaSchema";
 import { Router, type IRouter } from "express";
 import { pool } from "@workspace/db";
 import { secureEqual } from "../lib/agendaWhatsApp";
@@ -31,6 +32,7 @@ router.post("/internal/invoice-diagnostic", async (req, res) => {
     return;
   }
   try {
+    await ensureAgendaSchema();
     const schema = await pool.query(
       "SELECT to_regclass('agenda_appointments') IS NOT NULL AND to_regclass('agenda_reminders') IS NOT NULL AND to_regclass('agenda_settings') IS NOT NULL AND to_regclass('agenda_inbound') IS NOT NULL AS ready",
     );

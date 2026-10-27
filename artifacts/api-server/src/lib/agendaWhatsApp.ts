@@ -33,7 +33,17 @@ export function validateWhatsAppSignature(
   const token = process.env["TWILIO_AUTH_TOKEN"];
   const origin = process.env["AGENDA_PUBLIC_URL"]?.replace(/\/$/, "");
   if (!token || !origin || !origin.startsWith("https://")) return false;
-  return validateRequest(token, signature, origin + originalUrl, body);
+  const external = new URL(originalUrl, origin);
+  if (external.origin !== origin) return false;
+  // Vercel adds its captured rewrite parameter to req.originalUrl. It was not
+  // present in the public URL signed by Twilio; retain all actual query fields.
+  if (
+    external.searchParams.get("path") ===
+    external.pathname.replace(/^\/api\//, "")
+  ) {
+    external.searchParams.delete("path");
+  }
+  return validateRequest(token, signature, external.toString(), body);
 }
 
 // Atomic claim + persistent outbox. A network timeout is ambiguous (Twilio may
@@ -47,7 +57,9 @@ type SendReminder = (options: {
 }) => Promise<{ sid: string; status: string }>;
 export async function runAgendaReminders(send?: SendReminder) {
   // Release interrupted claims even while automatic sending is disabled.
-  await pool.query("UPDATE agenda_reminders SET status='unknown',error_code='INTERRUPTED',updated_at=now() WHERE status='processing' AND claimed_at < now()-interval '10 minutes'");
+  await pool.query(
+    "UPDATE agenda_reminders SET status='unknown',error_code='INTERRUPTED',updated_at=now() WHERE status='processing' AND claimed_at < now()-interval '10 minutes'",
+  );
   const readiness = whatsappReadiness();
   if (!readiness.enabled || !readiness.configured)
     return { skipped: true, sent: 0, reason: "not_configured" };
